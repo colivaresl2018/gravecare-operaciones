@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GraveCare - Revisión de Informes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .loading-spinner { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal { animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</head>
+<body class="bg-[#f8faf8] text-[#191c1b]">
+
+  <header class="bg-[#002d1a] text-white px-4 py-4 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined">fact_check</span>
+        <h1 class="font-bold text-lg">GRAVECARE <span class="text-sm font-normal text-[#a4d1b5]">| Revisión de Informes</span></h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="user-badge" class="text-xs bg-[#1a432f] px-3 py-1 rounded-full text-[#a4d1b5]">Supervisor</span>
+        <button onclick="logout()" class="text-[#a4d1b5] hover:bg-[#1a432f] p-2 rounded-lg transition">
+          <span class="material-symbols-outlined">logout</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="acceso-denegado" class="hidden max-w-md mx-auto mt-16 text-center px-6">
+    <h2 class="text-xl font-bold text-[#002d1a] mb-2">Acceso restringido</h2>
+    <p class="text-[#4e6451] mb-6">Módulo exclusivo para Supervisores y Administradores.</p>
+    <a href="portal.html" class="inline-block bg-[#002d1a] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#1a432f] transition">Volver al Portal</a>
+  </div>
+
+  <main id="contenido-principal" class="max-w-5xl mx-auto p-4">
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6 border-b border-[#c1c8c1]/40">
+      <button onclick="filtrarPorEstado('pendiente_revision', event)" class="tab-btn active px-4 py-2 font-semibold text-sm border-b-2 border-[#002d1a] text-[#002d1a]">
+        <span class="material-symbols-outlined text-base align-middle mr-1">pending_actions</span> Pendientes <span id="count-pendiente_revision" class="ml-2 bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+      </button>
+      <button onclick="filtrarPorEstado('aprobado', event)" class="tab-btn px-4 py-2 font-semibold text-sm border-b-2 border-transparent text-[#4e6451] hover:text-[#002d1a]">
+        <span class="material-symbols-outlined text-base align-middle mr-1">check_circle</span> Aprobados <span id="count-aprobado" class="ml-2 bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+      </button>
+      <button onclick="filtrarPorEstado('rechazado', event)" class="tab-btn px-4 py-2 font-semibold text-sm border-b-2 border-transparent text-[#4e6451] hover:text-[#002d1a]">
+        <span class="material-symbols-outlined text-base align-middle mr-1">cancel</span> Rechazados <span id="count-rechazado" class="ml-2 bg-red-100 text-red-900 px-2 py-0.5 rounded-full text-xs font-bold">0</span>
+      </button>
+    </div>
+
+    <!-- Grid -->
+    <div id="informes-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="col-span-full text-center py-12">
+        <div class="w-8 h-8 mx-auto mb-3 rounded-full border-4 border-[#002d1a]/20 border-t-[#002d1a] loading-spinner"></div>
+        <p class="text-[#4e6451]">Cargando informes...</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Detallado -->
+  <div id="modal-revision" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-auto">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full my-8 modal">
+      <div class="bg-[#002d1a] text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
+        <h2 id="modal-titulo" class="font-bold text-lg">Revisión de Informe</h2>
+        <button onclick="cerrarModal()" class="text-[#a4d1b5] hover:bg-[#1a432f] p-2 rounded-lg transition">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto max-h-[calc(100vh-300px)]">
+        <!-- Info General -->
+        <div class="bg-[#f8faf8] border border-[#c1c8c1]/40 rounded-xl p-4 mb-4">
+          <p class="text-xs uppercase tracking-wider font-semibold text-[#4e6451] mb-2">Información General</p>
+          <div class="space-y-1 text-sm">
+            <p><span class="font-semibold">Difunto:</span> <span id="modal-difunto">-</span></p>
+            <p><span class="font-semibold">Cementerio:</span> <span id="modal-cementerio">-</span></p>
+            <p><span class="font-semibold">Ubicación:</span> <span id="modal-sector">-</span>, <span id="modal-lote">-</span></p>
+            <p><span class="font-semibold">Operador:</span> <span id="modal-operador">-</span></p>
+            <p><span class="font-semibold">Fecha:</span> <span id="modal-fecha">-</span></p>
+          </div>
+        </div>
+
+        <!-- Coordenadas -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <p class="text-xs uppercase tracking-wider font-semibold text-blue-900 mb-2">Ubicación GPS</p>
+          <p class="text-sm font-mono text-blue-900">
+            <span id="modal-lat">-</span>, <span id="modal-lng">-</span>
+            <span id="modal-accuracy" class="ml-2 text-xs text-blue-700">(±-- m)</span>
+          </p>
+          <a id="modal-maps-link" href="#" target="_blank" class="inline-block mt-2 text-xs text-blue-600 hover:underline">
+            <span class="material-symbols-outlined text-sm align-middle">map</span> Ver en Google Maps
+          </a>
+        </div>
+
+        <!-- Fotos -->
+        <div class="mb-4">
+          <p class="text-xs uppercase tracking-wider font-semibold text-[#4e6451] mb-3">Fotos Capturadas</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="text-center">
+              <img id="modal-foto-antes" src="" alt="Antes" class="w-full h-40 object-cover rounded-lg border border-[#c1c8c1]">
+              <p class="text-xs font-semibold mt-1">1. Antes</p>
+              <p id="modal-exif-antes" class="text-[10px] text-amber-600"></p>
+            </div>
+            <div class="text-center">
+              <img id="modal-foto-despues" src="" alt="Después" class="w-full h-40 object-cover rounded-lg border border-[#c1c8c1]">
+              <p class="text-xs font-semibold mt-1">2. Después</p>
+              <p id="modal-exif-despues" class="text-[10px] text-amber-600"></p>
+            </div>
+            <div class="text-center">
+              <img id="modal-foto-flores" src="" alt="Flores" class="w-full h-40 object-cover rounded-lg border border-[#c1c8c1]">
+              <p class="text-xs font-semibold mt-1">3. Detalle Flores</p>
+              <p id="modal-exif-flores" class="text-[10px] text-amber-600"></p>
+            </div>
+            <div class="text-center">
+              <img id="modal-foto-general" src="" alt="General" class="w-full h-40 object-cover rounded-lg border border-[#c1c8c1]">
+              <p class="text-xs font-semibold mt-1">4. Vista General</p>
+              <p id="modal-exif-general" class="text-[10px] text-amber-600"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tareas -->
+        <div class="bg-[#f8faf8] border border-[#c1c8c1]/40 rounded-xl p-4 mb-4">
+          <p class="text-xs uppercase tracking-wider font-semibold text-[#4e6451] mb-2">Tareas Realizadas</p>
+          <div class="space-y-1 text-sm">
+            <p id="modal-tarea-limpieza">✓ Limpieza profunda</p>
+            <p id="modal-tarea-retiro">✓ Retiro de maleza</p>
+            <p id="modal-tarea-flores">✓ Ornamentación floral</p>
+            <p id="modal-tarea-riego">✓ Riego del perímetro</p>
+          </div>
+        </div>
+
+        <!-- Nota -->
+        <div class="bg-[#f8faf8] border border-[#c1c8c1]/40 rounded-xl p-4 mb-4">
+          <p class="text-xs uppercase tracking-wider font-semibold text-[#4e6451] mb-2">Nota del Operador</p>
+          <p id="modal-nota" class="text-sm text-[#414943]">-</p>
+        </div>
+
+        <!-- Rechazo comentario -->
+        <div id="comentario-section" class="hidden bg-[#f8faf8] border border-[#c1c8c1]/40 rounded-xl p-4 mb-4">
+          <p class="text-xs uppercase tracking-wider font-semibold text-[#4e6451] mb-2">Motivo del Rechazo</p>
+          <p id="modal-comentario-supervisor" class="text-sm text-[#414943]">-</p>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div id="acciones-section" class="flex gap-3 border-t border-[#c1c8c1]/40 p-6 bg-[#f8faf8] rounded-b-2xl">
+        <button onclick="rechazarInforme()" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition">
+          <span class="material-symbols-outlined">cancel</span> Rechazar
+        </button>
+        <button onclick="abrirModalAprobacion()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition">
+          <span class="material-symbols-outlined">check_circle</span> Aprobar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Aprobación -->
+  <div id="modal-aprobacion" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full modal">
+      <div class="bg-emerald-500 text-white px-6 py-4 rounded-t-2xl">
+        <h2 class="font-bold text-lg">Aprobar Informe</h2>
+      </div>
+      <div class="p-6">
+        <p class="text-sm text-[#414943] mb-4">¿Confirmas la aprobación del servicio para la entrega final al cliente?</p>
+        <textarea id="comentario-aprobacion" rows="3" class="w-full text-xs p-2.5 border border-[#c1c8c1] rounded-lg focus:outline-none focus:border-[#002d1a] mb-4" placeholder="Comentarios opcionales..."></textarea>
+      </div>
+      <div class="flex gap-3 border-t border-[#c1c8c1]/40 p-6">
+        <button onclick="cerrarModalAprobacion()" class="flex-1 bg-[#e0e0e0] hover:bg-[#d0d0d0] text-[#191c1b] py-2.5 rounded-lg font-semibold text-sm transition">Cancelar</button>
+        <button onclick="aprobarInforme()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg font-semibold text-sm transition">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Rechazo -->
+  <div id="modal-rechazo" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-red-500 text-white px-6 py-4 rounded-t-2xl">
+      <h2 class="font-bold text-lg">Rechazar Informe</h2>
+    </div>
+    <div class="p-6">
+      <p class="text-sm text-[#414943] mb-4">Indica la observación técnica para que el operador repita el trabajo:</p>
+      <textarea id="comentario-rechazo" rows="3" class="w-full text-xs p-2.5 border border-[#c1c8c1] rounded-lg focus:outline-none focus:border-[#002d1a] mb-4" placeholder="Motivo del rechazo..."></textarea>
+    </div>
+    <div class="flex gap-3 border-t border-[#c1c8c1]/40 p-6">
+      <button onclick="cerrarModalRechazo()" class="flex-1 bg-[#e0e0e0] hover:bg-[#d0d0d0] text-[#191c1b] py-2.5 rounded-lg font-semibold text-sm transition">Cancelar</button>
+      <button onclick="procesarRechazo()" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg font-semibold text-sm transition">Rechazar</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db } from "./js/firebaseConfig.js";
+    import { requireStaffAccess } from "./js/portal-common.js";
+    import { collection, doc, getDocs, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    let estadoFiltro = 'pendiente_revision';
+    let informesActuales = [];
+    let informeSeleccionado = null;
+    let currentUser = null;
+    let currentStaffProfile = null;
+
+    async function cargarInformes() {
+      const container = document.getElementById('informes-container');
+      container.innerHTML = '<div class="col-span-full text-center py-12"><div class="w-8 h-8 mx-auto mb-3 rounded-full border-4 border-[#002d1a]/20 border-t-[#002d1a] loading-spinner"></div><p class="text-[#4e6451]">Cargando informes...</p></div>';
+
+      try {
+        const q = query(
+          collection(db, 'informes'),
+          where('estado', '==', estadoFiltro),
+          orderBy('fechaCaptura', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        informesActuales = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        if (informesActuales.length === 0) {
+          container.innerHTML = '<div class="col-span-full text-center py-12"><span class="material-symbols-outlined text-6xl text-[#c1c8c1]">inbox</span><p class="text-[#4e6451] mt-2">No hay informes en este estado</p></div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        informesActuales.forEach(informe => {
+          container.appendChild(crearTarjetaInforme(informe));
+        });
+
+      } catch (error) {
+        console.error('Error:', error);
+        container.innerHTML = '<div class="col-span-full text-center py-12 text-red-500">Error cargando informes</div>';
+      }
+    }
+
+    function crearTarjetaInforme(informe) {
+      const div = document.createElement('div');
+      div.className = 'bg-white border border-[#c1c8c1]/40 rounded-xl p-4 shadow-sm hover:shadow-md transition cursor-pointer';
+      
+      const fechaCaptura = new Date(informe.fechaCaptura).toLocaleDateString('es-CL', {
+        year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+
+      let badgeColor = 'bg-amber-100 text-amber-900';
+      let badgeTexto = 'Pendiente';
+      if (informe.estado === 'aprobado') {
+        badgeColor = 'bg-emerald-100 text-emerald-900';
+        badgeTexto = 'Aprobado';
+      } else if (informe.estado === 'rechazado') {
+        badgeColor = 'bg-red-100 text-red-900';
+        badgeTexto = 'Rechazado';
+      }
+
+      div.innerHTML = `
+        <div class="flex justify-between items-start mb-2" onclick="abrirModalRevision('${informe.id}')">
+          <span class="text-xs uppercase tracking-wider font-semibold text-[#4e6451]">${(informe.informeId || informe.id).substring(0, 12)}</span>
+          <span class="${badgeColor} text-xs font-bold px-2 py-0.5 rounded-full">${badgeTexto}</span>
+        </div>
+        <h3 class="text-base font-bold text-[#002d1a] mb-1 line-clamp-2">${informe.difunto || 'Sin nombre'}</h3>
+        <p class="text-xs text-[#414943] mb-3">${informe.cementerio || '-'} · ${informe.sector || '-'}</p>
+        
+        <div class="grid grid-cols-4 gap-2 mb-3">
+          ${informe.fotos?.antes?.url ? `<img src="${informe.fotos.antes.url}" class="w-full h-12 object-cover rounded">` : '<div class="w-full h-12 bg-[#f2f4f2] rounded"></div>'}
+          ${informe.fotos?.despues?.url ? `<img src="${informe.fotos.despues.url}" class="w-full h-12 object-cover rounded">` : '<div class="w-full h-12 bg-[#f2f4f2] rounded"></div>'}
+          ${informe.fotos?.flores?.url ? `<img src="${informe.fotos.flores.url}" class="w-full h-12 object-cover rounded">` : '<div class="w-full h-12 bg-[#f2f4f2] rounded"></div>'}
+          ${informe.fotos?.general?.url ? `<img src="${informe.fotos.general.url}" class="w-full h-12 object-cover rounded">` : '<div class="w-full h-12 bg-[#f2f4f2] rounded"></div>'}
+        </div>
+
+        <div class="text-xs text-[#4e6451] flex items-center justify-between">
+          <span>${informe.operadorNombre || '-'}</span>
+          <span>${fechaCaptura}</span>
+        </div>
+      `;
+      return div;
+    }
+
+    async function abrirModalRevision(informeId) {
+      const informe = informesActuales.find(i => i.id === informeId);
+      if (!informe) return;
+      informeSeleccionado = informe;
+
+      document.getElementById('modal-titulo').textContent = `Informe #${(informe.informeId || informe.id).substring(0, 12)}`;
+      document.getElementById('modal-difunto').textContent = informe.difunto || '-';
+      document.getElementById('modal-cementerio').textContent = informe.cementerio || '-';
+      document.getElementById('modal-sector').textContent = informe.sector || '-';
+      document.getElementById('modal-lote').textContent = informe.lote || '-';
+      document.getElementById('modal-operador').textContent = informe.operadorNombre || '-';
+      document.getElementById('modal-fecha').textContent = new Date(informe.fechaCaptura).toLocaleString('es-CL');
+
+      if (informe.coordenadas) {
+        document.getElementById('modal-lat').textContent = informe.coordenadas.lat?.toFixed(5) || '-';
+        document.getElementById('modal-lng').textContent = informe.coordenadas.lng?.toFixed(5) || '-';
+        document.getElementById('modal-accuracy').textContent = `(±${informe.coordenadas.accuracy || '?'} m)`;
+        document.getElementById('modal-maps-link').href = `https://maps.google.com/?q=${informe.coordenadas.lat},${informe.coordenadas.lng}`;
+      }
+
+      if (informe.fotos?.antes?.url) document.getElementById('modal-foto-antes').src = informe.fotos.antes.url;
+      if (informe.fotos?.despues?.url) document.getElementById('modal-foto-despues').src = informe.fotos.despues.url;
+      if (informe.fotos?.flores?.url) document.getElementById('modal-foto-flores').src = informe.fotos.flores.url;
+      if (informe.fotos?.general?.url) document.getElementById('modal-foto-general').src = informe.fotos.general.url;
+
+      const tareas = informe.tareas || {};
+      document.getElementById('modal-tarea-limpieza').textContent = (tareas.limpieza ? '✓' : '✗') + ' Limpieza profunda';
+      document.getElementById('modal-tarea-retiro').textContent = (tareas.retiro ? '✓' : '✗') + ' Retiro de maleza';
+      document.getElementById('modal-tarea-flores').textContent = (tareas.flores ? '✓' : '✗') + ' Ornamentación floral';
+      document.getElementById('modal-tarea-riego').textContent = (tareas.riego ? '✓' : '✗') + ' Riego del perímetro';
+
+      document.getElementById('modal-nota').textContent = informe.nota || '(Sin observaciones)';
+
+      const acciones = document.getElementById('acciones-section');
+      const motivo = document.getElementById('comentario-section');
+      if (informe.estado === 'pendiente_revision') {
+        acciones.classList.remove('hidden');
+        motivo.classList.add('hidden');
+      } else {
+        acciones.classList.add('hidden');
+        motivo.classList.remove('hidden');
+        document.getElementById('modal-comentario-supervisor').textContent = informe.comentarioSupervisor || '(Sin comentarios)';
+      }
+
+      document.getElementById('modal-revision').classList.remove('hidden');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-revision').classList.add('hidden');
+      informeSeleccionado = null;
+    }
+
+    function abrirModalAprobacion() { document.getElementById('modal-aprobacion').classList.remove('hidden'); }
+    function cerrarModalAprobacion() { document.getElementById('modal-aprobacion').classList.add('hidden'); }
+    function rechazarInforme() { document.getElementById('modal-rechazo').classList.remove('hidden'); }
+    function cerrarModalRechazo() { document.getElementById('modal-rechazo').classList.add('hidden'); }
+
+    async function aprobarInforme() {
+      if (!informeSeleccionado) return;
+      try {
+        const ahora = new Date().toISOString();
+        const comentario = document.getElementById('comentario-aprobacion').value.trim();
+
+        // 1. Actualizar 'informes'
+        await updateDoc(doc(db, 'informes', informeSeleccionado.id), {
+          estado: 'aprobado',
+          supervisorId: currentUser.uid,
+          supervisorNombre: currentStaffProfile.nombre || currentUser.email,
+          fechaAprobacion: ahora,
+          comentarioSupervisor: comentario
+        });
+
+        // 2. ACTUALIZAR DIRECTO EN 'ordenes'
+        if (informeSeleccionado.ordenId) {
+          await updateDoc(doc(db, 'ordenes', informeSeleccionado.ordenId), {
+            estado: 'completada',
+            estadoInforme: 'aprobado',
+            fechaAprobacion: ahora
+          });
+        }
+
+        alert('✓ Informe aprobado');
+        cerrarModalAprobacion();
+        cerrarModal();
+        cargarInformes();
+        actualizarContadores();
+      } catch (e) {
+        console.error(e);
+        alert('Error al aprobar informe');
+      }
+    }
+
+    async function procesarRechazo() {
+      if (!informeSeleccionado) return;
+      const comentario = document.getElementById('comentario-rechazo').value.trim();
+      if (!comentario) {
+        alert('Por favor indica el motivo del rechazo.');
+        return;
+      }
+
+      try {
+        const ahora = new Date().toISOString();
+
+        // 1. Actualizar 'informes'
+        await updateDoc(doc(db, 'informes', informeSeleccionado.id), {
+          estado: 'rechazado',
+          supervisorId: currentUser.uid,
+          supervisorNombre: currentStaffProfile.nombre || currentUser.email,
+          fechaRechazo: ahora,
+          comentarioSupervisor: comentario
+        });
+
+        // 2. ACTUALIZAR DIRECTO EN 'ordenes'
+        if (informeSeleccionado.ordenId) {
+          await updateDoc(doc(db, 'ordenes', informeSeleccionado.ordenId), {
+            estado: 'rechazado',
+            estadoInforme: 'rechazado',
+            motivoRechazo: comentario
+          });
+        }
+
+        alert('✓ Informe rechazado');
+        cerrarModalRechazo();
+        cerrarModal();
+        cargarInformes();
+        actualizarContadores();
+      } catch (e) {
+        console.error(e);
+        alert('Error al rechazar informe');
+      }
+    }
+
+    function filtrarPorEstado(estado, evt) {
+      estadoFiltro = estado;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-[#002d1a]', 'text-[#002d1a]');
+        btn.classList.add('border-transparent', 'text-[#4e6451]');
+      });
+      const btn = evt?.target?.closest('button');
+      if (btn) {
+        btn.classList.remove('border-transparent', 'text-[#4e6451]');
+        btn.classList.add('border-[#002d1a]', 'text-[#002d1a]');
+      }
+      cargarInformes();
+    }
+
+    async function actualizarContadores() {
+      try {
+        for (const estado of ['pendiente_revision', 'aprobado', 'rechazado']) {
+          const q = query(collection(db, 'informes'), where('estado', '==', estado));
+          const snap = await getDocs(q);
+          const el = document.getElementById(`count-${estado}`);
+          if (el) el.textContent = snap.size;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    window.filtrarPorEstado = filtrarPorEstado;
+    window.cerrarModal = cerrarModal;
+    window.abrirModalAprobacion = abrirModalAprobacion;
+    window.cerrarModalAprobacion = cerrarModalAprobacion;
+    window.aprobarInforme = aprobarInforme;
+    window.rechazarInforme = rechazarInforme;
+    window.cerrarModalRechazo = cerrarModalRechazo;
+    window.procesarRechazo = procesarRechazo;
+    window.abrirModalRevision = abrirModalRevision;
+
+    requireStaffAccess((user, staffProfile) => {
+      if (staffProfile.rol !== 'supervisor' && staffProfile.rol !== 'administrador') {
+        document.getElementById('contenido-principal').classList.add('hidden');
+        document.getElementById('acceso-denegado').classList.remove('hidden');
+        return;
+      }
+      currentUser = user;
+      currentStaffProfile = staffProfile;
+      document.getElementById('user-badge').textContent = staffProfile.nombre || user.email;
+      cargarInformes();
+      actualizarContadores();
+    });
+
+    function logout() {
+      import("./js/auth.js").then(({ logoutUser }) => {
+        logoutUser().then(() => window.location.href = 'login.html');
+      });
+    }
+    window.logout = logout;
+  </script>
+</body>
+</html>

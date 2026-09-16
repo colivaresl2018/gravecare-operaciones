@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GraveCare - Portal de Operaciones</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #002d1a;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .loading {
+      text-align: center;
+      color: white;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 20px;
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading">
+    <div class="spinner"></div>
+    <p>Cargando GraveCare...</p>
+  </div>
+
+  <script type="module">
+    import { observeAuthState } from "./js/auth.js";
+    import { ROLES_STAFF, getStaffProfile } from "./js/portal-common.js";
+
+    // Verifica la sesión REAL de Firebase Auth (no localStorage) y el
+    // perfil de staff en Firestore, igual que hace login.html.
+    observeAuthState(async (user) => {
+      if (!user) {
+        window.location.replace("/login.html");
+        return;
+      }
+
+      try {
+        const staffProfile = await getStaffProfile(user.uid);
+        if (staffProfile && staffProfile.activo && ROLES_STAFF.includes(staffProfile.rol)) {
+          window.location.replace("/portal.html");
+        } else {
+          window.location.replace("/login.html");
+        }
+      } catch (err) {
+        console.error("Error verificando sesión:", err);
+        window.location.replace("/login.html");
+      }
+    });
+  </script>
+</body>
+</html>

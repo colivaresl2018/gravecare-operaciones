@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Operadores | Portal de Operaciones GraveCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .breadcrumb {
+      background-color: var(--color-bg-white);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
+    }
+    .breadcrumb span { color: var(--color-text-light); }
+    .layout-operadores {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .layout-operadores { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="gravecare-header">
+    <div class="gravecare-header__content">
+      <a href="portal.html" class="gravecare-header__logo">GraveCare</a>
+      <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
+    </div>
+  </header>
+
+  <div class="breadcrumb">
+    <div class="container">
+      <a href="portal.html">Inicio</a> <span>/</span> <span>Operadores</span>
+    </div>
+  </div>
+
+  <main class="container mt-8 mb-8">
+    <h2 class="mb-2">Operadores</h2>
+    <p class="mb-8">Gestión del equipo operativo.</p>
+
+    <div id="acceso-denegado-admin" class="alert alert--error hidden">
+      Solo los administradores pueden crear o editar cuentas de staff. Puedes ver la lista, pero no modificarla.
+    </div>
+
+    <div class="layout-operadores">
+      <!-- Listado -->
+      <div class="card" style="padding: 0;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="staff-tbody">
+            <tr><td colspan="4" style="color: var(--color-text-light);">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Formulario Nuevo Operador (solo administrador) -->
+      <div id="panel-nuevo-staff" class="card">
+        <h3 class="mb-4">+ Nueva Cuenta de Staff</h3>
+        <form id="form-nuevo-staff">
+          <input id="nuevo-nombre" type="text" placeholder="Nombre completo" required class="mb-3">
+          <input id="nuevo-email" type="email" placeholder="Correo electrónico" required class="mb-3">
+          <input id="nuevo-telefono" type="tel" placeholder="Teléfono" class="mb-3">
+          <input id="nuevo-password" type="text" placeholder="Contraseña temporal (mín. 6)" required minlength="6" class="mb-3">
+          <select id="nuevo-rol" required class="mb-4">
+            <option value="operador">Operador</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="administrador">Administrador</option>
+          </select>
+          <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">
+            Crear Cuenta
+          </button>
+          <p id="staff-msg" class="mt-2 hidden" style="font-size: 0.75rem;"></p>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
+    import { db } from "./js/firebaseConfig.js";
+    import {
+      collection, getDocs, doc, setDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      initializeApp, deleteApp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getAuth, createUserWithEmailAndPassword, signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // Misma config que firebaseConfig.js — se usa en una app secundaria SOLO
+    // para crear la cuenta nueva sin cerrar la sesión del administrador
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
+
+    async function renderListaStaff() {
+      const tbody = document.getElementById("staff-tbody");
+      const snap = await getDocs(collection(db, "staff"));
+      const lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color: var(--color-text-light);">Aún no hay staff registrado.</td></tr>';
+        return;
+      }
+
+      lista.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+
+      tbody.innerHTML = lista.map((s) => (
+        '<tr>' +
+          '<td style="font-weight:600;">' + (s.nombre || "—") + "</td>" +
+          '<td>' + (s.email || "—") + "</td>" +
+          '<td><span class="badge badge--info">' + (s.rol || "—") + "</span></td>" +
+          '<td>' + (s.activo === false
+            ? '<span style="color: var(--color-error); font-size:0.75rem; font-weight:700;">Inactivo</span>'
+            : '<span style="color: var(--color-success); font-size:0.75rem; font-weight:700;">Activo</span>') + "</td>" +
+        "</tr>"
+      )).join("");
+    }
+
+    document.getElementById("form-nuevo-staff").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msgEl = document.getElementById("staff-msg");
+      const nombre = document.getElementById("nuevo-nombre").value.trim();
+      const email = document.getElementById("nuevo-email").value.trim().toLowerCase();
+      const telefono = document.getElementById("nuevo-telefono").value.trim();
+      const password = document.getElementById("nuevo-password").value;
+      const rol = document.getElementById("nuevo-rol").value;
+
+      msgEl.classList.add("hidden");
+
+      // App secundaria temporal, solo para esta creación de cuenta
+      const secondaryApp = initializeApp(FIREBASE_CONFIG, "staff-creator-" + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+
+      try {
+        const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const nuevoUid = cred.user.uid;
+
+        // Cerrar sesión en la app secundaria (no afecta la sesión principal del admin)
+        await signOut(secondaryAuth);
+        await deleteApp(secondaryApp);
+
+        // Guardar el perfil de staff usando la conexión PRINCIPAL (la del admin)
+        await setDoc(doc(db, "staff", nuevoUid), {
+          nombre, email, telefono, rol,
+          activo: true,
+          createdAt: serverTimestamp()
+        });
+
+        document.getElementById("form-nuevo-staff").reset();
+        msgEl.textContent = "✓ Cuenta creada. Comparte la contraseña temporal con " + nombre + ".";
+        msgEl.style.color = "var(--color-success)";
+        msgEl.classList.remove("hidden");
+        await renderListaStaff();
+      } catch (err) {
+        console.error("Error creando cuenta de staff:", err);
+        try { await deleteApp(secondaryApp); } catch (_) {}
+        msgEl.textContent = "❌ " + (err.message || "No se pudo crear la cuenta.");
+        msgEl.style.color = "var(--color-error)";
+        msgEl.classList.remove("hidden");
+      }
+    });
+
+    requireStaffAccess(async (user, staffProfile) => {
+      wireLogoutButton("btn-logout");
+
+      if (staffProfile.rol !== "administrador") {
+        document.getElementById("acceso-denegado-admin").classList.remove("hidden");
+        document.getElementById("panel-nuevo-staff").classList.add("hidden");
+      }
+
+      await renderListaStaff();
+    });
+  </script>
+</body>
+</html>

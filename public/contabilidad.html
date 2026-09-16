@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GraveCare - Contabilidad</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #002d1a; color: white; padding: 12px; text-align: left; }
+    td { padding: 12px; border-bottom: 1px solid #c1c8c1; }
+    tr:hover { background: #f8faf8; }
+    .modal { display: none; }
+    .modal.active { display: flex; }
+  </style>
+</head>
+<body class="bg-[#f8faf8]">
+
+  <!-- Header -->
+  <div class="bg-[#002d1a] text-white p-6 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-4xl">receipt_long</span>
+        <div>
+          <h1 class="text-2xl font-bold">Contabilidad</h1>
+          <p class="text-xs text-[#a4d1b5]">Control Contable y Tributario</p>
+        </div>
+      </div>
+      <a href="portal.html" class="bg-[#a4d1b5] text-[#002d1a] px-4 py-2 rounded-lg font-semibold hover:bg-white transition">
+        ← Volver
+      </a>
+    </div>
+  </div>
+
+  <!-- Acceso denegado -->
+  <div id="acceso-denegado" class="hidden max-w-md mx-auto mt-16 text-center px-6">
+    <h2 class="text-xl font-bold text-[#002d1a] mb-2">Acceso restringido</h2>
+    <p class="text-[#4e6451] mb-6">Este módulo es exclusivo para usuarios con rol Administrador.</p>
+    <a href="portal.html" class="inline-block bg-[#002d1a] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-[#1a432f] transition">Volver al Portal</a>
+  </div>
+
+  <!-- Contenido -->
+  <div id="contenido-principal" class="max-w-7xl mx-auto p-8">
+
+    <!-- Tabs -->
+    <div class="flex gap-4 mb-8 border-b border-[#c1c8c1]">
+      <button onclick="abrirTab('dashboard')" class="px-6 py-3 font-semibold text-[#002d1a] border-b-2 border-[#002d1a]">
+        Dashboard
+      </button>
+      <button onclick="abrirTab('transacciones')" class="px-6 py-3 font-semibold text-[#4e6451] border-b-2 border-transparent hover:border-[#002d1a]">
+        Transacciones
+      </button>
+      <button onclick="abrirTab('f29')" class="px-6 py-3 font-semibold text-[#4e6451] border-b-2 border-transparent hover:border-[#002d1a]">
+        F29 Mensual
+      </button>
+      <button onclick="abrirTab('f22')" class="px-6 py-3 font-semibold text-[#4e6451] border-b-2 border-transparent hover:border-[#002d1a]">
+        Renta F22
+      </button>
+    </div>
+
+    <!-- TAB: Dashboard -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+          <p class="text-sm text-[#4e6451] mb-2">Ingresos Totales</p>
+          <p class="text-3xl font-bold text-[#002d1a]" id="total-ingresos">$0</p>
+        </div>
+        <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+          <p class="text-sm text-[#4e6451] mb-2">Gastos Totales</p>
+          <p class="text-3xl font-bold text-[#002d1a]" id="total-gastos">$0</p>
+        </div>
+        <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+          <p class="text-sm text-[#4e6451] mb-2">Resultado Neto</p>
+          <p class="text-3xl font-bold text-[#00AA00]" id="resultado-neto">$0</p>
+        </div>
+        <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+          <p class="text-sm text-[#4e6451] mb-2">Total Registros</p>
+          <p class="text-3xl font-bold text-[#002d1a]" id="total-registros">0</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+        <h3 class="text-lg font-bold text-[#002d1a] mb-4">Evolución Mensual</h3>
+        <canvas id="grafico-evolucion" height="80"></canvas>
+      </div>
+    </div>
+
+    <!-- TAB: Transacciones -->
+    <div id="tab-transacciones" class="tab-content">
+      <div class="mb-6 flex gap-4">
+        <button onclick="abrirFormulario()" class="bg-[#002d1a] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#1a432f]">
+          + Nueva Transacción
+        </button>
+        <input type="search" id="filtro-busqueda" placeholder="Buscar..." 
+          class="flex-1 px-4 py-2 border border-[#c1c8c1] rounded-lg" onkeyup="filtrarTransacciones()">
+      </div>
+
+      <div class="bg-white rounded-lg border border-[#c1c8c1] overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Descripción</th>
+              <th>Categoría</th>
+              <th>Monto Neto</th>
+              <th>IVA</th>
+              <th>Total</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-transacciones">
+            <tr><td colspan="8" class="text-center py-8 text-[#4e6451]">Cargando transacciones...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: F29 -->
+    <div id="tab-f29" class="tab-content">
+      <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+        <h3 class="text-lg font-bold text-[#002d1a] mb-4">Resumen Mensual F29</h3>
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Ingresos Brutos</p>
+            <p class="text-2xl font-bold text-[#002d1a]" id="f29-ingresos">$0</p>
+          </div>
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Gastos Deducibles</p>
+            <p class="text-2xl font-bold text-[#002d1a]" id="f29-gastos">$0</p>
+          </div>
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Renta Bruta (40%)</p>
+            <p class="text-2xl font-bold text-[#002d1a]" id="f29-renta-bruta">$0</p>
+          </div>
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Retenciones (15.25%)</p>
+            <p class="text-2xl font-bold text-[#002d1a]" id="f29-retenciones">$0</p>
+          </div>
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">IVA Total (19%)</p>
+            <p class="text-2xl font-bold text-[#002d1a]" id="f29-iva">$0</p>
+          </div>
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Impuesto a Pagar</p>
+            <p class="text-2xl font-bold text-red-600" id="f29-impuesto">$0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: F22 -->
+    <div id="tab-f22" class="tab-content">
+      <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
+        <h3 class="text-lg font-bold text-[#002d1a] mb-4">Proyección Anual F22</h3>
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Renta Líquida Imponible (Anual)</p>
+            <p class="text-3xl font-bold text-[#002d1a]" id="f22-renta-liquida">$0</p>
+          </div>
+          <div>
+            <p class="text-sm text-[#4e6451] mb-2">Impuesto Global Complementario (Estimado)</p>
+            <p class="text-3xl font-bold text-red-600" id="f22-impuesto">$0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Formulario -->
+  <div id="modal-formulario" class="modal fixed inset-0 bg-black/40 items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full">
+      <h2 class="text-2xl font-bold text-[#002d1a] mb-6">Nueva Transacción</h2>
+      
+      <form onsubmit="guardarTransaccion(event);" class="space-y-4">
+        
+        <div>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Fecha</label>
+          <input type="date" id="form-fecha" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Tipo</label>
+          <select id="form-tipo" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+            <option value="">Seleccionar...</option>
+            <option value="ingreso">Ingreso</option>
+            <option value="gasto">Gasto</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Descripción</label>
+          <input type="text" id="form-descripcion" required placeholder="Ej: Suscripción cliente" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Categoría</label>
+          <input type="text" id="form-categoria" required placeholder="Ej: Servicios" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Monto Neto (sin IVA)</label>
+          <input type="number" id="form-monto" required placeholder="50000" step="1000" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" onchange="calcularIVAFormulario()">
+        </div>
+
+        <div id="calculo-iva" class="bg-[#f8faf8] p-4 rounded-lg text-sm">
+          <p class="text-[#4e6451] mb-1">IVA (19%): <span id="calculo-iva-monto" class="font-bold">$0</span></p>
+          <p class="text-[#4e6451]">Total: <span id="calculo-total-monto" class="font-bold">$0</span></p>
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button type="submit" class="flex-1 bg-[#002d1a] text-white font-bold py-2 rounded-lg hover:bg-[#1a432f]">
+            Guardar
+          </button>
+          <button type="button" onclick="cerrarFormulario()" class="flex-1 bg-gray-300 text-gray-700 font-bold py-2 rounded-lg hover:bg-gray-400">
+            Cancelar
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db } from "./js/firebaseConfig.js";
+    import { requireStaffAccess } from "./js/portal-common.js";
+    import {
+      collection, doc, addDoc, deleteDoc, getDocs, query, orderBy, onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    let graficoEvolucion = null;
+    let unsubscribe = null;
+
+    // ---------- Firestore (modular) ----------
+
+    async function agregarTransaccion(transaccion) {
+      const docRef = await addDoc(collection(db, "transacciones"), {
+        ...transaccion,
+        fechaCreacion: new Date()
+      });
+      return docRef.id;
+    }
+
+    async function obtenerTransacciones() {
+      const q = query(collection(db, "transacciones"), orderBy("fecha", "desc"));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    }
+
+    async function eliminarTransaccionDoc(id) {
+      await deleteDoc(doc(db, "transacciones", id));
+    }
+
+    function onTransaccionesChange(callback) {
+      const q = query(collection(db, "transacciones"), orderBy("fecha", "desc"));
+      return onSnapshot(q, (snap) => {
+        callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      });
+    }
+
+    // ---------- Utilidades ----------
+
+    function formatearDinero(cantidad) {
+      return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(cantidad);
+    }
+
+    function formatearFecha(fecha) {
+      if (!fecha) return '';
+      const date = fecha.toDate ? fecha.toDate() : new Date(fecha);
+      return date.toLocaleDateString('es-CL');
+    }
+
+    // ---------- UI ----------
+
+    function abrirTab(nombre) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.getElementById(`tab-${nombre}`).classList.add('active');
+    }
+
+    function abrirFormulario() {
+      document.getElementById('modal-formulario').classList.add('active');
+      document.getElementById('form-fecha').valueAsDate = new Date();
+    }
+
+    function cerrarFormulario() {
+      document.getElementById('modal-formulario').classList.remove('active');
+      document.getElementById('form-fecha').value = '';
+      document.getElementById('form-tipo').value = '';
+      document.getElementById('form-descripcion').value = '';
+      document.getElementById('form-categoria').value = '';
+      document.getElementById('form-monto').value = '';
+    }
+
+    async function guardarTransaccion(e) {
+      e.preventDefault();
+
+      const monto = parseFloat(document.getElementById('form-monto').value);
+      const iva = monto * 0.19;
+      const total = monto + iva;
+
+      try {
+        await agregarTransaccion({
+          fecha: new Date(document.getElementById('form-fecha').value),
+          tipo: document.getElementById('form-tipo').value,
+          descripcion: document.getElementById('form-descripcion').value,
+          categoria: document.getElementById('form-categoria').value,
+          montoNeto: monto,
+          iva: iva,
+          total: total
+        });
+
+        cerrarFormulario();
+        cargarTransacciones();
+        alert('✓ Transacción guardada');
+      } catch (error) {
+        console.error(error);
+        alert('Error guardando transacción');
+      }
+    }
+
+    function calcularIVAFormulario() {
+      const monto = parseFloat(document.getElementById('form-monto').value) || 0;
+      const iva = monto * 0.19;
+      const total = monto + iva;
+      
+      document.getElementById('calculo-iva-monto').textContent = formatearDinero(iva);
+      document.getElementById('calculo-total-monto').textContent = formatearDinero(total);
+    }
+
+    async function cargarTransacciones() {
+      const transacciones = await obtenerTransacciones();
+      actualizarDashboard(transacciones);
+    }
+
+    function actualizarDashboard(transacciones) {
+      let ingresos = 0, gastos = 0;
+      const porMes = {};
+
+      transacciones.forEach(t => {
+        const cantidad = t.total || 0;
+        if (t.tipo === 'ingreso') {
+          ingresos += cantidad;
+        } else {
+          gastos += cantidad;
+        }
+
+        const fecha = t.fecha?.toDate ? t.fecha.toDate() : new Date(t.fecha);
+        const mes = fecha.toLocaleDateString('es-CL', { year: 'numeric', month: 'short' });
+        if (!porMes[mes]) porMes[mes] = { ingresos: 0, gastos: 0 };
+        if (t.tipo === 'ingreso') {
+          porMes[mes].ingresos += cantidad;
+        } else {
+          porMes[mes].gastos += cantidad;
+        }
+      });
+
+      document.getElementById('total-ingresos').textContent = formatearDinero(ingresos);
+      document.getElementById('total-gastos').textContent = formatearDinero(gastos);
+      document.getElementById('resultado-neto').textContent = formatearDinero(ingresos - gastos);
+      document.getElementById('total-registros').textContent = transacciones.length;
+
+      const tbody = document.getElementById('tabla-transacciones');
+      if (transacciones.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-[#4e6451]">Sin transacciones</td></tr>';
+      } else {
+        tbody.innerHTML = transacciones.map(t => `
+          <tr>
+            <td>${formatearFecha(t.fecha)}</td>
+            <td><span class="px-2 py-1 rounded text-xs font-bold ${t.tipo === 'ingreso' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+              ${t.tipo.toUpperCase()}
+            </span></td>
+            <td>${t.descripcion || '-'}</td>
+            <td>${t.categoria || '-'}</td>
+            <td>${formatearDinero(t.montoNeto || 0)}</td>
+            <td>${formatearDinero(t.iva || 0)}</td>
+            <td class="font-bold">${formatearDinero(t.total || 0)}</td>
+            <td>
+              <button onclick="eliminarTransaccion('${t.id}')" class="text-red-600 hover:text-red-800 text-sm font-bold">Eliminar</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      const rentaBruta = ingresos * 0.4;
+      const retenciones = ingresos * 0.1525;
+      const ivaTotal = ingresos * 0.19;
+      const impuesto = rentaBruta - retenciones;
+
+      document.getElementById('f29-ingresos').textContent = formatearDinero(ingresos);
+      document.getElementById('f29-gastos').textContent = formatearDinero(gastos);
+      document.getElementById('f29-renta-bruta').textContent = formatearDinero(rentaBruta);
+      document.getElementById('f29-retenciones').textContent = formatearDinero(retenciones);
+      document.getElementById('f29-iva').textContent = formatearDinero(ivaTotal);
+      document.getElementById('f29-impuesto').textContent = formatearDinero(Math.max(0, impuesto));
+
+      const rentaLiquida = rentaBruta * 12;
+      const impuestoGlobal = Math.max(0, rentaLiquida * 0.27);
+
+      document.getElementById('f22-renta-liquida').textContent = formatearDinero(rentaLiquida);
+      document.getElementById('f22-impuesto').textContent = formatearDinero(impuestoGlobal);
+
+      actualizarGrafico(porMes);
+    }
+
+    function actualizarGrafico(porMes) {
+      const meses = Object.keys(porMes).reverse();
+      const dataIngresos = meses.map(m => porMes[m].ingresos);
+      const dataGastos = meses.map(m => porMes[m].gastos);
+
+      const ctx = document.getElementById('grafico-evolucion');
+      if (!ctx) return;
+
+      if (graficoEvolucion) graficoEvolucion.destroy();
+
+      graficoEvolucion = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: meses,
+          datasets: [
+            {
+              label: 'Ingresos',
+              data: dataIngresos,
+              borderColor: '#00AA00',
+              backgroundColor: 'rgba(0, 170, 0, 0.1)',
+              tension: 0.4,
+              fill: true
+            },
+            {
+              label: 'Gastos',
+              data: dataGastos,
+              borderColor: '#EF4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.4,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function filtrarTransacciones() {
+      const filtro = document.getElementById('filtro-busqueda').value.toLowerCase();
+      document.querySelectorAll('#tabla-transacciones tr').forEach(fila => {
+        const texto = fila.textContent.toLowerCase();
+        fila.style.display = texto.includes(filtro) ? '' : 'none';
+      });
+    }
+
+    async function eliminarTransaccion(id) {
+      if (confirm('¿Eliminar esta transacción?')) {
+        try {
+          await eliminarTransaccionDoc(id);
+          cargarTransacciones();
+        } catch (error) {
+          console.error(error);
+          alert('Error eliminando');
+        }
+      }
+    }
+
+    // Exponer al scope global para los onclick="" del HTML
+    window.abrirTab = abrirTab;
+    window.abrirFormulario = abrirFormulario;
+    window.cerrarFormulario = cerrarFormulario;
+    window.guardarTransaccion = guardarTransaccion;
+    window.calcularIVAFormulario = calcularIVAFormulario;
+    window.filtrarTransacciones = filtrarTransacciones;
+    window.eliminarTransaccion = eliminarTransaccion;
+
+    window.addEventListener('beforeunload', () => {
+      if (unsubscribe) unsubscribe();
+    });
+
+    function mostrarAccesoDenegado() {
+      document.getElementById('contenido-principal').classList.add('hidden');
+      document.getElementById('acceso-denegado').classList.remove('hidden');
+    }
+
+    // Protección de acceso: SOLO administrador puede ver Contabilidad
+    requireStaffAccess((user, staffProfile) => {
+      if (staffProfile.rol !== 'administrador') {
+        mostrarAccesoDenegado();
+        return;
+      }
+
+      cargarTransacciones();
+      unsubscribe = onTransaccionesChange(transacciones => {
+        actualizarDashboard(transacciones);
+      });
+    });
+  </script>
+
+</body>
+</html>

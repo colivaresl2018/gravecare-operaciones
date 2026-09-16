@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal de Operaciones - GraveCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f5f5; color: #333; }
+    
+    .portal-container {
+      display: flex;
+      height: 100vh;
+      gap: 0;
+    }
+    
+    aside {
+      width: 260px;
+      background: linear-gradient(135deg, #002d1a 0%, #1a432f 100%);
+      color: white;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #a4d1b5;
+    }
+    
+    .sidebar-nav {
+      flex: 1;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 15px;
+      color: rgba(255, 255, 255, 0.75);
+      text-decoration: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+    
+    .sidebar-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+    
+    .sidebar-link.active {
+      background: #a4d1b5;
+      color: #002d1a;
+      font-weight: 700;
+    }
+    
+    .sidebar-link i {
+      font-size: 1.1rem;
+      width: 22px;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+    
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .header {
+      background: white;
+      padding: 15px 30px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .header h1 {
+      font-size: 1.3rem;
+      color: #002d1a;
+      font-weight: 700;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-badge {
+      background: #f0f4f1;
+      color: #002d1a;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .btn-logout {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .btn-logout:hover {
+      background: #fecaca;
+    }
+    
+    .main-content {
+      flex: 1;
+      overflow: hidden;
+      background: #fafafa;
+    }
+    
+    .module-container {
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+    
+    .module-container.active {
+      display: block;
+    }
+    
+    .module-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    @media (max-width: 768px) {
+      .portal-container {
+        flex-direction: column;
+      }
+      aside {
+        width: 100%;
+        max-height: 140px;
+        overflow-x: auto;
+        padding: 10px;
+      }
+      .sidebar-nav {
+        display: flex;
+        gap: 6px;
+      }
+      .sidebar-link {
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="portal-container">
+  <!-- SIDEBAR IZQUIERDO -->
+  <aside>
+    <div class="logo">
+      <i class="fa-solid fa-leaf"></i>
+      GraveCare Ops
+    </div>
+    
+    <nav class="sidebar-nav">
+      <!-- Módulos Generales -->
+      <a href="#mis-trabajos" class="sidebar-link active" onclick="switchModule('mis-trabajos')">
+        <i class="fa-solid fa-briefcase"></i>
+        <span>Mis Trabajos</span>
+      </a>
+
+      <!-- ASIGNAR ÓRDENES: Supervisor y Administrador -->
+      <a href="#ordenes" id="link-ordenes" class="sidebar-link hidden" onclick="switchModule('ordenes')">
+        <i class="fa-solid fa-list-check"></i>
+        <span>Asignar Órdenes</span>
+      </a>
+      
+      <!-- REVISIÓN: Supervisor y Administrador -->
+      <a href="#revision" id="link-revision" class="sidebar-link hidden" onclick="switchModule('revision')">
+        <i class="fa-solid fa-clipboard-check"></i>
+        <span>Revisión Informes</span>
+      </a>
+
+      <!-- GASTOS E INGRESOS: Exclusivo Administrador -->
+      <a href="#contabilidad" id="link-contabilidad" class="sidebar-link hidden" onclick="switchModule('contabilidad')">
+        <i class="fa-solid fa-calculator"></i>
+        <span>Gastos e Ingresos</span>
+      </a>
+
+      <!-- PRIVILEGIOS STAFF: Exclusivo Administrador -->
+      <a href="#admin-staff" id="link-admin-staff" class="sidebar-link hidden" onclick="switchModule('admin-staff')">
+        <i class="fa-solid fa-user-shield"></i>
+        <span>Privilegios Staff</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main>
+    <header class="header">
+      <h1 id="module-title">📋 Mis Trabajos</h1>
+      <div class="user-info">
+        <span id="user-role" class="user-badge">-</span>
+        <span id="user-email" style="font-size: 0.85rem; font-weight: 500;">Cargando...</span>
+        <button id="btn-logout" class="btn-logout">
+          <i class="fa-solid fa-sign-out-alt"></i> Salir
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENEDORES IFRAME -->
+    <div class="main-content">
+      
+      <!-- Mis Trabajos -->
+      <div id="mis-trabajos-module" class="module-container active">
+        <iframe src="mis-trabajos.html"></iframe>
+      </div>
+
+      <!-- Asignar Órdenes -->
+      <div id="ordenes-module" class="module-container">
+        <iframe src="ordenes.html"></iframe>
+      </div>
+
+      <!-- Revisión de Informes -->
+      <div id="revision-module" class="module-container">
+        <iframe src="informe-revision.html"></iframe>
+      </div>
+
+      <!-- Gastos e Ingresos -->
+      <div id="contabilidad-module" class="module-container">
+        <iframe src="gastos-ingresos.html"></iframe>
+      </div>
+
+      <!-- Administración de Staff -->
+      <div id="admin-staff-module" class="module-container">
+        <iframe src="admin-usuarios.html"></iframe>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
+
+  requireStaffAccess((user, staffProfile) => {
+    wireLogoutButton("btn-logout");
+
+    // Datos del usuario logueado
+    document.getElementById("user-email").textContent = staffProfile.nombre || user.email;
+    document.getElementById("user-role").textContent = (staffProfile.rol || "operador").toUpperCase();
+
+    // Mostrar módulos según rol
+    if (staffProfile.rol === "supervisor" || staffProfile.rol === "administrador") {
+      document.getElementById("link-ordenes")?.classList.remove("hidden");
+      document.getElementById("link-revision")?.classList.remove("hidden");
+    }
+    
+    if (staffProfile.rol === "administrador") {
+      document.getElementById("link-contabilidad")?.classList.remove("hidden");
+      document.getElementById("link-admin-staff")?.classList.remove("hidden");
+    }
+  }, "portal.html");
+
+  window.switchModule = function(moduleName) {
+    document.querySelectorAll('.module-container').forEach(mod => mod.classList.remove('active'));
+    
+    const selected = document.getElementById(moduleName + '-module');
+    if (selected) {
+      selected.classList.add('active');
+    }
+
+    const titles = {
+      'mis-trabajos': '📋 Mis Trabajos',
+      'ordenes': '📝 Asignación de Órdenes de Trabajo',
+      'revision': '🔍 Revisión de Informes Técnicos',
+      'contabilidad': '💰 Control de Gastos, Ingresos y F29/F22',
+      'admin-staff': '🛡️ Gestión de Privilegios y Usuarios Staff'
+    };
+    document.getElementById('module-title').textContent = titles[moduleName] || 'Portal de Operaciones';
+
+    document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+    const activeLink = document.querySelector(`[onclick="switchModule('${moduleName}')"]`);
+    if (activeLink) activeLink.classList.add('active');
+  };
+</script>
+
+</body>
+</html>

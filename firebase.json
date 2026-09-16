@@ -1,0 +1,17 @@
+{
+  "hosting": {
+    "target": "operaciones",
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/login.html"
+      }
+    ]
+  }
+}

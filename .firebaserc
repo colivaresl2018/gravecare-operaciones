@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "gravecare-2e8d2"
+  },
+  "targets": {
+    "gravecare-2e8d2": {
+      "hosting": {
+        "operaciones": [
+          "gravecare-ops"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

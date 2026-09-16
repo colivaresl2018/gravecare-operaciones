@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Fotos de reportes (antes/después de cada trabajo)
+    match /reportes/{numeroOrden}/{archivo} {
+      // Lectura: cualquiera con el link puede VER la foto (así las URLs
+      // funcionan directo en el dashboard del cliente sin pedir token).
+      // Nadie puede "listar" el contenido de la carpeta sin el link exacto.
+      allow read: if true;
+
+      // Escritura: solo staff activo (Operador, Supervisor o Administrador),
+      // verificado contra la colección "staff" en Firestore.
+      allow write: if request.auth != null &&
+        firestore.exists(/databases/(default)/documents/staff/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/staff/$(request.auth.uid)).data.activo == true &&
+        request.resource.size < 15 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Bloqueo por defecto para cualquier otra ruta
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

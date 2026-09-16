@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: ¿el usuario autenticado es staff activo? (lee su propio doc en /staff)
+    function esStaff() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.activo == true;
+    }
+
+    function esAdministrador() {
+      return esStaff() &&
+             get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.rol == 'administrador';
+    }
+
+    // ---------------------------------------------------------------
+    // Colección de perfiles de CLIENTES (gravecare.cl)
+    // ---------------------------------------------------------------
+    match /usuarios/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Índice público de resolución de RUT a Correo (login con RUT)
+    match /rut_lookup/{rut} {
+      allow read: if true;
+      // Antes cualquier usuario autenticado podía escribir el rut_lookup de
+      // OTRA persona. Ahora solo puede crear/editar el que corresponde a su
+      // propio RUT. auth.js guarda usuarios.rut ya "limpio" (sin puntos ni
+      // guion, mayúsculas) — el mismo formato que usa el ID de este documento,
+      // así que la comparación es directa, sin necesitar funciones de string.
+      allow create, update: if request.auth != null &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        rut == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rut;
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Colección de perfiles de STAFF (Portal de Operaciones)
+    // Separada de "usuarios": una misma persona puede ser cliente Y staff
+    // con la misma cuenta de Firebase Auth, sin mezclar los datos.
+    // ---------------------------------------------------------------
+    match /staff/{staffId} {
+      // Cualquier miembro del staff puede VER el listado (para asignar
+      // operadores a órdenes, por ejemplo)
+      allow read: if esStaff();
+      // Solo un administrador puede crear/editar/eliminar cuentas de staff
+      allow create, update, delete: if esAdministrador();
+    }
+
+    // ---------------------------------------------------------------
+    // Órdenes / pagos generados desde gravecare.cl
+    // ---------------------------------------------------------------
+    match /solicitudes_suscripcion/{ordenId} {
+      // El cliente dueño de la orden puede leer la suya; el staff puede
+      // leer y escribir cualquiera (asignar operador, cambiar estado, etc.)
+      allow read: if request.auth != null && (
+        resource.data.email == request.auth.token.email || esStaff()
+      );
+      // El flujo de pago actual (confirmacion-pago-firebase.html) NO exige
+      // que el cliente esté logueado, así que se permite crear sin auth.
+      // ⚠️ Esto significa que cualquiera puede escribir un documento aquí
+      // con datos arbitrarios. Es aceptable mientras no haya validación de
+      // pago real (Transbank), pero conviene revisar esto cuando se integre
+      // un cobro real, agregando Firebase App Check o Auth Anónima.
+      allow create: if true;
+      allow update: if esStaff(); // asignaciones y cambios de estado los hace el staff
+      allow delete: if esAdministrador();
+    }
+
+    // ---------------------------------------------------------------
+    // Reportes de trabajo (fotos antes/después, notas, ubicación GPS)
+    // Los crea el staff desde el Portal de Operaciones; el cliente dueño
+    // de la orden puede leer los suyos para verlos en su dashboard.
+    // ---------------------------------------------------------------
+    match /reportes/{reporteId} {
+      allow read: if request.auth != null && (
+        resource.data.clienteEmail == request.auth.token.email || esStaff()
+      );
+      allow create, update: if esStaff();
+      allow delete: if esAdministrador();
+    }
+
+    // Bloqueo por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

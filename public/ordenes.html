@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Asignación de Órdenes | Portal de Operaciones GraveCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .breadcrumb {
+      background-color: var(--color-bg-white);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
+    }
+    .breadcrumb span { color: var(--color-text-light); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+    .toolbar input { flex: 1; min-width: 16rem; }
+    .toolbar select { width: auto; min-width: 12rem; }
+    .table-wrap { overflow-x: auto; }
+    .paginacion {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--color-border);
+      font-size: 0.875rem;
+      color: var(--color-text-light);
+    }
+    .paginacion-actual {
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.5rem;
+      background-color: var(--color-primary-dark);
+      color: white;
+      font-weight: 700;
+    }
+    .btn-pag {
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--color-border);
+      background: white;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .btn-pag:hover { background-color: var(--color-bg-light); }
+    .btn-pag:disabled { opacity: 0.4; cursor: not-allowed; }
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal-panel { max-width: 34rem; width: 100%; max-height: 85vh; overflow-y: auto; background: white; border-radius: 12px; padding: 1.5rem; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .modal-close { background: none; border: none; font-size: 1.25rem; line-height: 1; cursor: pointer; color: var(--color-text-light); }
+    .detalle-fila { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--color-border); font-size: 0.875rem; }
+    .detalle-fila span:first-child { color: var(--color-text-light); }
+  </style>
+</head>
+<body>
+
+  <header class="gravecare-header">
+    <div class="gravecare-header__content">
+      <a href="portal.html" class="gravecare-header__logo">GraveCare</a>
+      <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
+    </div>
+  </header>
+
+  <div class="breadcrumb">
+    <div class="container">
+      <a href="portal.html">Inicio</a> <span>/</span> <span>Gestión y Asignación de Órdenes</span>
+    </div>
+  </div>
+
+  <main class="container mt-8 mb-8">
+    <h2 class="mb-2">Asignación de Órdenes</h2>
+    <p class="mb-6">Distribución de labores de mantenimiento a operadores en terreno.</p>
+
+    <div class="toolbar">
+      <input id="buscador" type="text" placeholder="Buscar por cliente, N° de orden, difunto o cementerio...">
+      <select id="filtro-estado">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="asignada">Asignada</option>
+        <option value="en proceso">En Proceso</option>
+        <option value="en revision">En Revisión</option>
+        <option value="completada">Completada</option>
+      </select>
+    </div>
+
+    <div class="card" style="padding: 0;">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID Orden</th>
+              <th>Difunto</th>
+              <th>Cliente</th>
+              <th>Sepultura</th>
+              <th>Plan</th>
+              <th>Estado</th>
+              <th>Operador Asignado</th>
+              <th class="text-right">Asignar</th>
+            </tr>
+          </thead>
+          <tbody id="ordenes-tbody">
+            <tr><td colspan="8" style="color: var(--color-text-light); text-align: center; padding: 2rem 0;">Cargando órdenes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="paginacion">
+        <span id="paginacion-resumen">—</span>
+        <div class="flex gap-2 items-center">
+          <button id="btn-pagina-anterior" class="btn-pag">Anterior</button>
+          <span id="paginacion-actual" class="paginacion-actual">1</span>
+          <button id="btn-pagina-siguiente" class="btn-pag">Siguiente</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Detalle y Asignación -->
+  <div id="modal-detalle" class="modal-overlay hidden">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 style="margin-bottom: 0;">Asignar Orden de Trabajo</h3>
+        <button id="btn-cerrar-modal" class="modal-close">✕</button>
+      </div>
+      
+      <div id="modal-detalle-body" class="mb-6"></div>
+
+      <div style="border-top: 1px solid var(--color-border); padding-top: 1rem;">
+        <div class="mb-4">
+          <label class="label">Seleccionar Operador de Terreno</label>
+          <select id="modal-select-operador" style="width: 100%; padding: 0.65rem; border: 1px solid var(--color-border); border-radius: 6px; font-weight: 600; font-size: 0.9rem; background: white;"></select>
+        </div>
+        <div class="mb-4">
+          <label class="label">Estado de la Orden</label>
+          <select id="modal-select-estado" style="width: 100%; padding: 0.65rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.9rem; background: white;">
+            <option value="pendiente">Pendiente</option>
+            <option value="asignada">Asignada</option>
+            <option value="en proceso">En Proceso</option>
+            <option value="en revision">En Revisión</option>
+            <option value="completada">Completada</option>
+          </select>
+        </div>
+        <button id="btn-guardar-asignacion" class="btn-primary" style="width: 100%; justify-content: center; padding: 0.75rem;">
+          Confirmar Asignación
+        </button>
+        <p id="asignacion-msg" class="mt-2 hidden" style="font-size: 0.8rem; text-align: center; font-weight: bold;"></p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
+    import { db } from "./js/firebaseConfig.js";
+    import {
+      collection, getDocs, doc, updateDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const PAGE_SIZE = 10;
+    let todasLasOrdenes = [];
+    let ordenesFiltradas = [];
+    let paginaActual = 1;
+    let listaOperadores = [];
+    let ordenSeleccionadaId = null;
+
+    function formatFecha(ts) {
+      if (!ts) return "—";
+      const fecha = ts.toDate ? ts.toDate() : new Date(ts);
+      return fecha.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+
+    function badgeEstado(estado) {
+      const normalizado = (estado || "pendiente").toLowerCase();
+      const map = {
+        "pendiente": "badge--neutral",
+        "asignada": "badge--info",
+        "en proceso": "badge--warning",
+        "en revision": "badge--warning",
+        "completada": "badge--success"
+      };
+      return `<span class="badge ${map[normalizado] || 'badge--neutral'}">${estado || 'Pendiente'}</span>`;
+    }
+
+    function textoSepultura(ubi) {
+      if (!ubi) return "Sin especificar";
+      const partes = [];
+      if (ubi.cementerio) partes.push(ubi.cementerio);
+      if (ubi.sector) partes.push("Sector " + ubi.sector);
+      if (ubi.numeroSepultura) partes.push("N°" + ubi.numeroSepultura);
+      return partes.length ? partes.join(", ") : "Sin especificar";
+    }
+
+    async function cargarOrdenes() {
+      const snap = await getDocs(collection(db, "ordenes"));
+      todasLasOrdenes = snap.docs.map((d) => ({ ...d.data(), _docId: d.id }));
+      
+      todasLasOrdenes.sort((a, b) => {
+        const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      });
+      ordenesFiltradas = todasLasOrdenes;
+    }
+
+    function renderTabla() {
+      const tbody = document.getElementById("ordenes-tbody");
+      const inicio = (paginaActual - 1) * PAGE_SIZE;
+      const pagina = ordenesFiltradas.slice(inicio, inicio + PAGE_SIZE);
+
+      if (ordenesFiltradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color: var(--color-text-light); padding: 2rem 0;">No se encontraron órdenes registradas.</td></tr>';
+      } else {
+        tbody.innerHTML = pagina.map((o) => {
+          const difuntoNombre = o.difunto 
+            ? `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim() 
+            : (o.nombreDifunto || "—");
+
+          const titularNombre = o.titular 
+            ? `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim() 
+            : (o.nombreTitular || "—");
+
+          return `
+            <tr style="cursor:pointer;" data-abrir="${o._docId}">
+              <td style="font-family: monospace; font-size: 0.8rem; font-weight: bold;">${o.numeroOrden || o._docId.substring(0, 8)}</td>
+              <td style="font-weight:600;">${difuntoNombre}</td>
+              <td>${titularNombre}</td>
+              <td>${textoSepultura(o.ubicacionSepultura)}</td>
+              <td>${o.planNombre || o.servicio?.planNombre || o.plan || "Plan Base"}</td>
+              <td>${badgeEstado(o.estado)}</td>
+              <td>${o.operadorAsignadoNombre ? `<strong>${o.operadorAsignadoNombre}</strong>` : '<span style="color: var(--color-text-light);">Sin asignar</span>'}</td>
+              <td class="text-right"><span style="color: var(--color-primary-dark); font-weight:700; font-size:0.8rem;">Gestionar →</span></td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      const total = ordenesFiltradas.length;
+      const desde = total === 0 ? 0 : inicio + 1;
+      const hasta = Math.min(inicio + PAGE_SIZE, total);
+      document.getElementById("paginacion-resumen").textContent = `Mostrando ${desde}-${hasta} de ${total} órdenes`;
+      document.getElementById("paginacion-actual").textContent = String(paginaActual);
+      document.getElementById("btn-pagina-anterior").disabled = paginaActual <= 1;
+      document.getElementById("btn-pagina-siguiente").disabled = hasta >= total;
+    }
+
+    function aplicarFiltros() {
+      const texto = document.getElementById("buscador").value.trim().toLowerCase();
+      const estado = document.getElementById("filtro-estado").value.toLowerCase();
+
+      ordenesFiltradas = todasLasOrdenes.filter((o) => {
+        if (estado && (o.estado || "pendiente").toLowerCase() !== estado) return false;
+        if (texto) {
+          const dif = o.difunto ? `${o.difunto.nombres} ${o.difunto.apellidoPaterno}` : "";
+          const tit = o.titular ? `${o.titular.nombres} ${o.titular.apellidoPaterno}` : "";
+          const cem = o.ubicacionSepultura?.cementerio || "";
+          const num = o.numeroOrden || "";
+          const campo = `${dif} ${tit} ${cem} ${num}`.toLowerCase();
+          if (!campo.includes(texto)) return false;
+        }
+        return true;
+      });
+      paginaActual = 1;
+      renderTabla();
+    }
+
+    async function abrirModal(docId) {
+      ordenSeleccionadaId = docId;
+      const o = todasLasOrdenes.find((x) => x._docId === docId);
+      if (!o) return;
+
+      const body = document.getElementById("modal-detalle-body");
+      const difunto = o.difunto ? `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim() : "Sin datos";
+      const titular = o.titular ? `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim() : "Sin datos";
+      const ubi = o.ubicacionSepultura;
+
+      const filas = [
+        ["N° Orden", o.numeroOrden || o._docId],
+        ["Ser Querido / Difunto", difunto],
+        ["Cliente Titular", titular],
+        ["Teléfono Titular", o.titular?.telefono || "—"],
+        ["Cementerio", ubi?.cementerio || "—"],
+        ["Sector y Patio", `${ubi?.sector || 'S/S'} · Patio ${ubi?.patio || 'S/P'}`],
+        ["N° Sepultura", ubi?.numeroSepultura || "—"],
+        ["Plan", o.planNombre || o.servicio?.planNombre || "—"],
+        ["Fecha Ingreso", formatFecha(o.createdAt)]
+      ];
+
+      body.innerHTML = filas.map(([l, v]) => `
+        <div class="detalle-fila"><span>${l}</span><strong>${v}</strong></div>
+      `).join("");
+
+      // Carga directa de la colección 'staff'
+      const selectOp = document.getElementById("modal-select-operador");
+      selectOp.innerHTML = '<option value="">Cargando operadores...</option>';
+
+      try {
+        const snap = await getDocs(collection(db, "staff"));
+        selectOp.innerHTML = '<option value="">-- Seleccionar Operador --</option>';
+        
+        listaOperadores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        listaOperadores.forEach(op => {
+          const nombre = op.nombre || op.email || op.id;
+          const rol = (op.rol || "operador").toUpperCase();
+          const option = document.createElement("option");
+          option.value = op.id;
+          option.textContent = `${nombre} (${rol})`;
+          if (op.id === o.operadorAsignadoId) {
+            option.selected = true;
+          }
+          selectOp.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando operadores:", err);
+        selectOp.innerHTML = '<option value="">Error cargando operadores</option>';
+      }
+
+      document.getElementById("modal-select-estado").value = (o.estado || "pendiente").toLowerCase();
+      document.getElementById("asignacion-msg").classList.add("hidden");
+      document.getElementById("modal-detalle").classList.remove("hidden");
+    }
+
+    // Eventos UI
+    document.getElementById("ordenes-tbody").addEventListener("click", (e) => {
+      const fila = e.target.closest("[data-abrir]");
+      if (fila) abrirModal(fila.getAttribute("data-abrir"));
+    });
+
+    document.getElementById("btn-cerrar-modal").addEventListener("click", () => {
+      document.getElementById("modal-detalle").classList.add("hidden");
+    });
+
+    document.getElementById("btn-guardar-asignacion").addEventListener("click", async () => {
+      const msgEl = document.getElementById("asignacion-msg");
+      const operadorId = document.getElementById("modal-select-operador").value;
+      let estado = document.getElementById("modal-select-estado").value;
+      const operador = listaOperadores.find((op) => op.id === operadorId);
+
+      if (operadorId && estado === "pendiente") {
+        estado = "asignada";
+      }
+
+      try {
+        await updateDoc(doc(db, "ordenes", ordenSeleccionadaId), {
+          operadorAsignadoId: operadorId || null,
+          operadorAsignadoNombre: operador ? (operador.nombre || operador.email) : null,
+          estado: estado,
+          updatedAt: serverTimestamp()
+        });
+
+        msgEl.textContent = "✓ Orden asignada exitosamente.";
+        msgEl.style.color = "var(--color-success)";
+        msgEl.classList.remove("hidden");
+
+        await cargarOrdenes();
+        aplicarFiltros();
+        setTimeout(() => document.getElementById("modal-detalle").classList.add("hidden"), 900);
+
+      } catch (err) {
+        console.error("Error guardando asignación:", err);
+        msgEl.textContent = "❌ Error al guardar asignación: " + (err.message || "");
+        msgEl.style.color = "var(--color-error)";
+        msgEl.classList.remove("hidden");
+      }
+    });
+
+    document.getElementById("buscador").addEventListener("input", aplicarFiltros);
+    document.getElementById("filtro-estado").addEventListener("change", aplicarFiltros);
+    document.getElementById("btn-pagina-anterior").addEventListener("click", () => { if (paginaActual > 1) { paginaActual--; renderTabla(); } });
+    document.getElementById("btn-pagina-siguiente").addEventListener("click", () => { paginaActual++; renderTabla(); });
+
+    // Inicialización del módulo
+    requireStaffAccess(async (user, staffProfile) => {
+      const rol = (staffProfile.rol || "").toLowerCase();
+      if (rol === "operador") {
+        window.location.replace("mis-trabajos.html");
+        return;
+      }
+      wireLogoutButton("btn-logout");
+      
+      await cargarOrdenes();
+      renderTabla();
+    }, "ordenes.html");
+  </script>
+</body>
+</html>

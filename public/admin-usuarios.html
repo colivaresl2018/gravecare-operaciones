@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestión de Privilegios | GraveCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .breadcrumb {
+      background-color: var(--color-bg-white);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
+    }
+    .breadcrumb span { color: var(--color-text-light); }
+    .grid-admin { display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .grid-admin { grid-template-columns: 1fr; } }
+    .campo { margin-bottom: 1rem; }
+    .campo label { display: block; margin-bottom: 0.35rem; font-weight: 600; font-size: 0.8rem; }
+    .campo input, .campo select { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--color-border); border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <header class="gravecare-header">
+    <div class="gravecare-header__content">
+      <a href="portal.html" class="gravecare-header__logo">GraveCare</a>
+      <div class="gravecare-header__user">
+        <span id="usuario-actual" class="gravecare-header__email"></span>
+        <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="breadcrumb">
+    <div class="container">
+      <a href="portal.html">Inicio</a> <span>/</span> <span>Administración de Privilegios</span>
+    </div>
+  </div>
+
+  <div id="acceso-denegado" class="hidden container text-center mt-8">
+    <h2 class="mb-2">Acceso restringido</h2>
+    <p class="mb-6">Este panel de control de privilegios es exclusivo para Administradores.</p>
+    <a href="portal.html" class="btn-primary">Volver al Portal</a>
+  </div>
+
+  <main id="contenido-principal" class="container mt-8 mb-8">
+    <div class="mb-6">
+      <h2 class="mb-2">Gestión de Usuarios y Privilegios</h2>
+      <p style="margin-bottom: 0;">Administra los niveles de acceso (Administrador, Supervisor, Operador) para el personal de operaciones.</p>
+    </div>
+
+    <div class="grid-admin">
+      <!-- Formulario para agregar / registrar staff -->
+      <section class="card">
+        <h3 class="mb-4">Registrar Miembro Staff</h3>
+        <form id="form-crear-staff">
+          <div class="campo">
+            <label>Nombre y Apellido</label>
+            <input type="text" id="nuevo-nombre" placeholder="Ej: Juan Pérez" required>
+          </div>
+          <div class="campo">
+            <label>Correo Electrónico</label>
+            <input type="email" id="nuevo-email" placeholder="usuario@gravecare.cl" required>
+          </div>
+          <div class="campo">
+            <label>UID de Firebase Auth</label>
+            <input type="text" id="nuevo-uid" placeholder="UID generado en Firebase Auth" required>
+            <small style="color: var(--color-text-light); font-size: 0.7rem;">Crea primero la cuenta en Firebase Authentication y pega aquí su UID.</small>
+          </div>
+          <div class="campo">
+            <label>Rol / Privilegio</label>
+            <select id="nuevo-rol">
+              <option value="operador">Operador (Solo terreno e informes)</option>
+              <option value="supervisor">Supervisor (Control de calidad y aprobación)</option>
+              <option value="administrador">Administrador (Acceso total y finanzas)</option>
+            </select>
+          </div>
+          <button type="submit" id="btn-guardar-staff" class="btn-primary" style="width: 100%; justify-content: center;">
+            Guardar Miembro
+          </button>
+        </form>
+      </section>
+
+      <!-- Listado de Colaboradores Actuales -->
+      <section class="card" style="padding: 0;">
+        <div style="overflow-x: auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th class="text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-staff">
+              <tr><td colspan="4" class="text-center py-6">Cargando equipo...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { db } from "./js/firebaseConfig.js";
+    import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
+    import { collection, getDocs, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    async function cargarMiembrosStaff() {
+      const tbody = document.getElementById("tabla-staff");
+      try {
+        const snap = await getDocs(collection(db, "staff"));
+        const lista = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+        if (lista.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6">No hay miembros registrados en staff.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = lista.map(item => `
+          <tr>
+            <td>
+              <strong>${item.nombre || 'Sin nombre'}</strong><br>
+              <span style="font-size: 0.75rem; color: var(--color-text-light);">${item.email || '-'}</span>
+            </td>
+            <td>
+              <select class="select-rol" data-uid="${item.uid}" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">
+                <option value="operador" ${item.rol === 'operador' ? 'selected' : ''}>Operador</option>
+                <option value="supervisor" ${item.rol === 'supervisor' ? 'selected' : ''}>Supervisor</option>
+                <option value="administrador" ${item.rol === 'administrador' ? 'selected' : ''}>Administrador</option>
+              </select>
+            </td>
+            <td>
+              <span class="badge ${item.activo ? 'badge--success' : 'badge--error'}">
+                ${item.activo ? 'Activo' : 'Bloqueado'}
+              </span>
+            </td>
+            <td class="text-right">
+              <button class="btn-toggle-estado" data-uid="${item.uid}" data-activo="${item.activo}" style="background:none; border:none; color: ${item.activo ? 'var(--color-error)' : 'var(--color-success)'}; font-size: 0.8rem; font-weight: bold; cursor: pointer;">
+                ${item.activo ? 'Desactivar' : 'Activar'}
+              </button>
+            </td>
+          </tr>
+        `).join("");
+
+        // Eventos de cambio de Rol
+        tbody.querySelectorAll(".select-rol").forEach(sel => {
+          sel.addEventListener("change", async (e) => {
+            const uid = e.target.getAttribute("data-uid");
+            const nuevoRol = e.target.value;
+            try {
+              await updateDoc(doc(db, "staff", uid), { rol: nuevoRol });
+              alert("✓ Rol actualizado con éxito.");
+            } catch (err) {
+              console.error(err);
+              alert("Error actualizando el rol.");
+            }
+          });
+        });
+
+        // Eventos de Activación/Desactivación
+        tbody.querySelectorAll(".btn-toggle-estado").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            const uid = e.target.getAttribute("data-uid");
+            const estadoActual = e.target.getAttribute("data-activo") === "true";
+            try {
+              await updateDoc(doc(db, "staff", uid), { activo: !estadoActual });
+              cargarMiembrosStaff();
+            } catch (err) {
+              console.error(err);
+              alert("Error al modificar el estado del usuario.");
+            }
+          });
+        });
+
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-red-500">Error al cargar datos.</td></tr>';
+      }
+    }
+
+    document.getElementById("form-crear-staff").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById("nuevo-nombre").value.trim();
+      const email = document.getElementById("nuevo-email").value.trim().toLowerCase();
+      const uid = document.getElementById("nuevo-uid").value.trim();
+      const rol = document.getElementById("nuevo-rol").value;
+
+      try {
+        await setDoc(doc(db, "staff", uid), {
+          nombre,
+          email,
+          rol,
+          activo: true,
+          fechaRegistro: new Date().toISOString()
+        });
+
+        alert("✓ Colaborador añadido correctamente.");
+        document.getElementById("form-crear-staff").reset();
+        cargarMiembrosStaff();
+      } catch (err) {
+        console.error(err);
+        alert("Error al registrar en staff.");
+      }
+    });
+
+    // Proteger acceso: Solo Administrador
+    requireStaffAccess((user, staffProfile) => {
+      wireLogoutButton("btn-logout");
+      document.getElementById("usuario-actual").textContent = staffProfile.nombre || user.email;
+      cargarMiembrosStaff();
+    }, "admin-usuarios.html");
+  </script>
+</body>
+</html>

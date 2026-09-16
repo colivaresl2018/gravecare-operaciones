@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gastos e Ingresos Contables | GraveCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    .breadcrumb {
+      background-color: var(--color-bg-white);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0.75rem 0;
+      font-size: 0.875rem;
+    }
+    .breadcrumb span { color: var(--color-text-light); }
+    .resumen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    @media (max-width: 900px) { .resumen-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .resumen-grid { grid-template-columns: 1fr; } }
+    .resumen-valor { font-size: 1.4rem; font-weight: 700; }
+    .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: end; }
+    @media (max-width: 900px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .filtros-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; align-items: end; }
+    @media (max-width: 900px) { .filtros-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .filtros-grid { grid-template-columns: 1fr; } }
+    .campo label { margin-bottom: 0.35rem; font-weight: 600; font-size: 0.8rem; }
+    .tax-box {
+      grid-column: 1 / -1;
+      background: #f4f6f4;
+      border: 1px solid #c1c8c1;
+      border-radius: 8px;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="gravecare-header">
+    <div class="gravecare-header__content">
+      <a href="portal.html" class="gravecare-header__logo">GraveCare</a>
+      <div class="gravecare-header__user">
+        <span id="usuario-actual" class="gravecare-header__email"></span>
+        <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="breadcrumb">
+    <div class="container">
+      <a href="portal.html">Inicio</a> <span>/</span> <span>Gastos e Ingresos (Contabilidad y F29/F22)</span>
+    </div>
+  </div>
+
+  <div id="acceso-denegado" class="hidden container text-center mt-8">
+    <h2 class="mb-2">Acceso restringido</h2>
+    <p class="mb-6">Módulo exclusivo para Administradores.</p>
+    <a href="portal.html" class="btn-primary">Volver al Portal</a>
+  </div>
+
+  <main id="contenido-principal" class="container mt-8 mb-8">
+    <div class="mb-6">
+      <h2 class="mb-2">Control Contable y Tributario</h2>
+      <p style="margin-bottom: 0;">Registro de compras, ventas, retenciones e IVA para F29 y Renta.</p>
+    </div>
+
+    <!-- Indicadores Resumen -->
+    <section class="resumen-grid mb-6">
+      <div class="card">
+        <p class="card__subtitle mb-2">Ingresos Netos</p>
+        <p id="resumen-ingresos-neto" class="resumen-valor" style="color: var(--color-success);">$ 0</p>
+      </div>
+      <div class="card">
+        <p class="card__subtitle mb-2">Gastos Deducibles (Neto)</p>
+        <p id="resumen-gastos-neto" class="resumen-valor" style="color: var(--color-error);">$ 0</p>
+      </div>
+      <div class="card">
+        <p class="card__subtitle mb-2">IVA Débito - Crédito</p>
+        <p id="resumen-iva" class="resumen-valor" style="color: #002d1a;">$ 0</p>
+      </div>
+      <div class="card">
+        <p class="card__subtitle mb-2">Resultado Neto Operacional</p>
+        <p id="resumen-balance" class="resumen-valor" style="color: var(--color-success);">$ 0</p>
+      </div>
+    </section>
+
+    <!-- Gráfico -->
+    <section class="card mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 style="margin-bottom: 0;">Evolución de Ingresos y Gastos (Neto)</h3>
+      </div>
+      <div style="position: relative; height: 300px;">
+        <canvas id="grafico-comparativo"></canvas>
+      </div>
+      <p id="grafico-vacio" class="hidden text-center mt-4" style="color: var(--color-text-light);">
+        Sin movimientos registrados para graficar.
+      </p>
+    </section>
+
+    <!-- Formulario Nuevo Movimiento Contable -->
+    <section class="card mb-6">
+      <h3 class="mb-4">Ingreso de Comprobante / Movimiento</h3>
+      <form id="form-movimiento" class="form-grid">
+
+        <div class="campo">
+          <label class="label">Flujo</label>
+          <select id="form-tipo">
+            <option value="Gasto">Gasto / Compra</option>
+            <option value="Ingreso">Ingreso / Venta</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label class="label">Documento Tributario (DTE)</label>
+          <select id="form-dte">
+            <option value="Factura Afecta">Factura Afecta (IVA 19%)</option>
+            <option value="Factura Exenta">Factura Exenta</option>
+            <option value="Boleta Honorarios">Boleta de Honorarios (Retención 15.25%)</option>
+            <option value="Boleta Venta">Boleta Electrónica</option>
+            <option value="Voucher/Comprobante">Voucher / Otro</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label class="label">N° Folio / N° Factura</label>
+          <input type="text" id="form-folio" placeholder="Ej: 14502">
+        </div>
+
+        <div class="campo">
+          <label class="label">RUT Proveedor / Cliente</label>
+          <input type="text" id="form-rut" placeholder="76.123.456-7">
+        </div>
+
+        <div class="campo">
+          <label class="label">Razón Social / Contraparte</label>
+          <input type="text" id="form-concepto" placeholder="Ej: Vivero Las Flores SpA" required>
+        </div>
+
+        <div class="campo">
+          <label class="label">Fecha Emisión</label>
+          <input type="date" id="form-fecha" required>
+        </div>
+
+        <div class="campo">
+          <label class="label">Categoría Contable</label>
+          <select id="form-categoria"></select>
+        </div>
+
+        <div class="campo">
+          <label class="label">Clasificación Tributaria (F22)</label>
+          <select id="form-clasificacion-f22">
+            <option value="Gasto Deducible">Gasto Aceptado / Deducible</option>
+            <option value="Activo Fijo">Activo Fijo (Maquinarias/Equipos)</option>
+            <option value="Gasto No Deducible">Gasto Rechazado / No Deducible</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label class="label">Descripción Adicional</label>
+          <input type="text" id="form-descripcion" placeholder="Detalle adicional">
+        </div>
+
+        <!-- Caja de Cálculo Tributario -->
+        <div class="tax-box">
+          <div class="campo">
+            <label class="label">Monto Neto ($ CLP)</label>
+            <input type="number" id="form-monto-neto" min="0" step="1" placeholder="0" required>
+          </div>
+          <div class="campo">
+            <label class="label" id="label-impuesto">IVA (19%)</label>
+            <input type="number" id="form-impuesto" min="0" step="1" placeholder="0">
+          </div>
+          <div class="campo">
+            <label class="label">Total Bruto ($ CLP)</label>
+            <input type="number" id="form-total" min="0" step="1" placeholder="0" readonly style="background: #e2e8f0; font-weight: bold;">
+          </div>
+        </div>
+
+        <div style="grid-column: 1 / -1; margin-top: 0.5rem;">
+          <button id="btn-guardar" type="submit" class="btn-primary">
+            Registrar Movimiento Contable
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- Filtros -->
+    <section class="card mb-6">
+      <h3 class="mb-4">Filtros y Búsqueda</h3>
+      <div class="filtros-grid">
+        <div class="campo">
+          <label class="label">Tipo</label>
+          <select id="filtro-tipo">
+            <option value="">Todos</option>
+            <option value="Gasto">Gasto</option>
+            <option value="Ingreso">Ingreso</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label class="label">Categoría</label>
+          <select id="filtro-categoria"></select>
+        </div>
+        <div class="campo">
+          <label class="label">Desde</label>
+          <input type="date" id="filtro-desde">
+        </div>
+        <div class="campo">
+          <label class="label">Hasta</label>
+          <input type="date" id="filtro-hasta">
+        </div>
+        <div class="campo">
+          <button id="btn-limpiar-filtros" type="button" class="btn-secondary" style="width: 100%; justify-content: center;">
+            Limpiar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabla -->
+    <section class="card" style="padding: 0;">
+      <div style="overflow-x: auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>DTE / Folio</th>
+              <th>Contraparte / RUT</th>
+              <th>Categoría</th>
+              <th class="text-right">Neto</th>
+              <th class="text-right">IVA/Ret.</th>
+              <th class="text-right">Total</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-movimientos"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="gravecare-footer">
+    GraveCare — Módulo Contable y Tributario
+  </footer>
+
+  <script type="module" src="js/gastosIngresos.js"></script>
+</body>
+</html>
