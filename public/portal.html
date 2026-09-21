@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
   <title>Portal de Operaciones - GraveCare</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -204,6 +205,12 @@
         <span>Revisión Informes</span>
       </a>
 
+      <!-- INFORMES TERMINADOS: Supervisor y Administrador -->
+      <a href="#informes-terminados" id="link-informes-terminados" class="sidebar-link hidden" onclick="switchModule('informes-terminados')">
+        <i class="fa-solid fa-folder-closed"></i>
+        <span>Informes Terminados</span>
+      </a>
+
       <!-- GASTOS E INGRESOS: Exclusivo Administrador -->
       <a href="#contabilidad" id="link-contabilidad" class="sidebar-link hidden" onclick="switchModule('contabilidad')">
         <i class="fa-solid fa-calculator"></i>
@@ -236,27 +243,32 @@
       
       <!-- Mis Trabajos -->
       <div id="mis-trabajos-module" class="module-container active">
-        <iframe src="mis-trabajos.html"></iframe>
+        <iframe data-src="mis-trabajos.html"></iframe>
       </div>
 
       <!-- Asignar Órdenes -->
       <div id="ordenes-module" class="module-container">
-        <iframe src="ordenes.html"></iframe>
+        <iframe data-src="ordenes.html"></iframe>
       </div>
 
       <!-- Revisión de Informes -->
       <div id="revision-module" class="module-container">
-        <iframe src="informe-revision.html"></iframe>
+        <iframe data-src="informe-revision.html"></iframe>
+      </div>
+
+      <!-- Informes Terminados -->
+      <div id="informes-terminados-module" class="module-container">
+        <iframe data-src="informes-terminados.html"></iframe>
       </div>
 
       <!-- Gastos e Ingresos -->
       <div id="contabilidad-module" class="module-container">
-        <iframe src="gastos-ingresos.html"></iframe>
+        <iframe data-src="gastos-ingresos.html"></iframe>
       </div>
 
       <!-- Administración de Staff -->
       <div id="admin-staff-module" class="module-container">
-        <iframe src="admin-usuarios.html"></iframe>
+        <iframe data-src="admin-usuarios.html"></iframe>
       </div>
 
     </div>
@@ -266,7 +278,53 @@
 <script type="module">
   import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
 
+  let staffGlobal = null;
+
+  const titles = {
+    'mis-trabajos': '📋 Mis Trabajos',
+    'ordenes': '📝 Asignación de Órdenes de Trabajo',
+    'revision': '🔍 Revisión de Informes Técnicos',
+    'informes-terminados': '📁 Historial de Informes Terminados',
+    'contabilidad': '💰 Control de Gastos, Ingresos y F29/F22',
+    'admin-staff': '🛡️ Gestión de Privilegios y Usuarios Staff'
+  };
+
+  window.switchModule = function(moduleName) {
+    // 1. Ocultar todos los módulos
+    document.querySelectorAll('.module-container').forEach(mod => mod.classList.remove('active'));
+    
+    // 2. Activar el contenedor seleccionado
+    const selected = document.getElementById(moduleName + '-module');
+    if (selected) {
+      selected.classList.add('active');
+      
+      // Lazy loading: cargar el iframe si aún no tiene src asignado
+      const iframe = selected.querySelector('iframe');
+      if (iframe && !iframe.getAttribute('src')) {
+        const urlDestino = iframe.getAttribute('data-src');
+        if (urlDestino) iframe.setAttribute('src', urlDestino);
+      }
+    }
+
+    // 3. Cambiar título del header
+    document.getElementById('module-title').textContent = titles[moduleName] || 'Portal de Operaciones';
+
+    // 4. Actualizar estado activo en la botonera lateral
+    document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+    const activeLink = document.querySelector(`.sidebar-link[href="#${moduleName}"]`);
+    if (activeLink) activeLink.classList.add('active');
+  };
+
+  // Escuchar cambios de hash en la barra de direcciones
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash.replace('#', '') || 'mis-trabajos';
+    if (document.getElementById(hash + '-module')) {
+      window.switchModule(hash);
+    }
+  });
+
   requireStaffAccess((user, staffProfile) => {
+    staffGlobal = staffProfile;
     wireLogoutButton("btn-logout");
 
     // Datos del usuario logueado
@@ -277,35 +335,22 @@
     if (staffProfile.rol === "supervisor" || staffProfile.rol === "administrador") {
       document.getElementById("link-ordenes")?.classList.remove("hidden");
       document.getElementById("link-revision")?.classList.remove("hidden");
+      document.getElementById("link-informes-terminados")?.classList.remove("hidden");
     }
     
     if (staffProfile.rol === "administrador") {
       document.getElementById("link-contabilidad")?.classList.remove("hidden");
       document.getElementById("link-admin-staff")?.classList.remove("hidden");
     }
-  }, "portal.html");
 
-  window.switchModule = function(moduleName) {
-    document.querySelectorAll('.module-container').forEach(mod => mod.classList.remove('active'));
-    
-    const selected = document.getElementById(moduleName + '-module');
-    if (selected) {
-      selected.classList.add('active');
+    // Cargar el módulo inicial indicado en la URL o por defecto 'mis-trabajos'
+    const initialHash = window.location.hash.replace('#', '') || 'mis-trabajos';
+    if (document.getElementById(initialHash + '-module')) {
+      window.switchModule(initialHash);
+    } else {
+      window.switchModule('mis-trabajos');
     }
-
-    const titles = {
-      'mis-trabajos': '📋 Mis Trabajos',
-      'ordenes': '📝 Asignación de Órdenes de Trabajo',
-      'revision': '🔍 Revisión de Informes Técnicos',
-      'contabilidad': '💰 Control de Gastos, Ingresos y F29/F22',
-      'admin-staff': '🛡️ Gestión de Privilegios y Usuarios Staff'
-    };
-    document.getElementById('module-title').textContent = titles[moduleName] || 'Portal de Operaciones';
-
-    document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
-    const activeLink = document.querySelector(`[onclick="switchModule('${moduleName}')"]`);
-    if (activeLink) activeLink.classList.add('active');
-  };
+  }, "portal.html");
 </script>
 
 </body>

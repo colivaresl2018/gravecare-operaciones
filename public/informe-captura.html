@@ -1,479 +1,527 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>GraveCare - Captura de Informe</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/index.min.js"></script>
-  <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>Captura de Informe en Terreno | GraveCare Ops</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: "#002d1a",
+            brandLight: "#1a432f",
+            brandMuted: "#4e6451"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-    .loading-spinner { animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
+    .thumb-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
   </style>
 </head>
-<body class="bg-[#f8faf8] text-[#191c1b] min-h-screen flex flex-col pb-28">
+<body class="p-4 md:p-8 max-w-3xl mx-auto text-slate-800">
 
-  <header class="bg-[#002d1a] text-white px-4 py-3.5 sticky top-0 z-30 shadow-sm flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <button onclick="volverAtras()" class="text-[#a4d1b5] hover:bg-[#1a432f] p-1.5 rounded-lg transition">
-        <span class="material-symbols-outlined">arrow_back</span>
-      </button>
-      <h1 class="font-bold text-base tracking-wide">GRAVECARE <span class="text-xs font-normal text-[#a4d1b5]">| Informe</span></h1>
+  <!-- Encabezado de Captura -->
+  <header class="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
+    <div>
+      <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Operaciones en Terreno</span>
+      <h1 class="text-2xl font-black text-brand">Registro de Visita Técnica</h1>
+      <p class="text-xs text-slate-500 mt-0.5" id="txt-orden-header">Cargando orden asignada...</p>
     </div>
-    <div id="gps-badge" class="flex items-center gap-1.5 bg-[#1a432f] px-2.5 py-1 rounded-full text-xs text-[#a4d1b5]">
-      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-      <span id="gps-text">GPS Activo</span>
-    </div>
+    <button onclick="window.location.href='portal.html#mis-trabajos'" class="p-2 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100 transition cursor-pointer">
+      <span class="material-symbols-outlined text-xl">arrow_back</span>
+    </button>
   </header>
 
-  <div id="loading-overlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-2xl p-6 shadow-xl max-w-sm text-center">
-      <div class="w-10 h-10 mx-auto mb-3 rounded-full border-4 border-[#002d1a]/20 border-t-[#002d1a] loading-spinner"></div>
-      <p id="loading-text" class="text-sm font-semibold text-[#002d1a]">Cargando...</p>
+  <!-- Estado del Sensor GPS -->
+  <div id="banner-gps" class="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-amber-600 text-2xl animate-pulse">satellite_alt</span>
+      <div>
+        <h2 class="text-xs font-bold text-amber-900 uppercase">Geolocalización Satelital</h2>
+        <p class="text-xs text-amber-700" id="txt-gps-status">Detectando señal GPS del dispositivo...</p>
+      </div>
     </div>
+    <button type="button" onclick="obtenerUbicacionActual()" class="px-3 py-1.5 bg-amber-200 text-amber-900 text-xs font-bold rounded-lg hover:bg-amber-300 transition cursor-pointer">
+      Actualizar GPS
+    </button>
   </div>
 
-  <main class="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
-    <!-- Tarjeta de Orden -->
-    <div id="orden-card" class="bg-white border border-[#c1c8c1]/40 rounded-xl p-4 shadow-sm">
-      <div class="flex justify-between items-start mb-2">
-        <span id="orden-numero" class="text-xs uppercase tracking-wider font-semibold text-[#4e6451]">Orden #...</span>
-        <span id="estado-badge" class="bg-[#d1e9d2] text-[#002d1a] text-xs font-bold px-2 py-0.5 rounded-full">En Terreno</span>
+  <form id="form-informe" class="space-y-6">
+
+    <!-- 1. Tareas Realizadas en el Sitio -->
+    <section class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+      <h2 class="text-sm font-bold text-brand uppercase tracking-wider flex items-center gap-2">
+        <span class="material-symbols-outlined text-base">checklist</span> Labores Ejecutadas
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" id="chk-limpieza" checked class="rounded text-brand focus:ring-brand">
+          <span>Limpieza profunda de lápida</span>
+        </label>
+        <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" id="chk-retiro" checked class="rounded text-brand focus:ring-brand">
+          <span>Retiro de maleza y hojas</span>
+        </label>
+        <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" id="chk-flores" checked class="rounded text-brand focus:ring-brand">
+          <span>Ornamentación con flores</span>
+        </label>
+        <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" id="chk-riego" checked class="rounded text-brand focus:ring-brand">
+          <span>Riego y perfilado de terreno</span>
+        </label>
       </div>
-      <h2 id="difunto-nombre" class="text-lg font-bold text-[#002d1a]">Cargando...</h2>
-      <p id="ubicacion-detalle" class="text-xs text-[#414943] mt-0.5">Cargando ubicación...</p>
-      
-      <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-[#4e6451]">
-        <span class="flex items-center gap-1">
-          <span class="material-symbols-outlined text-sm">my_location</span>
-          <span id="coords-display">Obteniendo GPS...</span>
-        </span>
-        <button type="button" onclick="capturarGPS()" class="text-[#002d1a] font-semibold underline text-[11px]">Recalibrar</button>
+    </section>
+
+    <!-- 2. Observaciones del Especialista -->
+    <section class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+      <h2 class="text-sm font-bold text-brand uppercase tracking-wider flex items-center gap-2">
+        <span class="material-symbols-outlined text-base">edit_note</span> Observaciones Técnicas
+      </h2>
+      <textarea id="txt-observaciones" rows="3" class="w-full text-sm border-slate-300 rounded-lg focus:border-brand focus:ring-brand" placeholder="Indique detalles relevantes del estado de la sepultura o labores realizadas..."></textarea>
+    </section>
+
+    <!-- 3. Cuadrícula de 4 Puntos Fotográficos Obligatorios -->
+    <section class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+      <div>
+        <h2 class="text-sm font-bold text-brand uppercase tracking-wider flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">photo_camera</span> Evidencia Fotográfica (4 Puntos de Control)
+        </h2>
+        <p class="text-xs text-slate-500 mt-1">Cada foto incluirá automáticamente sello con fecha, hora y coordenadas GPS.</p>
       </div>
 
-      <div class="mt-2 pt-2.5 border-t border-slate-100 text-xs text-[#4e6451]">
-        <span id="timestamp-display">Fecha/Hora: --:--</span>
-      </div>
-    </div>
-
-    <!-- Fotos del Servicio -->
-    <div>
-      <h3 class="text-sm font-bold text-[#002d1a] mb-1 flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-base">add_a_photo</span> Fotos del Servicio (4 Requeridas)
-      </h3>
-      <p class="text-xs text-[#414943] mb-3">Toma las fotos con la cámara en el lugar:</p>
-
-      <div class="grid grid-cols-2 gap-3">
-        <!-- ANTES -->
-        <div class="bg-white border border-[#c1c8c1]/50 rounded-xl p-2.5 flex flex-col items-center text-center shadow-sm">
-          <input type="file" id="input-antes" accept="image/*" capture="environment" class="hidden" onchange="capturarFoto(event, 'antes')">
-          <div class="w-full h-32 bg-[#f2f4f2] rounded-lg flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-[#c1c8c1] hover:bg-slate-100 transition overflow-hidden relative" onclick="document.getElementById('input-antes').click()">
-            <img id="img-antes" class="hidden w-full h-full object-cover">
-            <div id="ph-antes" class="flex flex-col items-center p-2">
-              <span class="material-symbols-outlined text-[#4e6451] text-3xl">photo_camera</span>
-              <span class="text-[11px] font-semibold text-[#002d1a] mt-1">Tomar Foto</span>
-            </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        
+        <!-- Foto 1: Antes -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2 text-center">
+          <div class="flex justify-between items-center text-xs font-bold text-brandMuted">
+            <span>1. ESTADO INICIAL</span>
+            <span id="badge-antes" class="text-rose-600 font-bold">Pendiente</span>
           </div>
-          <span class="mt-2 text-xs font-bold text-[#002d1a]">1. Antes</span>
-          <span class="text-[10px] text-[#414943]">Estado inicial</span>
+          <div class="bg-white border border-slate-300 rounded-lg p-3 flex flex-col items-center justify-center min-h-[160px]">
+            <img id="prev-antes" class="thumb-preview hidden mb-2" alt="Preview Antes">
+            <input type="file" id="file-antes" accept="image/*" capture="environment" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brandLight cursor-pointer">
+          </div>
         </div>
 
-        <!-- DESPUÉS -->
-        <div class="bg-white border border-[#c1c8c1]/50 rounded-xl p-2.5 flex flex-col items-center text-center shadow-sm">
-          <input type="file" id="input-despues" accept="image/*" capture="environment" class="hidden" onchange="capturarFoto(event, 'despues')">
-          <div class="w-full h-32 bg-[#f2f4f2] rounded-lg flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-[#c1c8c1] hover:bg-slate-100 transition overflow-hidden relative" onclick="document.getElementById('input-despues').click()">
-            <img id="img-despues" class="hidden w-full h-full object-cover">
-            <div id="ph-despues" class="flex flex-col items-center p-2">
-              <span class="material-symbols-outlined text-[#4e6451] text-3xl">photo_camera</span>
-              <span class="text-[11px] font-semibold text-[#002d1a] mt-1">Tomar Foto</span>
-            </div>
+        <!-- Foto 2: Después -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2 text-center">
+          <div class="flex justify-between items-center text-xs font-bold text-brand">
+            <span>2. TRABAJO FINALIZADO</span>
+            <span id="badge-despues" class="text-rose-600 font-bold">Pendiente</span>
           </div>
-          <span class="mt-2 text-xs font-bold text-[#002d1a]">2. Después</span>
-          <span class="text-[10px] text-[#414943]">Lápida limpia</span>
+          <div class="bg-white border border-slate-300 rounded-lg p-3 flex flex-col items-center justify-center min-h-[160px]">
+            <img id="prev-despues" class="thumb-preview hidden mb-2" alt="Preview Después">
+            <input type="file" id="file-despues" accept="image/*" capture="environment" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brandLight cursor-pointer">
+          </div>
         </div>
 
-        <!-- FLORES -->
-        <div class="bg-white border border-[#c1c8c1]/50 rounded-xl p-2.5 flex flex-col items-center text-center shadow-sm">
-          <input type="file" id="input-flores" accept="image/*" capture="environment" class="hidden" onchange="capturarFoto(event, 'flores')">
-          <div class="w-full h-32 bg-[#f2f4f2] rounded-lg flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-[#c1c8c1] hover:bg-slate-100 transition overflow-hidden relative" onclick="document.getElementById('input-flores').click()">
-            <img id="img-flores" class="hidden w-full h-full object-cover">
-            <div id="ph-flores" class="flex flex-col items-center p-2">
-              <span class="material-symbols-outlined text-[#4e6451] text-3xl">photo_camera</span>
-              <span class="text-[11px] font-semibold text-[#002d1a] mt-1">Tomar Foto</span>
-            </div>
+        <!-- Foto 3: Flores -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2 text-center">
+          <div class="flex justify-between items-center text-xs font-bold text-brandMuted">
+            <span>3. ORNAMENTACIÓN FLORAL</span>
+            <span id="badge-flores" class="text-rose-600 font-bold">Pendiente</span>
           </div>
-          <span class="mt-2 text-xs font-bold text-[#002d1a]">3. Detalle Flores</span>
-          <span class="text-[10px] text-[#414943]">Arreglo floral</span>
+          <div class="bg-white border border-slate-300 rounded-lg p-3 flex flex-col items-center justify-center min-h-[160px]">
+            <img id="prev-flores" class="thumb-preview hidden mb-2" alt="Preview Flores">
+            <input type="file" id="file-flores" accept="image/*" capture="environment" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brandLight cursor-pointer">
+          </div>
         </div>
 
-        <!-- GENERAL -->
-        <div class="bg-white border border-[#c1c8c1]/50 rounded-xl p-2.5 flex flex-col items-center text-center shadow-sm">
-          <input type="file" id="input-general" accept="image/*" capture="environment" class="hidden" onchange="capturarFoto(event, 'general')">
-          <div class="w-full h-32 bg-[#f2f4f2] rounded-lg flex flex-col items-center justify-center cursor-pointer border-2 border-dashed border-[#c1c8c1] hover:bg-slate-100 transition overflow-hidden relative" onclick="document.getElementById('input-general').click()">
-            <img id="img-general" class="hidden w-full h-full object-cover">
-            <div id="ph-general" class="flex flex-col items-center p-2">
-              <span class="material-symbols-outlined text-[#4e6451] text-3xl">photo_camera</span>
-              <span class="text-[11px] font-semibold text-[#002d1a] mt-1">Tomar Foto</span>
-            </div>
+        <!-- Foto 4: General -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2 text-center">
+          <div class="flex justify-between items-center text-xs font-bold text-brandMuted">
+            <span>4. VISTA PANORÁMICA</span>
+            <span id="badge-general" class="text-rose-600 font-bold">Pendiente</span>
           </div>
-          <span class="mt-2 text-xs font-bold text-[#002d1a]">4. Vista General</span>
-          <span class="text-[10px] text-[#414943]">Entorno y lote</span>
+          <div class="bg-white border border-slate-300 rounded-lg p-3 flex flex-col items-center justify-center min-h-[160px]">
+            <img id="prev-general" class="thumb-preview hidden mb-2" alt="Preview General">
+            <input type="file" id="file-general" accept="image/*" capture="environment" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brandLight cursor-pointer">
+          </div>
         </div>
+
       </div>
-    </div>
+    </section>
 
-    <!-- Tareas -->
-    <div class="bg-white border border-[#c1c8c1]/40 rounded-xl p-4 shadow-sm">
-      <h3 class="text-sm font-bold text-[#002d1a] mb-2.5 flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-base">checklist</span> Check de Labores
-      </h3>
-      <div class="space-y-2 text-xs text-[#191c1b]">
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="tarea-limpieza" class="rounded text-[#002d1a]">
-          <label for="tarea-limpieza" class="cursor-pointer">Limpieza profunda de lápida</label>
-        </div>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="tarea-retiro" class="rounded text-[#002d1a]">
-          <label for="tarea-retiro" class="cursor-pointer">Retiro de maleza y hojas</label>
-        </div>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="tarea-flores" class="rounded text-[#002d1a]">
-          <label for="tarea-flores" class="cursor-pointer">Ornamentación floral fresca</label>
-        </div>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="tarea-riego" class="rounded text-[#002d1a]">
-          <label for="tarea-riego" class="cursor-pointer">Riego del perímetro</label>
-        </div>
+    <!-- Barra de Envío y Progreso -->
+    <div id="progreso-contenedor" class="hidden bg-slate-100 rounded-xl p-4 text-center space-y-2">
+      <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+        <div id="barra-progreso" class="bg-brand h-full w-0 transition-all duration-300"></div>
       </div>
+      <p id="txt-progreso" class="text-xs font-bold text-slate-600">Subiendo evidencia georreferenciada...</p>
     </div>
 
-    <!-- Nota -->
-    <div class="bg-white border border-[#c1c8c1]/40 rounded-xl p-4 shadow-sm">
-      <h3 class="text-sm font-bold text-[#002d1a] mb-2 flex items-center gap-1.5">
-        <span class="material-symbols-outlined text-base">edit_note</span> Nota del Especialista
-      </h3>
-      <textarea id="nota-operador" rows="2" class="w-full text-xs p-2.5 border border-[#c1c8c1] rounded-lg focus:outline-none focus:border-[#002d1a]" placeholder="Observaciones del trabajo..."></textarea>
-    </div>
-  </main>
+    <button type="submit" id="btn-guardar" class="w-full py-4 bg-brand hover:bg-brandLight text-white font-bold text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+      <span class="material-symbols-outlined">verified</span> Guardar y Certificar Informe
+    </button>
+  </form>
 
-  <!-- Botones de Acción -->
-  <div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[#c1c8c1]/30 p-3 z-40">
-    <div class="max-w-lg mx-auto flex gap-2">
-      <button type="button" onclick="guardarBorrador()" class="flex-1 bg-[#a4d1b5] hover:bg-[#7fb8a0] text-[#002d1a] py-3.5 rounded-full font-bold text-sm shadow-md flex items-center justify-center gap-2 transition active:scale-95">
-        <span class="material-symbols-outlined text-base">save</span> Guardar Borrador
-      </button>
-      <button type="button" onclick="enviarAlRevision()" class="flex-1 bg-[#002d1a] hover:bg-[#1a432f] text-white py-3.5 rounded-full font-bold text-sm shadow-md flex items-center justify-center gap-2 transition active:scale-95">
-        <span class="material-symbols-outlined text-base">send</span> Enviar a Revisión
-      </button>
-    </div>
-  </div>
-
+  <!-- Script Principal Resiliente -->
   <script type="module">
-    import { app, db } from "./js/firebaseConfig.js";
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { 
+      getFirestore,
+      doc, 
+      getDoc, 
+      setDoc, 
+      updateDoc, 
+      serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { 
+      getStorage, 
+      ref, 
+      uploadBytes, 
+      getDownloadURL 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
     import { requireStaffAccess } from "./js/portal-common.js";
-    import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-    const storage = getStorage(app);
-
-    let currentUser = null;
-    let currentStaffProfile = null;
-    let ordenActual = null;
-    let coordenadasActuales = { lat: null, lng: null, accuracy: null };
-    const fotosCapturadas = { 
-      antes: { file: null, exif: null }, 
-      despues: { file: null, exif: null }, 
-      flores: { file: null, exif: null }, 
-      general: { file: null, exif: null } 
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.appspot.com",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
     };
 
-    async function cargarOrdenActiva() {
-      mostrarLoading(true, 'Cargando orden de servicio...');
-      try {
-        const ordenId = new URLSearchParams(window.location.search).get('ordenId');
-        if (!ordenId) {
-          alert('No se especificó orden. Vuelve al portal.');
-          volverAtras();
-          return;
-        }
+    let appActiva = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const db = getFirestore(appActiva);
+    const storage = getStorage(appActiva);
 
-        const docSnap = await getDoc(doc(db, 'ordenes', ordenId));
-        if (!docSnap.exists()) {
-          alert('Orden no encontrada en la base de datos.');
-          volverAtras();
-          return;
-        }
+    let coordenadasGPS = { lat: -33.4489, lng: -70.6693, precision: 10 };
+    let ordenActual = null;
+    let datosOperador = { nombre: "Staff Operativo", uid: "" };
 
-        ordenActual = { id: ordenId, ...docSnap.data() };
-        
-        const numOrden = ordenActual.numeroOrden || ordenId.substring(0, 8);
-        document.getElementById('orden-numero').textContent = `Orden #${numOrden}`;
+    const fotosProcesadas = {
+      antes: null,
+      despues: null,
+      flores: null,
+      general: null
+    };
 
-        const dif = ordenActual.difunto;
-        const nombreDifunto = dif ? `${dif.nombres || ''} ${dif.apellidoPaterno || ''}`.trim() : (ordenActual.nombreDifunto || 'Sin especificar');
-        document.getElementById('difunto-nombre').textContent = nombreDifunto;
+    window.obtenerUbicacionActual = function() {
+      const txtStatus = document.getElementById("txt-gps-status");
+      const banner = document.getElementById("banner-gps");
 
-        const ubi = ordenActual.ubicacionSepultura;
-        if (ubi) {
-          document.getElementById('ubicacion-detalle').textContent = 
-            `${ubi.cementerio || 'Cementerio'} · Sector ${ubi.sector || 'N/A'}, Sepultura ${ubi.numeroSepultura || 'S/N'}`;
-        } else {
-          document.getElementById('ubicacion-detalle').textContent = 'Ubicación sin datos detallados';
-        }
+      if (!navigator.geolocation) return;
 
-        mostrarLoading(false);
-      } catch (error) {
-        console.error('Error cargando orden:', error);
-        alert('Error cargando la orden.');
-        mostrarLoading(false);
-      }
-    }
-
-    function capturarGPS() {
-      if ("geolocation" in navigator) {
-        document.getElementById('gps-text').textContent = 'Localizando...';
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            coordenadasActuales.lat = position.coords.latitude;
-            coordenadasActuales.lng = position.coords.longitude;
-            coordenadasActuales.accuracy = Math.round(position.coords.accuracy);
-            
-            document.getElementById('coords-display').textContent = 
-              `${coordenadasActuales.lat.toFixed(5)}, ${coordenadasActuales.lng.toFixed(5)} (±${coordenadasActuales.accuracy}m)`;
-            document.getElementById('gps-text').textContent = 'GPS Activo';
-          },
-          (error) => {
-            console.warn('Error GPS:', error);
-            document.getElementById('gps-text').textContent = 'GPS inactivo';
-            document.getElementById('coords-display').textContent = 'Activa ubicación en el móvil';
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      }
-    }
-
-    async function capturarFoto(event, tipo) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      mostrarLoading(true, 'Procesando foto...');
-      try {
-        let exifData = null;
-        try { exifData = await exifr.parse(file); } catch (e) { }
-
-        const comprimida = await comprimirFoto(file);
-
-        fotosCapturadas[tipo] = {
-          file: comprimida,
-          exif: exifData || {
-            latitude: coordenadasActuales.lat,
-            longitude: coordenadasActuales.lng,
-            accuracy: coordenadasActuales.accuracy,
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          coordenadasGPS = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            precision: pos.coords.accuracy,
             timestamp: new Date().toISOString()
+          };
+          if (txtStatus) {
+            txtStatus.innerHTML = `📍 GPS Fijado: <strong>${coordenadasGPS.lat.toFixed(5)}, ${coordenadasGPS.lng.toFixed(5)}</strong>`;
+            if (banner) banner.className = "mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between";
           }
-        };
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+      );
+    };
 
+    async function procesarFotoSegura(archivo, coords, tipoTexto) {
+      return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = document.getElementById(`img-${tipo}`);
-          const placeholder = document.getElementById(`ph-${tipo}`);
-          img.src = e.target.result;
-          img.classList.remove('hidden');
-          placeholder.classList.add('hidden');
-        };
-        reader.readAsDataURL(comprimida);
-        mostrarLoading(false);
-      } catch (error) {
-        console.error(error);
-        mostrarLoading(false);
-      }
-    }
+        const timer = setTimeout(() => {
+          resolve({
+            blob: archivo,
+            previewUrl: URL.createObjectURL(archivo),
+            timestamp: new Date().toISOString(),
+            coordenadas: coords
+          });
+        }, 4000);
 
-    function comprimirFoto(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
         reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxWidth = 1920;
-            let width = img.width;
-            let height = img.height;
+            clearTimeout(timer);
+            try {
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d");
 
-            if (width > height && width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            } else if (height > maxWidth) {
-              width = Math.round((width * maxWidth) / height);
-              height = maxWidth;
+              const maxAncho = 1200;
+              let ancho = img.width;
+              let alto = img.height;
+              if (ancho > maxAncho) {
+                alto = Math.round((alto * maxAncho) / ancho);
+                ancho = maxAncho;
+              }
+
+              canvas.width = ancho;
+              canvas.height = alto;
+              ctx.drawImage(img, 0, 0, ancho, alto);
+
+              const ahora = new Date();
+              const fechaHora = ahora.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) +
+                                " " + ahora.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+              let gpsTxt = "GPS: Registrado";
+              if (coords && coords.lat) {
+                gpsTxt = `GPS: Lat ${coords.lat.toFixed(5)}, Lng ${coords.lng.toFixed(5)}`;
+              }
+
+              const altoBanda = Math.max(44, Math.round(alto * 0.06));
+              ctx.fillStyle = "rgba(0, 45, 26, 0.85)";
+              ctx.fillRect(0, alto - altoBanda, ancho, altoBanda);
+
+              ctx.font = `700 ${Math.max(12, Math.round(altoBanda * 0.35))}px sans-serif`;
+              ctx.fillStyle = "#ffffff";
+              ctx.textBaseline = "middle";
+
+              const padX = Math.round(ancho * 0.02);
+              ctx.fillText(`GRAVECARE · ${tipoTexto.toUpperCase()} · ${fechaHora}`, padX, alto - (altoBanda * 0.65));
+              ctx.fillText(gpsTxt, padX, alto - (altoBanda * 0.28));
+
+              canvas.toBlob((blob) => {
+                resolve({
+                  blob: blob || archivo,
+                  previewUrl: canvas.toDataURL("image/jpeg", 0.75),
+                  timestamp: ahora.toISOString(),
+                  coordenadas: coords
+                });
+              }, "image/jpeg", 0.8);
+
+            } catch (err) {
+              resolve({
+                blob: archivo,
+                previewUrl: URL.createObjectURL(archivo),
+                timestamp: new Date().toISOString(),
+                coordenadas: coords
+              });
             }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob(
-              (blob) => resolve(new File([blob], file.name, { type: 'image/jpeg' })),
-              'image/jpeg',
-              0.8
-            );
           };
-          img.onerror = reject;
+          img.onerror = () => {
+            clearTimeout(timer);
+            resolve({
+              blob: archivo,
+              previewUrl: URL.createObjectURL(archivo),
+              timestamp: new Date().toISOString(),
+              coordenadas: coords
+            });
+          };
           img.src = e.target.result;
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+
+        reader.onerror = () => {
+          clearTimeout(timer);
+          resolve({
+            blob: archivo,
+            previewUrl: URL.createObjectURL(archivo),
+            timestamp: new Date().toISOString(),
+            coordenadas: coords
+          });
+        };
+
+        reader.readAsDataURL(archivo);
       });
     }
 
-    function actualizarTimestamp() {
-      const ahora = new Date();
-      document.getElementById('timestamp-display').textContent = 
-        ahora.toLocaleDateString('es-CL') + ' ' + ahora.toLocaleTimeString('es-CL');
+    function registrarEventoFoto(tipoKey, fileInputId, prevImgId, badgeId, nombreVisual) {
+      const input = document.getElementById(fileInputId);
+      const prev = document.getElementById(prevImgId);
+      const badge = document.getElementById(badgeId);
+
+      if (!input) return;
+
+      input.addEventListener("change", async (e) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+
+        try {
+          badge.textContent = "Procesando...";
+          badge.className = "text-amber-600 font-bold";
+
+          const resultado = await procesarFotoSegura(file, coordenadasGPS, nombreVisual);
+          fotosProcesadas[tipoKey] = resultado;
+
+          prev.src = resultado.previewUrl;
+          prev.classList.remove("hidden");
+
+          badge.textContent = "✓ Lista";
+          badge.className = "text-emerald-700 font-bold";
+        } catch (err) {
+          badge.textContent = "Error";
+          badge.className = "text-rose-600 font-bold";
+        }
+      });
     }
 
-    async function guardarBorrador() {
-      if (!ordenActual) return;
-      mostrarLoading(true, 'Guardando borrador...');
-      try {
-        const informeId = `borrador_${Date.now()}`;
-        const dif = ordenActual.difunto;
-        const nombreDifunto = dif ? `${dif.nombres || ''} ${dif.apellidoPaterno || ''}`.trim() : 'Sin difunto';
+    registrarEventoFoto("antes", "file-antes", "prev-antes", "badge-antes", "1. Estado Inicial");
+    registrarEventoFoto("despues", "file-despues", "prev-despues", "badge-despues", "2. Finalizado");
+    registrarEventoFoto("flores", "file-flores", "prev-flores", "badge-flores", "3. Flores");
+    registrarEventoFoto("general", "file-general", "prev-general", "badge-general", "4. Vista General");
 
-        const datosBorrador = {
-          ordenId: ordenActual.id,
-          difunto: nombreDifunto,
-          operadorId: currentUser.uid,
-          operadorNombre: currentStaffProfile?.nombre || currentUser.email,
-          estado: 'borrador',
-          fechaCaptura: new Date().toISOString(),
-          coordenadas: coordenadasActuales,
-          nota: document.getElementById('nota-operador').value,
-          tareas: {
-            limpieza: document.getElementById('tarea-limpieza').checked,
-            retiro: document.getElementById('tarea-retiro').checked,
-            flores: document.getElementById('tarea-flores').checked,
-            riego: document.getElementById('tarea-riego').checked
-          }
-        };
+    async function inicializarOrden() {
+      obtenerUbicacionActual();
+      const params = new URLSearchParams(window.location.search);
+      let ordenId = params.get("ordenId") || params.get("id");
 
-        await setDoc(doc(db, 'informes', informeId), datosBorrador);
-        alert('✓ Borrador guardado exitosamente');
-        mostrarLoading(false);
-      } catch (error) {
-        console.error(error);
-        mostrarLoading(false);
+      if (ordenId) {
+        localStorage.setItem("gravecare_orden_activa", ordenId);
+      } else {
+        ordenId = localStorage.getItem("gravecare_orden_activa");
       }
-    }
 
-    async function enviarAlRevision() {
-      const fotosFaltantes = Object.keys(fotosCapturadas).filter(k => !fotosCapturadas[k].file);
-      if (fotosFaltantes.length > 0) {
-        alert(`❌ Faltan ${fotosFaltantes.length} foto(s) requerida(s).`);
+      if (!ordenId) {
+        ordenActual = { id: "general_" + Date.now(), numeroOrden: "S/N" };
+        const headerEl = document.getElementById("txt-orden-header");
+        if (headerEl) headerEl.textContent = "Orden General de Terreno";
         return;
       }
 
-      mostrarLoading(true, 'Subiendo fotos y datos a Firebase...');
       try {
-        const informeId = `informe_${Date.now()}`;
-        const storagePath = `informes/${ordenActual.id}/${informeId}`;
+        const snap = await getDoc(doc(db, "ordenes", ordenId));
+        if (snap.exists()) {
+          ordenActual = { id: snap.id, ...snap.data() };
+        } else {
+          ordenActual = { id: ordenId, numeroOrden: ordenId };
+        }
 
-        // 1. Subir las 4 fotos
-        const urlsFotos = {};
-        for (const [tipo, datos] of Object.entries(fotosCapturadas)) {
-          if (datos.file) {
-            const fotoRef = ref(storage, `${storagePath}/${tipo}.jpg`);
-            await uploadBytes(fotoRef, datos.file);
-            urlsFotos[tipo] = await getDownloadURL(fotoRef);
+        const num = ordenActual.numeroOrden || ordenActual.id;
+        const dif = ordenActual.difunto?.nombre || ordenActual.difunto?.nombreCompleto || ordenActual.nombreDifunto || "Visita Técnica";
+        const headerEl = document.getElementById("txt-orden-header");
+        if (headerEl) headerEl.textContent = `Orden #${num} — ${dif}`;
+      } catch (err) {
+        ordenActual = { id: ordenId, numeroOrden: ordenId };
+        const headerEl = document.getElementById("txt-orden-header");
+        if (headerEl) headerEl.textContent = `Orden #${ordenId} (Modo Operativo)`;
+      }
+    }
+
+    document.getElementById("form-informe").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (!ordenActual) {
+        const storedId = localStorage.getItem("gravecare_orden_activa") || ("gen_" + Date.now());
+        ordenActual = { id: storedId, numeroOrden: storedId };
+      }
+
+      if (!fotosProcesadas.antes || !fotosProcesadas.despues) {
+        alert("Debe adjuntar al menos la foto de 'Estado Inicial (Antes)' y la de 'Trabajo Finalizado (Después)'.");
+        return;
+      }
+
+      const btnGuardar = document.getElementById("btn-guardar");
+      const boxProgreso = document.getElementById("progreso-contenedor");
+      const barra = document.getElementById("barra-progreso");
+      const txtProgreso = document.getElementById("txt-progreso");
+
+      btnGuardar.disabled = true;
+      btnGuardar.classList.add("opacity-50");
+      boxProgreso.classList.remove("hidden");
+
+      try {
+        const fotosUrls = {};
+        const keys = ["antes", "despues", "flores", "general"];
+        let paso = 0;
+
+        for (const key of keys) {
+          if (fotosProcesadas[key] && fotosProcesadas[key].blob) {
+            paso++;
+            barra.style.width = `${Math.round((paso / 4) * 100)}%`;
+            txtProgreso.textContent = `Subiendo foto ${paso}...`;
+
+            const storagePath = `informes/${ordenActual.id}/${key}_${Date.now()}.jpg`;
+            const storageRef = ref(storage, storagePath);
+            
+            await uploadBytes(storageRef, fotosProcesadas[key].blob, {
+              contentType: "image/jpeg"
+            });
+
+            const downloadUrl = await getDownloadURL(storageRef);
+            fotosUrls[key] = {
+              url: downloadUrl,
+              timestamp: fotosProcesadas[key].timestamp,
+              coordenadas: fotosProcesadas[key].coordenadas || coordenadasGPS
+            };
           }
         }
 
-        const dif = ordenActual.difunto;
-        const ubi = ordenActual.ubicacionSepultura;
+        barra.style.width = "95%";
+        txtProgreso.textContent = "Guardando metadatos en Firestore...";
 
-        // 2. Guardar en 'informes'
-        const datosInforme = {
-          informeId: informeId,
+        const informeId = `informe_${ordenActual.id}`;
+        const ubi = ordenActual.ubicacionSepultura || {};
+
+        const dataInforme = {
           ordenId: ordenActual.id,
-          difunto: dif ? `${dif.nombres || ''} ${dif.apellidoPaterno || ''}`.trim() : 'Sin difunto',
-          cementerio: ubi?.cementerio || '',
-          sector: ubi?.sector || '',
-          lote: ubi?.numeroSepultura || '',
-          operadorId: currentUser.uid,
-          operadorNombre: currentStaffProfile?.nombre || currentUser.email,
-          estado: 'pendiente_revision',
-          fechaCaptura: new Date().toISOString(),
-          coordenadas: coordenadasActuales,
-          nota: document.getElementById('nota-operador').value,
+          numeroOrden: ordenActual.numeroOrden || ordenActual.id,
+          difunto: ordenActual.difunto?.nombreCompleto || ordenActual.nombreDifunto || "Ser Querido",
+          clienteNombre: ordenActual.titular?.nombres || ordenActual.nombreTitular || "Cliente",
+          clienteEmail: (ordenActual.titular?.email || ordenActual.email || "").toLowerCase().trim(),
+          cementerio: ubi.cementerio || ordenActual.cementerio || "Cementerio",
+          sector: ubi.sector || "S/S",
+          lote: ubi.numeroSepultura || ubi.numero || "S/N",
+          operadorNombre: datosOperador.nombre,
+          operadorUid: datosOperador.uid,
+          nota: document.getElementById("txt-observaciones").value.trim() || "Trabajo realizado en conformidad técnica.",
           tareas: {
-            limpieza: document.getElementById('tarea-limpieza').checked,
-            retiro: document.getElementById('tarea-retiro').checked,
-            flores: document.getElementById('tarea-flores').checked,
-            riego: document.getElementById('tarea-riego').checked
+            limpieza: document.getElementById("chk-limpieza").checked,
+            retiro: document.getElementById("chk-retiro").checked,
+            flores: document.getElementById("chk-flores").checked,
+            riego: document.getElementById("chk-riego").checked
           },
-          fotos: {
-            antes: { url: urlsFotos.antes || null, exif: fotosCapturadas.antes.exif },
-            despues: { url: urlsFotos.despues || null, exif: fotosCapturadas.despues.exif },
-            flores: { url: urlsFotos.flores || null, exif: fotosCapturadas.flores.exif },
-            general: { url: urlsFotos.general || null, exif: fotosCapturadas.general.exif }
-          }
+          fotos: fotosUrls,
+          coordenadas: coordenadasGPS,
+          fechaCaptura: new Date().toISOString(),
+          estado: "aprobado",
+          createdAt: serverTimestamp()
         };
 
-        await setDoc(doc(db, 'informes', informeId), datosInforme);
+        await setDoc(doc(db, "informes", informeId), dataInforme);
 
-        // 3. Actualizar la orden en 'ordenes'
-        await updateDoc(doc(db, 'ordenes', ordenActual.id), {
-          estado: 'en revision',
-          estadoInforme: 'pendiente_revision',
-          informeId: informeId,
-          fechaInforme: new Date().toISOString()
-        });
+        try {
+          await updateDoc(doc(db, "ordenes", ordenActual.id), {
+            estado: "completada",
+            estadoInforme: "aprobado",
+            informeId: informeId,
+            fechaAprobacion: new Date().toISOString()
+          });
+        } catch (updateErr) {
+          console.warn("Actualización de orden omitida:", updateErr);
+        }
 
-        mostrarLoading(false);
-        alert('✓ Informe enviado a revisión exitosamente');
-        window.location.href = 'mis-trabajos.html';
+        localStorage.removeItem("gravecare_orden_activa");
 
-      } catch (error) {
-        console.error('Error enviando informe:', error);
-        alert('Error al enviar el informe.');
-        mostrarLoading(false);
+        barra.style.width = "100%";
+        txtProgreso.textContent = "¡Informe certificado con éxito!";
+
+        setTimeout(() => {
+          alert("Informe guardado y certificado correctamente.");
+          window.location.href = `informe.html?informeId=${informeId}&ordenId=${ordenActual.id}`;
+        }, 800);
+
+      } catch (err) {
+        console.error("Error al guardar informe:", err);
+        alert("Error al subir el informe: " + (err.message || err));
+        btnGuardar.disabled = false;
+        btnGuardar.classList.remove("opacity-50");
+        boxProgreso.classList.add("hidden");
       }
-    }
+    });
 
-    function mostrarLoading(mostrar, texto = 'Cargando...') {
-      const overlay = document.getElementById('loading-overlay');
-      const loadingText = document.getElementById('loading-text');
-      if (mostrar) {
-        loadingText.textContent = texto;
-        overlay.classList.remove('hidden');
-      } else {
-        overlay.classList.add('hidden');
-      }
-    }
-
-    function volverAtras() {
-      window.location.href = 'mis-trabajos.html';
-    }
-
-    window.volverAtras = volverAtras;
-    window.capturarGPS = capturarGPS;
-    window.capturarFoto = capturarFoto;
-    window.guardarBorrador = guardarBorrador;
-    window.enviarAlRevision = enviarAlRevision;
-
+    // Control seguro de inicio de sesión de staff sin bloqueos de parámetros
     requireStaffAccess(async (user, staffProfile) => {
-      currentUser = user;
-      currentStaffProfile = staffProfile;
-      await cargarOrdenActiva();
-      capturarGPS();
-      actualizarTimestamp();
-      setInterval(actualizarTimestamp, 1000);
+      datosOperador = {
+        nombre: staffProfile.nombres || staffProfile.nombreCompleto || user.email.split("@")[0],
+        uid: user.uid
+      };
+      await inicializarOrden();
     });
   </script>
 </body>

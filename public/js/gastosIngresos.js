@@ -1,135 +1,337 @@
-/**
- * Módulo Gastos e Ingresos — Portal de Operaciones GraveCare
- * Acceso restringido a rol "administrador" (ver portal-common.js).
- */
-import { db } from "./firebaseConfig.js";
-import { requireStaffAccess, wireLogoutButton } from "./portal-common.js";
-import {
-  collection,
-  addDoc,
-  deleteDoc,
-  doc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { 
+  getFirestore,
+  collection, 
+  getDocs, 
+  addDoc, 
+  doc, 
+  deleteDoc, 
+  serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+import { requireStaffAccess } from "./portal-common.js";
 
-const COLECCION = "gastos_ingresos";
-
-export const CATEGORIAS = {
-  Gasto: ["Sueldos", "Insumos", "Servicios", "Mantenimiento", "Otros"],
-  Ingreso: ["Suscripciones", "Servicios Prestados", "Otros"]
+const firebaseConfig = {
+  apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+  authDomain: "gravecare-2e8d2.firebaseapp.com",
+  projectId: "gravecare-2e8d2",
+  storageBucket: "gravecare-2e8d2.appspot.com",
+  messagingSenderId: "160012946248",
+  appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
 };
 
-let movimientos = [];       // cache local de lo que trae Firestore
-let usuarioActual = null;   // { uid, email }
-let graficoComparativo = null; // instancia de Chart.js
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { 
+  getFirestore,
+  collection, 
+  getDocs, 
+  addDoc, 
+  doc, 
+  deleteDoc, 
+  serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+import { requireStaffAccess } from "./portal-common.js";
 
-const MESES_LABEL = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+const firebaseConfig = {
+  apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+  authDomain: "gravecare-2e8d2.firebaseapp.com",
+  projectId: "gravecare-2e8d2",
+  storageBucket: "gravecare-2e8d2.appspot.com",
+  messagingSenderId: "160012946248",
+  appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+};
+
+let appActiva = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+// Conectamos explícitamente a la base de datos por defecto de tu proyecto en nam5
+const db = getFirestore(appActiva, "(default)");
+const storage = getStorage(appActiva, "gs://gravecare-2e8d2.appspot.com");
+
+let listaMovimientos = [];
+let graficoInstancia = null;
+
+const CATEGORIAS_GASTO = [
+  "Insumos y Materiales",
+  "Combustible y Movilización",
+  "Herramientas y Equipamiento",
+  "Honorarios y Subcontratos",
+  "Mantenimiento y Reparaciones",
+  "Gastos Operacionales / Varios",
+  "Administración y Oficina"
 ];
 
-// ---------- Utilidades ----------
+const CATEGORIAS_INGRESO = [
+  "Planes y Suscripciones",
+  "Servicios de Mantenimiento Extra",
+  "Ornamentación Especial",
+  "Otros Ingresos"
+];
 
-function formatCLP(monto) {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0
-  }).format(monto);
-}
+requireStaffAccess(async (user, staffProfile) => {
+  inicializarFormulario();
+  await cargarMovimientos();
+  configurarFiltros();
+}, "gastos-ingresos.html");
 
-function formatFechaCorta(fechaISO) {
-  const [y, m, d] = fechaISO.split("-");
-  return `${d}-${m}-${y}`;
-}
+function inicializarFormulario() {
+  const tipoFlujo = document.getElementById("form-tipo");
+  const selectCategoria = document.getElementById("form-categoria");
 
-function poblarSelectCategoria(selectEl, tipo, incluirTodas = false) {
-  selectEl.innerHTML = "";
-  if (incluirTodas) {
-    const optTodas = document.createElement("option");
-    optTodas.value = "";
-    optTodas.textContent = "Todas";
-    selectEl.appendChild(optTodas);
+function actualizarCategorias() {
+    const esGasto = tipoFlujo.value === "Gasto";
+    const categorias = esGasto ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
+    selectCategoria.innerHTML = categorias.map(c => `<option value="${c}">${c}</option>`).join("");
+    if (selectCategoria.options.length > 0) {
+      selectCategoria.selectedIndex = 0; // Selecciona por defecto la primera categoría
+    }
   }
-  const listas = tipo ? CATEGORIAS[tipo] : [...CATEGORIAS.Gasto, ...CATEGORIAS.Ingreso];
-  const unicas = [...new Set(listas)];
-  unicas.forEach((cat) => {
-    const opt = document.createElement("option");
-    opt.value = cat;
-    opt.textContent = cat;
-    selectEl.appendChild(opt);
+
+  tipoFlujo.addEventListener("change", actualizarCategorias);
+  actualizarCategorias();
+
+  const hoy = new Date().toISOString().split("T")[0];
+  document.getElementById("form-fecha").value = hoy;
+
+  document.getElementById("form-movimiento").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnGuardar = document.getElementById("btn-guardar");
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = "Subiendo respaldo y guardando...";
+
+    try {
+      const fileInput = document.getElementById("form-archivo-factura");
+      let facturaUrl = "";
+
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const archivo = fileInput.files[0];
+        const anioMes = new Date().toISOString().slice(0, 7);
+        const storagePath = `facturas_auditoria/${anioMes}/${Date.now()}_${archivo.name}`;
+        
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, archivo);
+        facturaUrl = await getDownloadURL(storageRef);
+      }
+
+      const nuevoMovimiento = {
+        tipo: tipoFlujo.value,
+        dte: document.getElementById("form-dte").value,
+        folio: document.getElementById("form-folio").value.trim(),
+        rut: document.getElementById("form-rut").value.trim(),
+        contraparte: document.getElementById("form-concepto").value.trim(),
+        fecha: document.getElementById("form-fecha").value,
+        categoria: selectCategoria.value,
+        clasificacionF22: document.getElementById("form-clasificacion-f22").value,
+        descripcion: document.getElementById("form-descripcion").value.trim(),
+        neto: parseFloat(document.getElementById("form-monto-neto").value) || 0,
+        impuesto: parseFloat(document.getElementById("form-impuesto").value) || 0,
+        total: parseFloat(document.getElementById("form-total").value) || 0,
+        facturaUrl: facturaUrl,
+        createdAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, "gastos_ingresos"), nuevoMovimiento);
+
+      alert("¡Movimiento registrado y factura guardada con éxito!");
+      document.getElementById("form-movimiento").reset();
+      document.getElementById("form-fecha").value = new Date().toISOString().split("T")[0];
+      actualizarCategorias();
+
+      btnGuardar.disabled = false;
+      btnGuardar.textContent = "Registrar Movimiento y Guardar Respaldo";
+
+      await cargarMovimientos();
+
+    } catch (err) {
+      console.error("Error al registrar movimiento:", err);
+      alert("Error al procesar el registro: " + err.message);
+      btnGuardar.disabled = false;
+      btnGuardar.textContent = "Registrar Movimiento y Guardar Respaldo";
+    }
   });
 }
-
-// ---------- Carga de datos ----------
 
 async function cargarMovimientos() {
-  const q = query(collection(db, COLECCION), orderBy("fecha", "desc"));
-  const snap = await getDocs(q);
-  movimientos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const tbody = document.getElementById("tabla-movimientos");
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Cargando registros contables...</td></tr>';
+
+  try {
+    const snap = await getDocs(collection(db, "gastos_ingresos"));
+    listaMovimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    listaMovimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    aplicarFiltrosYRenderizar();
+  } catch (err) {
+    console.error("Error cargando movimientos:", err);
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #dc2626;">Error al cargar datos de Firestore: ${err.message}</td></tr>`;
+  }
 }
 
-// ---------- Filtros ----------
+function aplicarFiltrosYRenderizar() {
+  const filtroTipo = document.getElementById("filtro-tipo").value;
+  const filtroCategoria = document.getElementById("filtro-categoria").value;
+  const filtroDesde = document.getElementById("filtro-desde").value;
+  const filtroHasta = document.getElementById("filtro-hasta").value;
 
-function obtenerFiltros() {
-  return {
-    tipo: document.getElementById("filtro-tipo").value,       // "" | "Gasto" | "Ingreso"
-    categoria: document.getElementById("filtro-categoria").value,
-    desde: document.getElementById("filtro-desde").value,      // "" | yyyy-mm-dd
-    hasta: document.getElementById("filtro-hasta").value
-  };
-}
-
-function aplicarFiltros(lista, filtros) {
-  return lista.filter((m) => {
-    if (filtros.tipo && m.tipo !== filtros.tipo) return false;
-    if (filtros.categoria && m.categoria !== filtros.categoria) return false;
-    if (filtros.desde && m.fecha < filtros.desde) return false;
-    if (filtros.hasta && m.fecha > filtros.hasta) return false;
+  const filtrados = listaMovimientos.filter(m => {
+    if (filtroTipo && m.tipo !== filtroTipo) return false;
+    if (filtroCategoria && m.categoria !== filtroCategoria) return false;
+    if (filtroDesde && m.fecha < filtroDesde) return false;
+    if (filtroHasta && m.fecha > filtroHasta) return false;
     return true;
+  });
+
+  renderTabla(filtrados);
+  calcularResumen(filtrados);
+  actualizarGrafico(filtrados);
+}
+
+function renderTabla(movimientos) {
+  const tbody = document.getElementById("tabla-movimientos");
+
+  if (movimientos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">No se encontraron movimientos registrados en la base de datos.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = movimientos.map(m => {
+    const esGasto = m.tipo === "Gasto";
+    const colorMonto = esGasto ? "color: #dc2626;" : "color: #16a34a;";
+    const signo = esGasto ? "-" : "+";
+
+    const badgeTipo = `<span style="font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${esGasto ? '#fee2e2' : '#dcfce7'}; color: ${esGasto ? '#991b1b' : '#166534'};">${m.tipo.toUpperCase()}</span>`;
+
+    const linkRespaldo = m.facturaUrl 
+      ? `<a href="${m.facturaUrl}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: underline;">📄 Ver Factura</a>` 
+      : '<span style="color: #94a3b8;">Sin archivo</span>';
+
+    return `
+      <tr>
+        <td>${m.fecha}</td>
+        <td>${badgeTipo}<br><strong style="font-size:0.8rem;">${m.dte}</strong><br><span style="font-size:0.75rem; color: #64748b;">N° ${m.folio}</span></td>
+        <td><strong>${m.contraparte}</strong><br><span style="font-size: 0.75rem; color: #64748b;">RUT: ${m.rut}</span></td>
+        <td>${m.categoria}<br><span style="font-size: 0.7rem; background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 3px;">${m.clasificacionF22 || 'N/A'}</span></td>
+        <td style="text-align: right; font-family: monospace;">$ ${(m.neto || 0).toLocaleString("es-CL")}</td>
+        <td style="text-align: right; font-family: monospace; color: #64748b;">$ ${(m.impuesto || 0).toLocaleString("es-CL")}</td>
+        <td style="text-align: right; font-family: monospace; font-weight: 700; ${colorMonto}">${signo} $ ${(m.total || 0).toLocaleString("es-CL")}</td>
+        <td style="text-align: right;">${linkRespaldo}</td>
+        <td style="text-align: right;">
+          <button type="button" data-id="${m.id}" class="btn-eliminar" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Eliminar</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  tbody.querySelectorAll(".btn-eliminar").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const id = e.target.getAttribute("data-id");
+      if (confirm("¿Estás seguro de eliminar este registro contable?")) {
+        try {
+          await deleteDoc(doc(db, "gastos_ingresos", id));
+          await cargarMovimientos();
+        } catch (err) {
+          console.error("Error al eliminar:", err);
+          alert("No se pudo eliminar el registro.");
+        }
+      }
+    });
   });
 }
 
-// ---------- Render ----------
+function calcularResumen(movimientos) {
+  let ingresosNeto = 0;
+  let gastosNeto = 0;
+  let ivaDebito = 0;
+  let ivaCredito = 0;
 
-function renderResumen(lista) {
-  const ingresosNetos = lista
-    .filter((m) => m.tipo === "Ingreso")
-    .reduce((acc, m) => acc + Number(m.montoNeto || m.monto || 0), 0);
+  movimientos.forEach(m => {
+    if (m.tipo === "Ingreso") {
+      ingresosNeto += (m.neto || 0);
+      if (m.dte === "Factura Afecta") ivaDebito += (m.impuesto || 0);
+    } else {
+      gastosNeto += (m.neto || 0);
+      if (m.dte === "Factura Afecta") ivaCredito += (m.impuesto || 0);
+    }
+  });
 
-  const gastosNetos = lista
-    .filter((m) => m.tipo === "Gasto" && m.clasificacionF22 !== "Gasto No Deducible")
-    .reduce((acc, m) => acc + Number(m.montoNeto || m.monto || 0), 0);
+  const balanceIva = ivaDebito - ivaCredito;
+  const resultadoNeto = ingresosNeto - gastosNeto;
 
-  const ivaDebito = lista
-    .filter((m) => m.tipo === "Ingreso" && m.tipoDTE === "Factura Afecta")
-    .reduce((acc, m) => acc + Number(m.impuesto || 0), 0);
-
-  const ivaCredito = lista
-    .filter((m) => m.tipo === "Gasto" && m.tipoDTE === "Factura Afecta")
-    .reduce((acc, m) => acc + Number(m.impuesto || 0), 0);
-
-  const balanceNeto = ingresosNetos - gastosNetos;
-  const balanceIVA = ivaDebito - ivaCredito;
-
-  const elIngresos = document.getElementById("resumen-ingresos-neto") || document.getElementById("resumen-ingresos");
-  if (elIngresos) elIngresos.textContent = formatCLP(ingresosNetos);
-
-  const elGastos = document.getElementById("resumen-gastos-neto") || document.getElementById("resumen-gastos");
-  if (elGastos) elGastos.textContent = formatCLP(gastosNetos);
+  document.getElementById("resumen-ingresos-neto").textContent = `$ ${ingresosNeto.toLocaleString("es-CL")}`;
+  document.getElementById("resumen-gastos-neto").textContent = `$ ${gastosNeto.toLocaleString("es-CL")}`;
   
   const elIva = document.getElementById("resumen-iva");
-  if (elIva) {
-    elIva.textContent = formatCLP(balanceIVA);
-    elIva.style.color = balanceIVA >= 0 ? "var(--color-error)" : "var(--color-success)";
-  }
+  elIva.textContent = `$ ${balanceIva.toLocaleString("es-CL")}`;
+  elIva.style.color = balanceIva > 0 ? "#dc2626" : "#16a34a";
 
   const elBalance = document.getElementById("resumen-balance");
-  if (elBalance) {
-    elBalance.textContent = formatCLP(balanceNeto);
-    elBalance.style.color = balanceNeto >= 0 ? "var(--color-success)" : "var(--color-error)";
-  }
+  elBalance.textContent = `$ ${resultadoNeto.toLocaleString("es-CL")}`;
+  elBalance.style.color = resultadoNeto >= 0 ? "#16a34a" : "#dc2626";
+}
+
+function configurarFiltros() {
+  const selectFiltroCat = document.getElementById("filtro-categoria");
+  const todasCategorias = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO])];
+  selectFiltroCat.innerHTML = '<option value="">Todas las categorías</option>' + todasCategorias.map(c => `<option value="${c}">${c}</option>`).join("");
+
+  document.getElementById("filtro-tipo").addEventListener("change", aplicarFiltrosYRenderizar);
+  document.getElementById("filtro-categoria").addEventListener("change", aplicarFiltrosYRenderizar);
+  document.getElementById("filtro-desde").addEventListener("change", aplicarFiltrosYRenderizar);
+  document.getElementById("filtro-hasta").addEventListener("change", aplicarFiltrosYRenderizar);
+
+  document.getElementById("btn-limpiar-filtros").addEventListener("click", () => {
+    document.getElementById("filtro-tipo").value = "";
+    document.getElementById("filtro-categoria").value = "";
+    document.getElementById("filtro-desde").value = "";
+    document.getElementById("filtro-hasta").value = "";
+    aplicarFiltrosYRenderizar();
+  });
+}
+
+function actualizarGrafico(movimientos) {
+  const ctx = document.getElementById("grafico-comparativo").getContext("2d");
+  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  
+  const datosIngresos = new Array(12).fill(0);
+  const datosGastos = new Array(12).fill(0);
+
+  movimientos.forEach(m => {
+    if (!m.fecha) return;
+    const mesIdx = new Date(m.fecha).getMonth();
+    if (!isNaN(mesIdx)) {
+      if (m.tipo === "Ingreso") datosIngresos[mesIdx] += (m.neto || 0);
+      if (m.tipo === "Gasto") datosGastos[mesIdx] += (m.neto || 0);
+    }
+  });
+
+  if (graficoInstancia) graficoInstancia.destroy();
+
+  graficoInstancia = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: meses,
+      datasets: [
+        { label: "Ingresos Netos ($)", data: datosIngresos, backgroundColor: "#16a34a", borderRadius: 4 },
+        { label: "Gastos Netos ($)", data: datosGastos, backgroundColor: "#dc2626", borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, grid: { color: "#e2e8f0" } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
 }

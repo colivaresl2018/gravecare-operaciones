@@ -196,7 +196,14 @@
   <script type="module">
     import { db } from "./js/firebaseConfig.js";
     import { requireStaffAccess } from "./js/portal-common.js";
-    import { collection, doc, getDocs, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { 
+      collection, 
+      doc, 
+      getDocs, 
+      setDoc, 
+      query, 
+      where 
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let estadoFiltro = 'pendiente_revision';
     let informesActuales = [];
@@ -211,11 +218,17 @@
       try {
         const q = query(
           collection(db, 'informes'),
-          where('estado', '==', estadoFiltro),
-          orderBy('fechaCaptura', 'desc')
+          where('estado', '==', estadoFiltro)
         );
         const snapshot = await getDocs(q);
         informesActuales = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Ordenamiento en memoria por fechaCaptura descendente
+        informesActuales.sort((a, b) => {
+          const fa = new Date(a.fechaCaptura || 0).getTime();
+          const fb = new Date(b.fechaCaptura || 0).getTime();
+          return fb - fa;
+        });
 
         if (informesActuales.length === 0) {
           container.innerHTML = '<div class="col-span-full text-center py-12"><span class="material-symbols-outlined text-6xl text-[#c1c8c1]">inbox</span><p class="text-[#4e6451] mt-2">No hay informes en este estado</p></div>';
@@ -228,8 +241,8 @@
         });
 
       } catch (error) {
-        console.error('Error:', error);
-        container.innerHTML = '<div class="col-span-full text-center py-12 text-red-500">Error cargando informes</div>';
+        console.error('Error al cargar informes:', error);
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-red-500">Error cargando informes: ${error.message || error}</div>`;
       }
     }
 
@@ -331,44 +344,74 @@
     function rechazarInforme() { document.getElementById('modal-rechazo').classList.remove('hidden'); }
     function cerrarModalRechazo() { document.getElementById('modal-rechazo').classList.add('hidden'); }
 
-    async function aprobarInforme() {
+async function aprobarInforme() {
       if (!informeSeleccionado) return;
+
+      const btnConfirmar = document.querySelector("#modal-aprobacion button[onclick='aprobarInforme()']");
+      if (btnConfirmar) {
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = "Aprobando...";
+      }
+
       try {
         const ahora = new Date().toISOString();
-        const comentario = document.getElementById('comentario-aprobacion').value.trim();
+        const comentario = (document.getElementById('comentario-aprobacion')?.value || '').trim();
 
-        // 1. Actualizar 'informes'
-        await updateDoc(doc(db, 'informes', informeSeleccionado.id), {
+        // 1. Limpieza preventiva de variables para evitar errores por 'undefined' en Firestore
+        const supervisorId = currentUser?.uid || 'admin';
+        const supervisorNombre = currentStaffProfile?.nombre || currentUser?.email || 'Administrador';
+
+        // 2. Actualizar documento en 'informes'
+        await setDoc(doc(db, 'informes', informeSeleccionado.id), {
           estado: 'aprobado',
-          supervisorId: currentUser.uid,
-          supervisorNombre: currentStaffProfile.nombre || currentUser.email,
+          supervisorId: supervisorId,
+          supervisorNombre: supervisorNombre,
           fechaAprobacion: ahora,
           comentarioSupervisor: comentario
-        });
+        }, { merge: true });
 
-        // 2. ACTUALIZAR DIRECTO EN 'ordenes'
-        if (informeSeleccionado.ordenId) {
-          await updateDoc(doc(db, 'ordenes', informeSeleccionado.ordenId), {
-            estado: 'completada',
-            estadoInforme: 'aprobado',
-            fechaAprobacion: ahora
-          });
+        // 3. Sincronizar estado en colección 'ordenes' (para que pase a completada y salga de Mis Trabajos)
+        const ordenIdDestino = (informeSeleccionado.ordenId || '').trim();
+        if (ordenIdDestino) {
+          try {
+            await setDoc(doc(db, 'ordenes', ordenIdDestino), {
+              estado: 'completada',
+              estadoInforme: 'aprobado',
+              fechaAprobacion: ahora,
+              fechaCompletada: ahora
+            }, { merge: true });
+          } catch (errOrden) {
+            console.warn("Aviso al sincronizar orden asociada:", errOrden);
+          }
         }
 
-        alert('✓ Informe aprobado');
+        alert('✓ Informe aprobado y orden finalizada exitosamente.');
+
+        // Limpiar inputs y cerrar modales
+        const inputComentario = document.getElementById('comentario-aprobacion');
+        if (inputComentario) inputComentario.value = '';
+
         cerrarModalAprobacion();
         cerrarModal();
-        cargarInformes();
-        actualizarContadores();
+
+        // Refrescar vistas y contadores
+        await cargarInformes();
+        await actualizarContadores();
+
       } catch (e) {
-        console.error(e);
-        alert('Error al aprobar informe');
+        console.error("Error al aprobar informe:", e);
+        alert(`❌ Error al aprobar informe: ${e.code || e.message || e}`);
+      } finally {
+        if (btnConfirmar) {
+          btnConfirmar.disabled = false;
+          btnConfirmar.textContent = "Confirmar";
+        }
       }
     }
 
     async function procesarRechazo() {
       if (!informeSeleccionado) return;
-      const comentario = document.getElementById('comentario-rechazo').value.trim();
+      const comentario = document.getElementById('comentario-rechazo')?.value.trim();
       if (!comentario) {
         alert('Por favor indica el motivo del rechazo.');
         return;
@@ -377,32 +420,36 @@
       try {
         const ahora = new Date().toISOString();
 
-        // 1. Actualizar 'informes'
-        await updateDoc(doc(db, 'informes', informeSeleccionado.id), {
+        // 1. Actualizar 'informes' con setDoc + merge
+        await setDoc(doc(db, 'informes', informeSeleccionado.id), {
           estado: 'rechazado',
-          supervisorId: currentUser.uid,
-          supervisorNombre: currentStaffProfile.nombre || currentUser.email,
+          supervisorId: currentUser ? currentUser.uid : 'admin',
+          supervisorNombre: currentStaffProfile?.nombre || currentUser?.email || 'Administrador',
           fechaRechazo: ahora,
           comentarioSupervisor: comentario
-        });
+        }, { merge: true });
 
-        // 2. ACTUALIZAR DIRECTO EN 'ordenes'
+        // 2. Actualizar 'ordenes'
         if (informeSeleccionado.ordenId) {
-          await updateDoc(doc(db, 'ordenes', informeSeleccionado.ordenId), {
-            estado: 'rechazado',
-            estadoInforme: 'rechazado',
-            motivoRechazo: comentario
-          });
+          try {
+            await setDoc(doc(db, 'ordenes', informeSeleccionado.ordenId), {
+              estado: 'rechazado',
+              estadoInforme: 'rechazado',
+              motivoRechazo: comentario
+            }, { merge: true });
+          } catch (errOrden) {
+            console.warn("Aviso al sincronizar la orden rechazada:", errOrden);
+          }
         }
 
-        alert('✓ Informe rechazado');
+        alert('✓ Informe rechazado con éxito');
         cerrarModalRechazo();
         cerrarModal();
-        cargarInformes();
-        actualizarContadores();
+        await cargarInformes();
+        await actualizarContadores();
       } catch (e) {
-        console.error(e);
-        alert('Error al rechazar informe');
+        console.error("Error al rechazar informe:", e);
+        alert(`❌ Error al rechazar informe: ${e.code || e.message || e}`);
       }
     }
 
@@ -429,7 +476,7 @@
           if (el) el.textContent = snap.size;
         }
       } catch (e) {
-        console.error(e);
+        console.error("Error al actualizar contadores:", e);
       }
     }
 

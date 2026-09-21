@@ -8,41 +8,41 @@
   <link rel="stylesheet" href="styles.css">
   <style>
     .breadcrumb {
-      background-color: var(--color-bg-white);
-      border-bottom: 1px solid var(--color-border);
+      background-color: var(--color-bg-white, #ffffff);
+      border-bottom: 1px solid var(--color-border, #e2e8f0);
       padding: 0.75rem 0;
       font-size: 0.875rem;
     }
-    .breadcrumb span { color: var(--color-text-light); }
+    .breadcrumb span { color: var(--color-text-light, #64748b); }
     .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
-    .toolbar input { flex: 1; min-width: 16rem; }
-    .toolbar select { width: auto; min-width: 12rem; }
+    .toolbar input { flex: 1; min-width: 16rem; padding: 0.6rem 1rem; border: 1px solid var(--color-border, #cbd5e1); border-radius: 6px; }
+    .toolbar select { width: auto; min-width: 12rem; padding: 0.6rem 1rem; border: 1px solid var(--color-border, #cbd5e1); border-radius: 6px; }
     .table-wrap { overflow-x: auto; }
     .paginacion {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0.75rem 1rem;
-      border-top: 1px solid var(--color-border);
+      border-top: 1px solid var(--color-border, #e2e8f0);
       font-size: 0.875rem;
-      color: var(--color-text-light);
+      color: var(--color-text-light, #64748b);
     }
     .paginacion-actual {
       padding: 0.375rem 0.75rem;
       border-radius: 0.5rem;
-      background-color: var(--color-primary-dark);
+      background-color: var(--color-primary-dark, #002d1a);
       color: white;
       font-weight: 700;
     }
     .btn-pag {
       padding: 0.375rem 0.75rem;
       border-radius: 0.5rem;
-      border: 1px solid var(--color-border);
+      border: 1px solid var(--color-border, #cbd5e1);
       background: white;
       font-size: 0.875rem;
       cursor: pointer;
     }
-    .btn-pag:hover { background-color: var(--color-bg-light); }
+    .btn-pag:hover { background-color: var(--color-bg-light, #f8fafc); }
     .btn-pag:disabled { opacity: 0.4; cursor: not-allowed; }
     .modal-overlay {
       position: fixed; inset: 0;
@@ -53,9 +53,10 @@
     }
     .modal-panel { max-width: 34rem; width: 100%; max-height: 85vh; overflow-y: auto; background: white; border-radius: 12px; padding: 1.5rem; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .modal-close { background: none; border: none; font-size: 1.25rem; line-height: 1; cursor: pointer; color: var(--color-text-light); }
-    .detalle-fila { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--color-border); font-size: 0.875rem; }
-    .detalle-fila span:first-child { color: var(--color-text-light); }
+    .modal-close { background: none; border: none; font-size: 1.25rem; line-height: 1; cursor: pointer; color: var(--color-text-light, #64748b); }
+    .detalle-fila { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--color-border, #e2e8f0); font-size: 0.875rem; }
+    .detalle-fila span:first-child { color: var(--color-text-light, #64748b); }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -82,6 +83,7 @@
       <select id="filtro-estado">
         <option value="">Todos los estados</option>
         <option value="pendiente">Pendiente</option>
+        <option value="confirmado">Confirmado</option>
         <option value="asignada">Asignada</option>
         <option value="en proceso">En Proceso</option>
         <option value="en revision">En Revisión</option>
@@ -89,29 +91,29 @@
       </select>
     </div>
 
-    <div class="card" style="padding: 0;">
+    <div class="card" style="padding: 0; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
       <div class="table-wrap">
-        <table class="table">
+        <table class="table" style="width: 100%; text-align: left; border-collapse: collapse;">
           <thead>
-            <tr>
-              <th>ID Orden</th>
-              <th>Difunto</th>
-              <th>Cliente</th>
-              <th>Sepultura</th>
-              <th>Plan</th>
-              <th>Estado</th>
-              <th>Operador Asignado</th>
-              <th class="text-right">Asignar</th>
+            <tr style="border-bottom: 2px solid #e2e8f0;">
+              <th style="padding: 0.75rem 1rem;">ID Orden</th>
+              <th style="padding: 0.75rem 1rem;">Difunto</th>
+              <th style="padding: 0.75rem 1rem;">Cliente</th>
+              <th style="padding: 0.75rem 1rem;">Sepultura</th>
+              <th style="padding: 0.75rem 1rem;">Plan</th>
+              <th style="padding: 0.75rem 1rem;">Estado</th>
+              <th style="padding: 0.75rem 1rem;">Operador Asignado</th>
+              <th style="padding: 0.75rem 1rem; text-align: right;">Asignar</th>
             </tr>
           </thead>
           <tbody id="ordenes-tbody">
-            <tr><td colspan="8" style="color: var(--color-text-light); text-align: center; padding: 2rem 0;">Cargando órdenes...</td></tr>
+            <tr><td colspan="8" style="color: var(--color-text-light, #64748b); text-align: center; padding: 2rem 0;">Cargando órdenes...</td></tr>
           </tbody>
         </table>
       </div>
       <div class="paginacion">
         <span id="paginacion-resumen">—</span>
-        <div class="flex gap-2 items-center">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
           <button id="btn-pagina-anterior" class="btn-pag">Anterior</button>
           <span id="paginacion-actual" class="paginacion-actual">1</span>
           <button id="btn-pagina-siguiente" class="btn-pag">Siguiente</button>
@@ -130,25 +132,26 @@
       
       <div id="modal-detalle-body" class="mb-6"></div>
 
-      <div style="border-top: 1px solid var(--color-border); padding-top: 1rem;">
-        <div class="mb-4">
-          <label class="label">Seleccionar Operador de Terreno</label>
-          <select id="modal-select-operador" style="width: 100%; padding: 0.65rem; border: 1px solid var(--color-border); border-radius: 6px; font-weight: 600; font-size: 0.9rem; background: white;"></select>
+      <div style="border-top: 1px solid var(--color-border, #e2e8f0); padding-top: 1rem;">
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Seleccionar Operador de Terreno</label>
+          <select id="modal-select-operador" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.9rem; background: white;"></select>
         </div>
-        <div class="mb-4">
-          <label class="label">Estado de la Orden</label>
-          <select id="modal-select-estado" style="width: 100%; padding: 0.65rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.9rem; background: white;">
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Estado de la Orden</label>
+          <select id="modal-select-estado" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: white;">
             <option value="pendiente">Pendiente</option>
+            <option value="confirmado">Confirmado</option>
             <option value="asignada">Asignada</option>
             <option value="en proceso">En Proceso</option>
             <option value="en revision">En Revisión</option>
             <option value="completada">Completada</option>
           </select>
         </div>
-        <button id="btn-guardar-asignacion" class="btn-primary" style="width: 100%; justify-content: center; padding: 0.75rem;">
+        <button id="btn-guardar-asignacion" style="width: 100%; display: flex; justify-content: center; padding: 0.75rem; background: #002d1a; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
           Confirmar Asignación
         </button>
-        <p id="asignacion-msg" class="mt-2 hidden" style="font-size: 0.8rem; text-align: center; font-weight: bold;"></p>
+        <p id="asignacion-msg" class="hidden" style="margin-top: 0.5rem; font-size: 0.85rem; text-align: center; font-weight: bold;"></p>
       </div>
     </div>
   </div>
@@ -157,7 +160,7 @@
     import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
     import { db } from "./js/firebaseConfig.js";
     import {
-      collection, getDocs, doc, updateDoc, serverTimestamp
+      collection, getDocs, doc, setDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const PAGE_SIZE = 10;
@@ -175,35 +178,56 @@
 
     function badgeEstado(estado) {
       const normalizado = (estado || "pendiente").toLowerCase();
-      const map = {
-        "pendiente": "badge--neutral",
-        "asignada": "badge--info",
-        "en proceso": "badge--warning",
-        "en revision": "badge--warning",
-        "completada": "badge--success"
+      const estilos = {
+        "pendiente": "background: #f1f5f9; color: #475569;",
+        "confirmado": "background: #dcfce7; color: #15803d;",
+        "asignada": "background: #e0f2fe; color: #0369a1;",
+        "en proceso": "background: #fef3c7; color: #b45309;",
+        "en revision": "background: #fef3c7; color: #b45309;",
+        "completada": "background: #dcfce7; color: #15803d;"
       };
-      return `<span class="badge ${map[normalizado] || 'badge--neutral'}">${estado || 'Pendiente'}</span>`;
+      return `<span style="padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; ${estilos[normalizado] || estilos['pendiente']}">${estado || 'Pendiente'}</span>`;
     }
 
     function textoSepultura(ubi) {
       if (!ubi) return "Sin especificar";
       const partes = [];
       if (ubi.cementerio) partes.push(ubi.cementerio);
-      if (ubi.sector) partes.push("Sector " + ubi.sector);
-      if (ubi.numeroSepultura) partes.push("N°" + ubi.numeroSepultura);
+      if (ubi.sector) partes.push("Sec. " + ubi.sector);
+      if (ubi.patio) partes.push("Patio " + ubi.patio);
+      if (ubi.numeroSepultura || ubi.numero) partes.push("N°" + (ubi.numeroSepultura || ubi.numero));
       return partes.length ? partes.join(", ") : "Sin especificar";
     }
 
-    async function cargarOrdenes() {
-      const snap = await getDocs(collection(db, "ordenes"));
-      todasLasOrdenes = snap.docs.map((d) => ({ ...d.data(), _docId: d.id }));
-      
-      todasLasOrdenes.sort((a, b) => {
-        const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return tb - ta;
-      });
-      ordenesFiltradas = todasLasOrdenes;
+	async function cargarOrdenes() {
+      try {
+        const snap = await getDocs(collection(db, "ordenes"));
+        
+        // FILTRO EXCLUSIÓN: Descartar órdenes completadas o terminadas
+        todasLasOrdenes = snap.docs
+          .map((d) => {
+            const docIdLimpio = d.id;
+            return {
+              ...d.data(),
+              _docId: docIdLimpio,
+              id: docIdLimpio
+            };
+          })
+          .filter((o) => {
+            const est = (o.estado || "").toLowerCase().trim();
+            const estInf = (o.estadoInforme || "").toLowerCase().trim();
+            return est !== "completada" && est !== "completado" && est !== "terminada" && estInf !== "aprobado";
+          });
+
+        todasLasOrdenes.sort((a, b) => {
+          const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.creadoEl?.toMillis ? a.creadoEl.toMillis() : 0);
+          const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.creadoEl?.toMillis ? b.creadoEl.toMillis() : 0);
+          return tb - ta;
+        });
+        ordenesFiltradas = todasLasOrdenes;
+      } catch (e) {
+        console.error("Error al cargar ordenes:", e);
+      }
     }
 
     function renderTabla() {
@@ -212,27 +236,39 @@
       const pagina = ordenesFiltradas.slice(inicio, inicio + PAGE_SIZE);
 
       if (ordenesFiltradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color: var(--color-text-light); padding: 2rem 0;">No se encontraron órdenes registradas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="color: #64748b; text-align: center; padding: 2rem 0;">No se encontraron órdenes registradas.</td></tr>';
       } else {
         tbody.innerHTML = pagina.map((o) => {
-          const difuntoNombre = o.difunto 
-            ? `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim() 
-            : (o.nombreDifunto || "—");
+          const docIdValido = String(o._docId || o.id || o.numeroOrden || "");
 
-          const titularNombre = o.titular 
-            ? `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim() 
-            : (o.nombreTitular || "—");
+          let difuntoNombre = "—";
+          if (o.difunto) {
+            difuntoNombre = o.difunto.nombreCompleto || `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim();
+          } else if (o.nombreFallecido || o.nombreDifunto) {
+            difuntoNombre = o.nombreFallecido || o.nombreDifunto;
+          }
+
+          let titularNombre = "—";
+          if (o.titular) {
+            titularNombre = o.titular.nombre || `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim();
+          } else if (o.nombreTitular) {
+            titularNombre = o.nombreTitular;
+          }
 
           return `
-            <tr style="cursor:pointer;" data-abrir="${o._docId}">
-              <td style="font-family: monospace; font-size: 0.8rem; font-weight: bold;">${o.numeroOrden || o._docId.substring(0, 8)}</td>
-              <td style="font-weight:600;">${difuntoNombre}</td>
-              <td>${titularNombre}</td>
-              <td>${textoSepultura(o.ubicacionSepultura)}</td>
-              <td>${o.planNombre || o.servicio?.planNombre || o.plan || "Plan Base"}</td>
-              <td>${badgeEstado(o.estado)}</td>
-              <td>${o.operadorAsignadoNombre ? `<strong>${o.operadorAsignadoNombre}</strong>` : '<span style="color: var(--color-text-light);">Sin asignar</span>'}</td>
-              <td class="text-right"><span style="color: var(--color-primary-dark); font-weight:700; font-size:0.8rem;">Gestionar →</span></td>
+            <tr style="cursor:pointer; border-bottom: 1px solid #f1f5f9;" data-abrir="${docIdValido}">
+              <td style="padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8rem; font-weight: bold;">${o.numeroOrden || docIdValido}</td>
+              <td style="padding: 0.75rem 1rem; font-weight:600;">${difuntoNombre}</td>
+              <td style="padding: 0.75rem 1rem;">${titularNombre}</td>
+              <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">${textoSepultura(o.ubicacionSepultura)}</td>
+              <td style="padding: 0.75rem 1rem;">${o.planNombre || o.servicio?.planNombre || o.plan || "Plan Base"}</td>
+              <td style="padding: 0.75rem 1rem;">${badgeEstado(o.estado)}</td>
+              <td style="padding: 0.75rem 1rem;">${o.operadorAsignadoNombre ? `<strong>${o.operadorAsignadoNombre}</strong>` : '<span style="color: #94a3b8;">Sin asignar</span>'}</td>
+              <td style="padding: 0.75rem 1rem; text-align: right;">
+                <button type="button" class="btn-gestionar" data-abrir="${docIdValido}" style="background: none; border: none; color: #002d1a; font-weight:700; font-size:0.85rem; cursor: pointer;">
+                  Gestionar →
+                </button>
+              </td>
             </tr>
           `;
         }).join("");
@@ -254,10 +290,10 @@
       ordenesFiltradas = todasLasOrdenes.filter((o) => {
         if (estado && (o.estado || "pendiente").toLowerCase() !== estado) return false;
         if (texto) {
-          const dif = o.difunto ? `${o.difunto.nombres} ${o.difunto.apellidoPaterno}` : "";
-          const tit = o.titular ? `${o.titular.nombres} ${o.titular.apellidoPaterno}` : "";
+          const dif = o.difunto ? `${o.difunto.nombres} ${o.difunto.apellidoPaterno} ${o.difunto.nombreCompleto || ''}` : (o.nombreFallecido || "");
+          const tit = o.titular ? `${o.titular.nombres} ${o.titular.apellidoPaterno} ${o.titular.nombre || ''}` : (o.nombreTitular || "");
           const cem = o.ubicacionSepultura?.cementerio || "";
-          const num = o.numeroOrden || "";
+          const num = o.numeroOrden || o._docId || "";
           const campo = `${dif} ${tit} ${cem} ${num}`.toLowerCase();
           if (!campo.includes(texto)) return false;
         }
@@ -268,104 +304,170 @@
     }
 
     async function abrirModal(docId) {
-      ordenSeleccionadaId = docId;
-      const o = todasLasOrdenes.find((x) => x._docId === docId);
-      if (!o) return;
+      if (!docId || docId === "null" || docId === "undefined") {
+        console.error("ID inválido al abrir modal:", docId);
+        return;
+      }
+
+      const o = todasLasOrdenes.find((x) => String(x._docId) === String(docId) || String(x.id) === String(docId) || String(x.numeroOrden) === String(docId));
+      if (!o) {
+        console.error("No se encontró la orden con identificador:", docId);
+        return;
+      }
+
+      // Se fija explícitamente el ID del documento en Firestore
+      ordenSeleccionadaId = String(o._docId || o.id || docId);
 
       const body = document.getElementById("modal-detalle-body");
-      const difunto = o.difunto ? `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim() : "Sin datos";
-      const titular = o.titular ? `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim() : "Sin datos";
+      const difunto = o.difunto 
+        ? (o.difunto.nombreCompleto || `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim()) 
+        : (o.nombreFallecido || "Sin datos");
+      const titular = o.titular 
+        ? (o.titular.nombre || `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim()) 
+        : (o.nombreTitular || "Sin datos");
       const ubi = o.ubicacionSepultura;
 
       const filas = [
-        ["N° Orden", o.numeroOrden || o._docId],
+        ["N° Orden", o.numeroOrden || ordenSeleccionadaId],
         ["Ser Querido / Difunto", difunto],
         ["Cliente Titular", titular],
         ["Teléfono Titular", o.titular?.telefono || "—"],
-        ["Cementerio", ubi?.cementerio || "—"],
+        ["Cementerio", ubi?.cementerio || o.cementerio || "—"],
         ["Sector y Patio", `${ubi?.sector || 'S/S'} · Patio ${ubi?.patio || 'S/P'}`],
-        ["N° Sepultura", ubi?.numeroSepultura || "—"],
+        ["N° Sepultura", ubi?.numeroSepultura || ubi?.numero || "—"],
         ["Plan", o.planNombre || o.servicio?.planNombre || "—"],
-        ["Fecha Ingreso", formatFecha(o.createdAt)]
+        ["Fecha Ingreso", formatFecha(o.createdAt || o.creadoEl)]
       ];
 
       body.innerHTML = filas.map(([l, v]) => `
         <div class="detalle-fila"><span>${l}</span><strong>${v}</strong></div>
       `).join("");
 
-      // Carga directa de la colección 'staff'
       const selectOp = document.getElementById("modal-select-operador");
       selectOp.innerHTML = '<option value="">Cargando operadores...</option>';
 
       try {
-        const snap = await getDocs(collection(db, "staff"));
-        selectOp.innerHTML = '<option value="">-- Seleccionar Operador --</option>';
-        
-        listaOperadores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const snapStaff = await getDocs(collection(db, "staff"));
+        listaOperadores = [];
 
-        listaOperadores.forEach(op => {
-          const nombre = op.nombre || op.email || op.id;
-          const rol = (op.rol || "operador").toUpperCase();
-          const option = document.createElement("option");
-          option.value = op.id;
-          option.textContent = `${nombre} (${rol})`;
-          if (op.id === o.operadorAsignadoId) {
-            option.selected = true;
+        snapStaff.forEach((d) => {
+          const data = d.data();
+          if (data.activo !== false) {
+            listaOperadores.push({
+              id: d.id,
+              nombre: data.nombre || data.email || d.id,
+              email: data.email || "",
+              rol: (data.rol || "operador").toUpperCase()
+            });
           }
-          selectOp.appendChild(option);
         });
+
+        selectOp.innerHTML = '<option value="">-- Seleccionar Operador --</option>';
+
+        if (listaOperadores.length === 0) {
+          selectOp.innerHTML = '<option value="">No hay operadores disponibles</option>';
+        } else {
+          listaOperadores.forEach((op) => {
+            const option = document.createElement("option");
+            option.value = op.id;
+            option.textContent = `${op.nombre} (${op.rol})`;
+            if (op.id === o.operadorAsignadoId) {
+              option.selected = true;
+            }
+            selectOp.appendChild(option);
+          });
+        }
       } catch (err) {
-        console.error("Error cargando operadores:", err);
-        selectOp.innerHTML = '<option value="">Error cargando operadores</option>';
+        console.error("Error al cargar staff:", err);
+        selectOp.innerHTML = '<option value="">Error al cargar la lista de operadores</option>';
       }
 
-      document.getElementById("modal-select-estado").value = (o.estado || "pendiente").toLowerCase();
+      const selectEstado = document.getElementById("modal-select-estado");
+      const estadoActual = (o.estado || "pendiente").toLowerCase();
+      
+      let existeOpcion = Array.from(selectEstado.options).some(opt => opt.value === estadoActual);
+      if (!existeOpcion && estadoActual) {
+        const nuevaOpt = document.createElement("option");
+        nuevaOpt.value = estadoActual;
+        nuevaOpt.textContent = estadoActual.charAt(0).toUpperCase() + estadoActual.slice(1);
+        selectEstado.appendChild(nuevaOpt);
+      }
+      selectEstado.value = estadoActual;
+
       document.getElementById("asignacion-msg").classList.add("hidden");
       document.getElementById("modal-detalle").classList.remove("hidden");
     }
 
-    // Eventos UI
-    document.getElementById("ordenes-tbody").addEventListener("click", (e) => {
-      const fila = e.target.closest("[data-abrir]");
-      if (fila) abrirModal(fila.getAttribute("data-abrir"));
-    });
-
-    document.getElementById("btn-cerrar-modal").addEventListener("click", () => {
-      document.getElementById("modal-detalle").classList.add("hidden");
-    });
-
+    // Botón Guardar Asignación blindado contra null
     document.getElementById("btn-guardar-asignacion").addEventListener("click", async () => {
+      const btnGuardar = document.getElementById("btn-guardar-asignacion");
       const msgEl = document.getElementById("asignacion-msg");
+
+      if (!ordenSeleccionadaId || ordenSeleccionadaId === "null" || ordenSeleccionadaId === "undefined") {
+        msgEl.textContent = "❌ Error: Identificador de orden no encontrado.";
+        msgEl.style.color = "#dc2626";
+        msgEl.classList.remove("hidden");
+        return;
+      }
+
       const operadorId = document.getElementById("modal-select-operador").value;
       let estado = document.getElementById("modal-select-estado").value;
       const operador = listaOperadores.find((op) => op.id === operadorId);
 
-      if (operadorId && estado === "pendiente") {
+      if (operadorId && (estado === "pendiente" || estado === "confirmado")) {
         estado = "asignada";
+        document.getElementById("modal-select-estado").value = "asignada";
       }
 
-      try {
-        await updateDoc(doc(db, "ordenes", ordenSeleccionadaId), {
-          operadorAsignadoId: operadorId || null,
-          operadorAsignadoNombre: operador ? (operador.nombre || operador.email) : null,
-          estado: estado,
-          updatedAt: serverTimestamp()
-        });
+      btnGuardar.disabled = true;
+      btnGuardar.textContent = "Guardando asignación...";
 
-        msgEl.textContent = "✓ Orden asignada exitosamente.";
-        msgEl.style.color = "var(--color-success)";
+      try {
+        const docRef = doc(db, "ordenes", String(ordenSeleccionadaId).trim());
+
+        await setDoc(docRef, {
+          operadorAsignadoId: operadorId || null,
+          operadorAsignadoNombre: operador ? operador.nombre : null,
+          operadorAsignadoEmail: operador ? operador.email : null,
+          estado: estado,
+          fechaAsignacion: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        msgEl.textContent = "✓ Asignación guardada exitosamente.";
+        msgEl.style.color = "#16a34a";
         msgEl.classList.remove("hidden");
 
         await cargarOrdenes();
         aplicarFiltros();
-        setTimeout(() => document.getElementById("modal-detalle").classList.add("hidden"), 900);
+
+        setTimeout(() => {
+          document.getElementById("modal-detalle").classList.add("hidden");
+          btnGuardar.disabled = false;
+          btnGuardar.textContent = "Confirmar Asignación";
+        }, 800);
 
       } catch (err) {
         console.error("Error guardando asignación:", err);
         msgEl.textContent = "❌ Error al guardar asignación: " + (err.message || "");
-        msgEl.style.color = "var(--color-error)";
+        msgEl.style.color = "#dc2626";
         msgEl.classList.remove("hidden");
+        btnGuardar.disabled = false;
+        btnGuardar.textContent = "Confirmar Asignación";
       }
+    });
+
+    // Delegación de clic sobre cualquier parte de la fila o botón
+    document.getElementById("ordenes-tbody").addEventListener("click", (e) => {
+      const elemento = e.target.closest("[data-abrir]");
+      if (elemento) {
+        const id = elemento.getAttribute("data-abrir");
+        abrirModal(id);
+      }
+    });
+
+    document.getElementById("btn-cerrar-modal").addEventListener("click", () => {
+      document.getElementById("modal-detalle").classList.add("hidden");
     });
 
     document.getElementById("buscador").addEventListener("input", aplicarFiltros);

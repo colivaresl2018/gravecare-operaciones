@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    #mapa { width: 100%; height: 500px; border-radius: 8px; }
+    #mapa { width: 100%; height: 520px; border-radius: 8px; }
     .modal { display: none; }
     .modal.active { display: flex; }
     table { width: 100%; border-collapse: collapse; }
@@ -49,11 +49,11 @@
       </div>
       <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
         <p class="text-sm text-[#4e6451] mb-2">Cementerios Activos</p>
-        <p class="text-3xl font-bold text-[#002d1a]" id="kpi-cementerios">1</p>
+        <p class="text-3xl font-bold text-[#002d1a]" id="kpi-cementerios">0</p>
       </div>
       <div class="bg-white rounded-lg p-6 border border-[#c1c8c1]">
-        <p class="text-sm text-[#4e6451] mb-2">Ocupancia Promedio</p>
-        <p class="text-3xl font-bold text-[#002d1a]" id="kpi-ocupancia">0%</p>
+        <p class="text-sm text-[#4e6451] mb-2">Con Coordenadas GPS</p>
+        <p class="text-3xl font-bold text-[#002d1a]" id="kpi-geolocalizadas">0%</p>
       </div>
     </div>
 
@@ -61,16 +61,16 @@
     <div class="bg-white rounded-lg p-6 border border-[#c1c8c1] mb-8">
       <h3 class="text-lg font-bold text-[#002d1a] mb-4">Mapa Interactivo</h3>
       <div id="mapa"></div>
-      <p class="text-xs text-[#4e6451] mt-4">Haz click en el mapa para agregar una sepultura o en los marcadores para ver detalles</p>
+      <p class="text-xs text-[#4e6451] mt-4">Haz clic en los marcadores para ver los datos de la sepultura o en el mapa para asignar coordenadas al formulario.</p>
     </div>
 
-    <!-- Filtros -->
+    <!-- Filtros y Acciones -->
     <div class="mb-6 flex gap-4">
-      <button onclick="abrirFormulario()" class="bg-[#002d1a] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#1a432f]">
-        + Nueva Sepultura
+      <button onclick="abrirFormulario()" class="bg-[#002d1a] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#1a432f] transition">
+        + Registrar Sepultura
       </button>
-      <input type="search" id="filtro-busqueda" placeholder="Buscar difunto..." 
-        class="flex-1 px-4 py-2 border border-[#c1c8c1] rounded-lg" onkeyup="filtrarSepulturas()">
+      <input type="search" id="filtro-busqueda" placeholder="Buscar por difunto, cementerio o cliente..." 
+        class="flex-1 px-4 py-2 border border-[#c1c8c1] rounded-lg focus:outline-none focus:border-[#002d1a]" onkeyup="filtrarSepulturas()">
     </div>
 
     <!-- Tabla de Sepulturas -->
@@ -79,10 +79,10 @@
         <thead>
           <tr>
             <th>Difunto</th>
-            <th>Cliente</th>
-            <th>Sector</th>
-            <th>Número</th>
-            <th>Coordenadas</th>
+            <th>Cementerio</th>
+            <th>Ubicación</th>
+            <th>Cliente / Titular</th>
+            <th>Coordenadas GPS</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
@@ -97,104 +97,124 @@
 
   <!-- Modal Formulario -->
   <div id="modal-formulario" class="modal fixed inset-0 bg-black/40 items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-8 max-w-md w-full max-h-96 overflow-y-auto">
-      <h2 class="text-2xl font-bold text-[#002d1a] mb-6">Nueva Sepultura</h2>
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <h2 class="text-2xl font-bold text-[#002d1a] mb-6">Asignar / Nueva Sepultura</h2>
       
       <form onsubmit="guardarSepultura(event);" class="space-y-4">
-        
         <div>
-          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Difunto</label>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-1">ID Cliente / Titular (UID) *</label>
+          <input type="text" id="form-cliente-id" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" placeholder="UID de usuario en Firebase">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-1">Nombre del Difunto *</label>
           <input type="text" id="form-difunto" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
         </div>
 
         <div>
-          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Cliente</label>
-          <input type="text" id="form-cliente" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+          <label class="block text-sm font-semibold text-[#002d1a] mb-1">Cementerio *</label>
+          <input type="text" id="form-cementerio" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" placeholder="Ej. Parque del Recuerdo">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-semibold text-[#002d1a] mb-2">Sector</label>
-            <input type="text" id="form-sector" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+            <label class="block text-sm font-semibold text-[#002d1a] mb-1">Sector</label>
+            <input type="text" id="form-sector" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
           </div>
           <div>
-            <label class="block text-sm font-semibold text-[#002d1a] mb-2">Número</label>
-            <input type="text" id="form-numero" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
+            <label class="block text-sm font-semibold text-[#002d1a] mb-1">Número / Lote</label>
+            <input type="text" id="form-numero" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-semibold text-[#002d1a] mb-2">Latitud</label>
-            <input type="number" id="form-lat" step="0.00001" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" placeholder="-33.4489">
+            <label class="block text-sm font-semibold text-[#002d1a] mb-1">Latitud</label>
+            <input type="number" id="form-lat" step="0.000001" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" placeholder="-33.4489">
           </div>
           <div>
-            <label class="block text-sm font-semibold text-[#002d1a] mb-2">Longitud</label>
-            <input type="number" id="form-lng" step="0.00001" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" placeholder="-70.6693">
+            <label class="block text-sm font-semibold text-[#002d1a] mb-1">Longitud</label>
+            <input type="number" id="form-lng" step="0.000001" class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg" placeholder="-70.6693">
           </div>
         </div>
 
         <div>
-          <label class="block text-sm font-semibold text-[#002d1a] mb-2">Estado</label>
+          <label class="block text-sm font-semibold text-[#002d1a] mb-1">Estado</label>
           <select id="form-estado" required class="w-full px-4 py-2 border border-[#c1c8c1] rounded-lg">
             <option value="ocupado">Ocupado</option>
             <option value="disponible">Disponible</option>
-            <option value="reservado">Reservado</option>
+            <option value="mantenimiento">En Mantenimiento</option>
           </select>
         </div>
 
         <div class="flex gap-4 pt-4">
-          <button type="submit" class="flex-1 bg-[#002d1a] text-white font-bold py-2 rounded-lg hover:bg-[#1a432f]">
+          <button type="submit" id="btn-submit" class="flex-1 bg-[#002d1a] text-white font-bold py-2 rounded-lg hover:bg-[#1a432f] transition">
             Guardar
           </button>
-          <button type="button" onclick="cerrarFormulario()" class="flex-1 bg-gray-300 text-gray-700 font-bold py-2 rounded-lg hover:bg-gray-400">
+          <button type="button" onclick="cerrarFormulario()" class="flex-1 bg-gray-200 text-gray-700 font-bold py-2 rounded-lg hover:bg-gray-300 transition">
             Cancelar
           </button>
         </div>
-
       </form>
     </div>
   </div>
 
   <script type="module">
-    import { app, db } from "./js/firebaseConfig.js";
+    import { db } from "./js/firebaseConfig.js";
     import { requireStaffAccess } from "./js/portal-common.js";
     import {
-      collection, doc, addDoc, deleteDoc, getDocs, query, orderBy,
-      onSnapshot, GeoPoint
+      collection, collectionGroup, doc, addDoc, deleteDoc, getDocs,
+      serverTimestamp, GeoPoint
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let mapa = null;
     let marcadores = [];
     let sepulturasData = [];
 
-    // ---------- Firestore (modular) ----------
+    // ---------- Firestore (Unificado por Subcolecciones) ----------
 
-    async function agregarSepultura(sepultura) {
-      const docRef = await addDoc(collection(db, "sepulturas"), {
+    async function obtenerTodasLasSepulturas() {
+      // Consulta transversal de la subcolección 'sepulturas'
+      const snap = await getDocs(collectionGroup(db, "sepulturas"));
+      return snap.docs.map(d => {
+        const data = d.data();
+        const userRef = d.ref.parent.parent;
+        return {
+          id: d.id,
+          docPath: d.ref.path,
+          userId: userRef ? userRef.id : "Sin asignar",
+          difunto: data.difunto || data.nombreDifunto || "No registrado",
+          cliente: data.cliente || data.titularNombre || (userRef ? userRef.id : "-"),
+          cementerio: data.cementerio || "No especificado",
+          sector: data.sector || "-",
+          numero: data.numero || data.numeroSepultura || "-",
+          coordenadas: data.coordenadas || null,
+          estado: data.estado || "ocupado"
+        };
+      });
+    }
+
+    async function agregarSepultura(clienteUid, sepultura) {
+      // Guarda directamente en la subcolección del cliente
+      const userSepulturasRef = collection(db, "usuarios", clienteUid, "sepulturas");
+      const docRef = await addDoc(userSepulturasRef, {
         ...sepultura,
-        fechaCreacion: new Date()
+        fechaCreacion: serverTimestamp()
       });
       return docRef.id;
     }
 
-    async function obtenerSepulturas() {
-      const q = query(collection(db, "sepulturas"), orderBy("fechaCreacion", "desc"));
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    async function eliminarSepulturaDoc(docPath) {
+      await deleteDoc(doc(db, docPath));
     }
 
-    async function eliminarSepulturaDoc(id) {
-      await deleteDoc(doc(db, "sepulturas", id));
-    }
-
-    // ---------- Mapa ----------
+    // ---------- Inicialización del Mapa ----------
 
     function inicializarMapa() {
       const centroSantiago = { lat: -33.4489, lng: -70.6693 };
 
       mapa = new google.maps.Map(document.getElementById('mapa'), {
-        zoom: 14,
+        zoom: 11,
         center: centroSantiago,
         mapTypeId: google.maps.MapTypeId.ROADMAP
       });
@@ -202,18 +222,19 @@
       mapa.addListener('click', (e) => {
         const lat = e.latLng.lat();
         const lng = e.latLng.lng();
-        document.getElementById('form-lat').value = lat.toFixed(5);
-        document.getElementById('form-lng').value = lng.toFixed(5);
+        document.getElementById('form-lat').value = lat.toFixed(6);
+        document.getElementById('form-lng').value = lng.toFixed(6);
         abrirFormulario();
       });
     }
 
     function abrirFormulario() {
+      document.getElementById('form-cliente-id').value = '';
       document.getElementById('form-difunto').value = '';
-      document.getElementById('form-cliente').value = '';
+      document.getElementById('form-cementerio').value = '';
       document.getElementById('form-sector').value = '';
       document.getElementById('form-numero').value = '';
-      document.getElementById('form-estado').value = 'disponible';
+      document.getElementById('form-estado').value = 'ocupado';
       document.getElementById('modal-formulario').classList.add('active');
     }
 
@@ -223,62 +244,86 @@
 
     async function guardarSepultura(e) {
       e.preventDefault();
+      const btn = document.getElementById('btn-submit');
+      const clienteUid = document.getElementById('form-cliente-id').value.trim();
+      const latVal = document.getElementById('form-lat').value;
+      const lngVal = document.getElementById('form-lng').value;
 
-      const lat = parseFloat(document.getElementById('form-lat').value);
-      const lng = parseFloat(document.getElementById('form-lng').value);
+      let coordenadas = null;
+      if (latVal && lngVal) {
+        coordenadas = new GeoPoint(parseFloat(latVal), parseFloat(lngVal));
+      }
 
       try {
-        await agregarSepultura({
-          difunto: document.getElementById('form-difunto').value,
-          cliente: document.getElementById('form-cliente').value,
-          sector: document.getElementById('form-sector').value,
-          numero: document.getElementById('form-numero').value,
-          coordenadas: new GeoPoint(lat, lng),
+        btn.disabled = true;
+        btn.innerText = "Guardando...";
+
+        await agregarSepultura(clienteUid, {
+          difunto: document.getElementById('form-difunto').value.trim(),
+          cementerio: document.getElementById('form-cementerio').value.trim(),
+          sector: document.getElementById('form-sector').value.trim(),
+          numero: document.getElementById('form-numero').value.trim(),
+          coordenadas: coordenadas,
           estado: document.getElementById('form-estado').value
         });
 
         cerrarFormulario();
-        cargarSepulturas();
-        alert('✓ Sepultura guardada');
+        await cargarSepulturas();
+        alert('✓ Sepultura registrada exitosamente.');
       } catch (error) {
-        console.error(error);
-        alert('Error guardando sepultura');
+        console.error("Error al registrar sepultura:", error);
+        alert('Error al guardar la sepultura: ' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Guardar";
       }
     }
 
     async function cargarSepulturas() {
-      sepulturasData = await obtenerSepulturas();
-      actualizarMapa(sepulturasData);
-      actualizarTabla(sepulturasData);
-      actualizarDashboard(sepulturasData);
+      try {
+        sepulturasData = await obtenerTodasLasSepulturas();
+        actualizarMapa(sepulturasData);
+        actualizarTabla(sepulturasData);
+        actualizarDashboard(sepulturasData);
+      } catch (error) {
+        console.error("Error al cargar sepulturas:", error);
+        document.getElementById('tabla-sepulturas').innerHTML = 
+          `<tr><td colspan="7" class="text-center py-8 text-red-600">Error al leer datos desde Firestore: ${error.message}</td></tr>`;
+      }
     }
 
     function actualizarMapa(sepulturas) {
       marcadores.forEach(m => m.setMap(null));
       marcadores = [];
 
+      const bounds = new google.maps.LatLngBounds();
+      let hasCoords = false;
+
       sepulturas.forEach(s => {
-        if (s.coordenadas) {
-          const lat = s.coordenadas.latitude;
-          const lng = s.coordenadas.longitude;
+        if (s.coordenadas && s.coordenadas.latitude && s.coordenadas.longitude) {
+          hasCoords = true;
+          const pos = { lat: s.coordenadas.latitude, lng: s.coordenadas.longitude };
+          bounds.extend(pos);
 
-          const color = s.estado === 'ocupado' ? 'red' : s.estado === 'reservado' ? 'yellow' : 'green';
+          const colorPin = s.estado === 'ocupado' ? 'red' : s.estado === 'disponible' ? 'green' : 'yellow';
 
+          // Uso de HTTPS para evitar errores de contenido mixto
           const marcador = new google.maps.Marker({
-            position: { lat, lng },
+            position: pos,
             map: mapa,
             title: s.difunto,
-            icon: `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`
+            icon: `https://maps.google.com/mapfiles/ms/icons/${colorPin}-dot.png`
           });
 
           marcador.addListener('click', () => {
             const infoWindow = new google.maps.InfoWindow({
               content: `
-                <div class="text-sm p-2">
-                  <p><strong>${s.difunto}</strong></p>
-                  <p>Cliente: ${s.cliente}</p>
-                  <p>Sector ${s.sector} - Lote ${s.numero}</p>
-                  <p>Estado: <span class="font-bold">${s.estado.toUpperCase()}</span></p>
+                <div class="text-sm p-2 font-sans">
+                  <p class="font-bold text-[#002d1a]">${s.difunto}</p>
+                  <p class="text-xs text-gray-600">${s.cementerio}</p>
+                  <p class="mt-1">Sector: ${s.sector} | Lote: ${s.numero}</p>
+                  <p class="text-xs text-gray-500">Titular ID: ${s.userId}</p>
+                  <p class="mt-1 font-semibold uppercase text-xs">${s.estado}</p>
                 </div>
               `
             });
@@ -288,47 +333,52 @@
           marcadores.push(marcador);
         }
       });
+
+      if (hasCoords && mapa) {
+        mapa.fitBounds(bounds);
+      }
     }
 
     function actualizarTabla(sepulturas) {
       const filtro = document.getElementById('filtro-busqueda').value.toLowerCase();
       const filtradas = sepulturas.filter(s => 
-        s.difunto.toLowerCase().includes(filtro) ||
-        s.cliente.toLowerCase().includes(filtro)
+        (s.difunto && s.difunto.toLowerCase().includes(filtro)) ||
+        (s.cementerio && s.cementerio.toLowerCase().includes(filtro)) ||
+        (s.cliente && s.cliente.toLowerCase().includes(filtro))
       );
 
       const tbody = document.getElementById('tabla-sepulturas');
       if (filtradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-[#4e6451]">Sin sepulturas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-[#4e6451]">No se encontraron sepulturas</td></tr>';
       } else {
         tbody.innerHTML = filtradas.map(s => `
           <tr>
             <td class="font-bold">${s.difunto}</td>
-            <td>${s.cliente}</td>
-            <td>${s.sector}</td>
-            <td>${s.numero}</td>
-            <td class="text-xs text-gray-600">${s.coordenadas ? s.coordenadas.latitude.toFixed(4) + ', ' + s.coordenadas.longitude.toFixed(4) : '-'}</td>
+            <td>${s.cementerio}</td>
+            <td>Sector: ${s.sector} - Nº ${s.numero}</td>
+            <td class="text-xs font-mono text-gray-700">${s.userId}</td>
+            <td class="text-xs text-gray-600">${s.coordenadas ? s.coordenadas.latitude.toFixed(4) + ', ' + s.coordenadas.longitude.toFixed(4) : '<span class="text-amber-600 font-semibold">Sin GPS</span>'}</td>
             <td>
-              <span class="px-2 py-1 rounded text-xs font-bold ${s.estado === 'ocupado' ? 'bg-red-100 text-red-800' : s.estado === 'reservado' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
+              <span class="px-2 py-1 rounded text-xs font-bold ${s.estado === 'ocupado' ? 'bg-red-100 text-red-800' : s.estado === 'disponible' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
                 ${s.estado.charAt(0).toUpperCase() + s.estado.slice(1)}
               </span>
             </td>
             <td>
-              <button onclick="eliminarSepultura('${s.id}')" class="text-red-600 hover:text-red-800 text-sm font-bold">Eliminar</button>
+              <button onclick="eliminarSepultura('${s.docPath}')" class="text-red-600 hover:text-red-800 text-sm font-bold">Eliminar</button>
             </td>
           </tr>
         `).join('');
       }
     }
 
-    async function eliminarSepultura(id) {
-      if (confirm('¿Eliminar esta sepultura?')) {
+    async function eliminarSepultura(docPath) {
+      if (confirm('¿Deseas eliminar permanentemente esta sepultura?')) {
         try {
-          await eliminarSepulturaDoc(id);
-          cargarSepulturas();
+          await eliminarSepulturaDoc(docPath);
+          await cargarSepulturas();
         } catch (error) {
-          console.error(error);
-          alert('Error eliminando');
+          console.error("Error al eliminar:", error);
+          alert('Error al eliminar: ' + error.message);
         }
       }
     }
@@ -338,25 +388,27 @@
     }
 
     function actualizarDashboard(sepulturas) {
-      const ocupadas = sepulturas.filter(s => s.estado === 'ocupado').length;
-      const ocupancia = Math.round((ocupadas / Math.max(sepulturas.length, 1)) * 100);
+      const cementeriosUnicos = new Set(sepulturas.map(s => s.cementerio).filter(c => c !== "No especificado"));
+      const geolocalizadas = sepulturas.filter(s => s.coordenadas).length;
+      const ratioGeo = Math.round((geolocalizadas / Math.max(sepulturas.length, 1)) * 100);
 
       document.getElementById('kpi-sepulturas').textContent = sepulturas.length;
-      document.getElementById('kpi-ocupancia').textContent = ocupancia + '%';
+      document.getElementById('kpi-cementerios').textContent = cementeriosUnicos.size;
+      document.getElementById('kpi-geolocalizadas').textContent = ratioGeo + '%';
     }
 
-    // Exponer al scope global para los onclick="" del HTML
+    // Exportación global para eventos del HTML
     window.abrirFormulario = abrirFormulario;
     window.cerrarFormulario = cerrarFormulario;
     window.guardarSepultura = guardarSepultura;
     window.filtrarSepulturas = filtrarSepulturas;
     window.eliminarSepultura = eliminarSepultura;
 
-    // Protección de acceso: cualquier rol de staff activo puede ver el mapa
+    // Validación obligatoria con identificador de página para aplicar la matriz de permisos
     requireStaffAccess(() => {
       inicializarMapa();
       cargarSepulturas();
-    });
+    }, 'mapa.html');
   </script>
 
 </body>
