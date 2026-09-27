@@ -2,8 +2,16 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Fotos de reportes (antes/después de cada trabajo)
-    match /reportes/{numeroOrden}/{archivo} {
+    // Fotos de reportes (antes/después de cada trabajo).
+    //
+    // ⚠️ La ruta real que sube informe-captura.html es
+    // informes/{ordenId}/{archivo} (no "reportes/{numeroOrden}/..."). La
+    // regla decía "reportes" y nunca coincidía con ninguna subida real, así
+    // que todo caía al bloqueo por defecto de más abajo (allow: if false) y
+    // las fotos fallaban en silencio con error de permisos. Se corrigió el
+    // nombre de la ruta para que coincida con el código — si algún día se
+    // renombra la carpeta en el código, hay que replicar el cambio aquí.
+    match /informes/{ordenId}/{archivo} {
       // Lectura: cualquiera con el link puede VER la foto (así las URLs
       // funcionan directo en el dashboard del cliente sin pedir token).
       // Nadie puede "listar" el contenido de la carpeta sin el link exacto.

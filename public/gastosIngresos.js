@@ -7,12 +7,19 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
+  getStorage,
   ref,
   uploadBytes,
   getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { app, db, auth } from "./firebaseConfig.js";
 import { requireStaffAccess } from "./portal-common.js";
-import { db, storage } from "./firebaseConfig.js";
+
+// Reutilizamos la MISMA app inicializada en firebaseConfig.js (donde vive la
+// sesión autenticada). NO se llama a initializeApp() aquí — esa era la causa
+// del error "Missing or insufficient permissions": crear una segunda
+// instancia de Firebase sin sesión activa.
+const storage = getStorage(app, "gs://gravecare-2e8d2.firebasestorage.app");
 
 let listaMovimientos = [];
 let graficoInstancia = null;
@@ -44,12 +51,12 @@ function inicializarFormulario() {
   const tipoFlujo = document.getElementById("form-tipo");
   const selectCategoria = document.getElementById("form-categoria");
 
-function actualizarCategorias() {
+  function actualizarCategorias() {
     const esGasto = tipoFlujo.value === "Gasto";
     const categorias = esGasto ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
     selectCategoria.innerHTML = categorias.map(c => `<option value="${c}">${c}</option>`).join("");
     if (selectCategoria.options.length > 0) {
-      selectCategoria.selectedIndex = 0; // Selecciona por defecto la primera categoría
+      selectCategoria.selectedIndex = 0;
     }
   }
 
@@ -58,6 +65,40 @@ function actualizarCategorias() {
 
   const hoy = new Date().toISOString().split("T")[0];
   document.getElementById("form-fecha").value = hoy;
+
+  // Cálculo automático de IVA / Retención (conservado de tu versión más reciente)
+  const selectDte = document.getElementById("form-dte");
+  const inputNeto = document.getElementById("form-monto-neto");
+  const inputImpuesto = document.getElementById("form-impuesto");
+  const inputTotal = document.getElementById("form-total");
+  const labelImpuesto = document.getElementById("label-impuesto");
+
+  function recalcularValores() {
+    const neto = Math.round(parseFloat(inputNeto.value) || 0);
+    const dte = selectDte.value;
+    let impuesto = 0;
+    let total = neto;
+
+    if (dte === "Factura Afecta") {
+      labelImpuesto.textContent = "IVA Débito/Crédito (19%)";
+      impuesto = Math.round(neto * 0.19);
+      total = neto + impuesto;
+    } else if (dte === "Boleta Honorarios") {
+      labelImpuesto.textContent = "Retención SII (15.25%)";
+      impuesto = Math.round(neto * 0.1525);
+      total = neto - impuesto;
+    } else {
+      labelImpuesto.textContent = "Impuesto / Retención ($ 0)";
+      impuesto = 0;
+      total = neto;
+    }
+
+    inputImpuesto.value = impuesto;
+    inputTotal.value = total;
+  }
+
+  if (selectDte) selectDte.addEventListener("change", recalcularValores);
+  if (inputNeto) inputNeto.addEventListener("input", recalcularValores);
 
   document.getElementById("form-movimiento").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -73,7 +114,7 @@ function actualizarCategorias() {
         const archivo = fileInput.files[0];
         const anioMes = new Date().toISOString().slice(0, 7);
         const storagePath = `facturas_auditoria/${anioMes}/${Date.now()}_${archivo.name}`;
-        
+
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, archivo);
         facturaUrl = await getDownloadURL(storageRef);
@@ -121,6 +162,39 @@ async function cargarMovimientos() {
   const tbody = document.getElementById("tabla-movimientos");
   tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Cargando registros contables...</td></tr>';
 
+  // ============ DIAGNÓSTICO TEMPORAL — quitar una vez resuelto ============
+  console.group("🔍 DIAGNÓSTICO gastos_ingresos");
+  try {
+    console.log("Archivo cargado: VERSIÓN FUSIONADA (fix Firebase + calculadora IVA)");
+    console.log("auth.currentUser:", auth.currentUser);
+    console.log("UID:", auth.currentUser?.uid);
+    console.log("Email:", auth.currentUser?.email);
+    console.log("app.options.projectId:", app.options.projectId);
+
+    if (auth.currentUser) {
+      const tokenResult = await auth.currentUser.getIdTokenResult();
+      console.log("Token claims:", tokenResult.claims);
+
+      try {
+        const res = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${app.options.projectId}/databases/(default)/documents/gastos_ingresos`,
+          { headers: { Authorization: `Bearer ${tokenResult.token}` } }
+        );
+        const bodyText = await res.text();
+        console.log("REST directo — STATUS:", res.status);
+        console.log("REST directo — BODY:", bodyText);
+      } catch (restErr) {
+        console.log("REST directo — FALLÓ LA PETICIÓN EN SÍ:", restErr);
+      }
+    } else {
+      console.warn("⚠️ auth.currentUser es null — el usuario NO está autenticado según este objeto auth.");
+    }
+  } catch (diagErr) {
+    console.log("Error dentro del bloque de diagnóstico:", diagErr);
+  }
+  console.groupEnd();
+  // ============ FIN DIAGNÓSTICO TEMPORAL ============
+
   try {
     const snap = await getDocs(collection(db, "gastos_ingresos"));
     listaMovimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -130,6 +204,8 @@ async function cargarMovimientos() {
     aplicarFiltrosYRenderizar();
   } catch (err) {
     console.error("Error cargando movimientos:", err);
+    console.error("Error CODE:", err.code);
+    console.error("Error MESSAGE:", err.message);
     tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #dc2626;">Error al cargar datos de Firestore: ${err.message}</td></tr>`;
   }
 }
@@ -168,8 +244,8 @@ function renderTabla(movimientos) {
 
     const badgeTipo = `<span style="font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${esGasto ? '#fee2e2' : '#dcfce7'}; color: ${esGasto ? '#991b1b' : '#166534'};">${m.tipo.toUpperCase()}</span>`;
 
-    const linkRespaldo = m.facturaUrl 
-      ? `<a href="${m.facturaUrl}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: underline;">📄 Ver Factura</a>` 
+    const linkRespaldo = m.facturaUrl
+      ? `<a href="${m.facturaUrl}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: underline;">📄 Ver Factura</a>`
       : '<span style="color: #94a3b8;">Sin archivo</span>';
 
     return `
@@ -226,7 +302,7 @@ function calcularResumen(movimientos) {
 
   document.getElementById("resumen-ingresos-neto").textContent = `$ ${ingresosNeto.toLocaleString("es-CL")}`;
   document.getElementById("resumen-gastos-neto").textContent = `$ ${gastosNeto.toLocaleString("es-CL")}`;
-  
+
   const elIva = document.getElementById("resumen-iva");
   elIva.textContent = `$ ${balanceIva.toLocaleString("es-CL")}`;
   elIva.style.color = balanceIva > 0 ? "#dc2626" : "#16a34a";
@@ -258,7 +334,7 @@ function configurarFiltros() {
 function actualizarGrafico(movimientos) {
   const ctx = document.getElementById("grafico-comparativo").getContext("2d");
   const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  
+
   const datosIngresos = new Array(12).fill(0);
   const datosGastos = new Array(12).fill(0);
 

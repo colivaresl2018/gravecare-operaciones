@@ -234,17 +234,126 @@
       );
     };
 
+    // Chrome/Android y la mayoría de navegadores modernos soportan WebP;
+    // Safari/iOS antiguo no. Se detecta una sola vez y se reutiliza el
+    // resultado en cada foto, en vez de asumir el formato.
+    let soportaWebP = null;
+    function detectarSoporteWebP() {
+      if (soportaWebP !== null) return Promise.resolve(soportaWebP);
+      return new Promise((resolve) => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 1;
+        c.toBlob((blob) => {
+          soportaWebP = !!blob && blob.type === "image/webp";
+          resolve(soportaWebP);
+        }, "image/webp");
+      });
+    }
+
+    function resultadoSinComprimir(archivo, coords) {
+      return {
+        blob: archivo,
+        mime: archivo.type || "image/jpeg",
+        ext: (archivo.type || "").includes("png") ? "png" : "jpg",
+        previewUrl: URL.createObjectURL(archivo),
+        timestamp: new Date().toISOString(),
+        coordenadas: coords
+      };
+    }
+
     async function procesarFotoSegura(archivo, coords, tipoTexto) {
+      const usarWebP = await detectarSoporteWebP();
+      const mime = usarWebP ? "image/webp" : "image/jpeg";
+      const ext = usarWebP ? "webp" : "jpg";
+
+      // MOTIVO DEL CUELGUE ANTERIOR: el código usaba FileReader.readAsDataURL()
+      // para leer la foto y luego la cargaba en un <img> mediante un string
+      // Base64 (data:...). Una foto de celular de 8-20MB se vuelve un string
+      // Base64 de ~11-27MB, y decodificar eso en un <img> ocurre en el hilo
+      // principal — el mismo que dibuja la pantalla. En equipos de gama media
+      // eso congelaba la interfaz varios segundos ("el teléfono queda pegado").
+      //
+      // createImageBitmap() decodifica la imagen directamente desde el File,
+      // sin pasar por Base64 y sin bloquear el hilo principal de la misma
+      // forma — es la vía recomendada para procesar fotos de cámara en el
+      // navegador. Si el navegador no lo soporta (Safari/iOS muy antiguo),
+      // se cae automáticamente al método anterior como respaldo.
+      if (typeof createImageBitmap !== "function") {
+        return procesarFotoSeguraCompat(archivo, coords, tipoTexto, mime, ext);
+      }
+
+      let bitmap;
+      try {
+        bitmap = await createImageBitmap(archivo);
+      } catch (err) {
+        // Formato no soportado por createImageBitmap (poco común) → respaldo
+        return procesarFotoSeguraCompat(archivo, coords, tipoTexto, mime, ext);
+      }
+
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // 1600px de ancho sigue siendo más que suficiente para ver detalle
+        // en pantalla o imprimir un reporte A4; 1200px dejaba fotos algo
+        // pequeñas al hacer zoom en el informe del cliente.
+        const maxAncho = 1600;
+        let ancho = bitmap.width;
+        let alto = bitmap.height;
+        if (ancho > maxAncho) {
+          alto = Math.round((alto * maxAncho) / ancho);
+          ancho = maxAncho;
+        }
+
+        canvas.width = ancho;
+        canvas.height = alto;
+        ctx.drawImage(bitmap, 0, 0, ancho, alto);
+        bitmap.close();
+
+        const ahora = new Date();
+        const fechaHora = ahora.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) +
+                          " " + ahora.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+        let gpsTxt = "GPS: Registrado";
+        if (coords && coords.lat) {
+          gpsTxt = `GPS: Lat ${coords.lat.toFixed(5)}, Lng ${coords.lng.toFixed(5)}`;
+        }
+
+        const altoBanda = Math.max(44, Math.round(alto * 0.06));
+        ctx.fillStyle = "rgba(0, 45, 26, 0.85)";
+        ctx.fillRect(0, alto - altoBanda, ancho, altoBanda);
+
+        ctx.font = `700 ${Math.max(12, Math.round(altoBanda * 0.35))}px sans-serif`;
+        ctx.fillStyle = "#ffffff";
+        ctx.textBaseline = "middle";
+
+        const padX = Math.round(ancho * 0.02);
+        ctx.fillText(`GRAVECARE · ${tipoTexto.toUpperCase()} · ${fechaHora}`, padX, alto - (altoBanda * 0.65));
+        ctx.fillText(gpsTxt, padX, alto - (altoBanda * 0.28));
+
+        return await new Promise((resolve) => {
+          canvas.toBlob((blob) => {
+            resolve({
+              blob: blob || archivo,
+              mime: blob ? mime : (archivo.type || "image/jpeg"),
+              ext: blob ? ext : "jpg",
+              previewUrl: canvas.toDataURL("image/jpeg", 0.6),
+              timestamp: ahora.toISOString(),
+              coordenadas: coords
+            });
+          }, mime, 0.8);
+        });
+      } catch (err) {
+        return resultadoSinComprimir(archivo, coords);
+      }
+    }
+
+    // Respaldo para navegadores sin createImageBitmap (Safari/iOS antiguo).
+    // Mismo comportamiento que antes, incluyendo el timeout de seguridad.
+    function procesarFotoSeguraCompat(archivo, coords, tipoTexto, mime, ext) {
       return new Promise((resolve) => {
         const reader = new FileReader();
-        const timer = setTimeout(() => {
-          resolve({
-            blob: archivo,
-            previewUrl: URL.createObjectURL(archivo),
-            timestamp: new Date().toISOString(),
-            coordenadas: coords
-          });
-        }, 4000);
+        const timer = setTimeout(() => resolve(resultadoSinComprimir(archivo, coords)), 12000);
 
         reader.onload = (e) => {
           const img = new Image();
@@ -253,15 +362,13 @@
             try {
               const canvas = document.createElement("canvas");
               const ctx = canvas.getContext("2d");
-
-              const maxAncho = 1200;
+              const maxAncho = 1600;
               let ancho = img.width;
               let alto = img.height;
               if (ancho > maxAncho) {
                 alto = Math.round((alto * maxAncho) / ancho);
                 ancho = maxAncho;
               }
-
               canvas.width = ancho;
               canvas.height = alto;
               ctx.drawImage(img, 0, 0, ancho, alto);
@@ -269,20 +376,16 @@
               const ahora = new Date();
               const fechaHora = ahora.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) +
                                 " " + ahora.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
               let gpsTxt = "GPS: Registrado";
               if (coords && coords.lat) {
                 gpsTxt = `GPS: Lat ${coords.lat.toFixed(5)}, Lng ${coords.lng.toFixed(5)}`;
               }
-
               const altoBanda = Math.max(44, Math.round(alto * 0.06));
               ctx.fillStyle = "rgba(0, 45, 26, 0.85)";
               ctx.fillRect(0, alto - altoBanda, ancho, altoBanda);
-
               ctx.font = `700 ${Math.max(12, Math.round(altoBanda * 0.35))}px sans-serif`;
               ctx.fillStyle = "#ffffff";
               ctx.textBaseline = "middle";
-
               const padX = Math.round(ancho * 0.02);
               ctx.fillText(`GRAVECARE · ${tipoTexto.toUpperCase()} · ${fechaHora}`, padX, alto - (altoBanda * 0.65));
               ctx.fillText(gpsTxt, padX, alto - (altoBanda * 0.28));
@@ -290,43 +393,21 @@
               canvas.toBlob((blob) => {
                 resolve({
                   blob: blob || archivo,
-                  previewUrl: canvas.toDataURL("image/jpeg", 0.75),
+                  mime: blob ? mime : (archivo.type || "image/jpeg"),
+                  ext: blob ? ext : "jpg",
+                  previewUrl: canvas.toDataURL("image/jpeg", 0.6),
                   timestamp: ahora.toISOString(),
                   coordenadas: coords
                 });
-              }, "image/jpeg", 0.8);
-
+              }, mime, 0.8);
             } catch (err) {
-              resolve({
-                blob: archivo,
-                previewUrl: URL.createObjectURL(archivo),
-                timestamp: new Date().toISOString(),
-                coordenadas: coords
-              });
+              resolve(resultadoSinComprimir(archivo, coords));
             }
           };
-          img.onerror = () => {
-            clearTimeout(timer);
-            resolve({
-              blob: archivo,
-              previewUrl: URL.createObjectURL(archivo),
-              timestamp: new Date().toISOString(),
-              coordenadas: coords
-            });
-          };
+          img.onerror = () => { clearTimeout(timer); resolve(resultadoSinComprimir(archivo, coords)); };
           img.src = e.target.result;
         };
-
-        reader.onerror = () => {
-          clearTimeout(timer);
-          resolve({
-            blob: archivo,
-            previewUrl: URL.createObjectURL(archivo),
-            timestamp: new Date().toISOString(),
-            coordenadas: coords
-          });
-        };
-
+        reader.onerror = () => { clearTimeout(timer); resolve(resultadoSinComprimir(archivo, coords)); };
         reader.readAsDataURL(archivo);
       });
     }
@@ -427,30 +508,45 @@
 
       try {
         const fotosUrls = {};
-        const keys = ["antes", "despues", "flores", "general"];
-        let paso = 0;
+        const keys = ["antes", "despues", "flores", "general"].filter(
+          (key) => fotosProcesadas[key] && fotosProcesadas[key].blob
+        );
 
-        for (const key of keys) {
-          if (fotosProcesadas[key] && fotosProcesadas[key].blob) {
-            paso++;
-            barra.style.width = `${Math.round((paso / 4) * 100)}%`;
-            txtProgreso.textContent = `Subiendo foto ${paso}...`;
+        // Antes se subía una foto a la vez (for...await secuencial): con 4
+        // fotos en conexión móvil eso suma los 4 tiempos de espera uno tras
+        // otro. Subiéndolas en paralelo con Promise.all, el tiempo total es
+        // el de la más lenta, no la suma de las 4 — varias veces más rápido
+        // en la práctica.
+        let subidas = 0;
+        txtProgreso.textContent = `Subiendo ${keys.length} foto(s)...`;
 
-            const storagePath = `informes/${ordenActual.id}/${key}_${Date.now()}.jpg`;
+        const resultados = await Promise.all(
+          keys.map(async (key) => {
+            const foto = fotosProcesadas[key];
+            const ext = foto.ext || "jpg";
+            const mime = foto.mime || "image/jpeg";
+            const storagePath = `informes/${ordenActual.id}/${key}_${Date.now()}.${ext}`;
             const storageRef = ref(storage, storagePath);
-            
-            await uploadBytes(storageRef, fotosProcesadas[key].blob, {
-              contentType: "image/jpeg"
-            });
 
+            await uploadBytes(storageRef, foto.blob, { contentType: mime });
             const downloadUrl = await getDownloadURL(storageRef);
-            fotosUrls[key] = {
+
+            subidas++;
+            barra.style.width = `${Math.round((subidas / keys.length) * 100)}%`;
+            txtProgreso.textContent = `Subidas ${subidas} de ${keys.length}...`;
+
+            return {
+              key,
               url: downloadUrl,
-              timestamp: fotosProcesadas[key].timestamp,
-              coordenadas: fotosProcesadas[key].coordenadas || coordenadasGPS
+              timestamp: foto.timestamp,
+              coordenadas: foto.coordenadas || coordenadasGPS
             };
-          }
-        }
+          })
+        );
+
+        resultados.forEach(({key, ...datos}) => {
+          fotosUrls[key] = datos;
+        });
 
         barra.style.width = "95%";
         txtProgreso.textContent = "Guardando metadatos en Firestore...";

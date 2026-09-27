@@ -273,7 +273,7 @@
   </main>
 
   <!-- Script modular con versionado actualizado -->
-  <script type="module" src="js/gastosIngresos.js?v=20260918_v4"></script>
+  <script type="module" src="js/gastosIngresos.js?v=20260922_v5"></script>
 
   <!-- Lógica de cálculo y OCR simulado -->
   <script>
@@ -316,27 +316,68 @@
       if (inputNeto) inputNeto.addEventListener("input", recalcularValores);
 
       if (btnOcr) {
-        btnOcr.addEventListener("click", () => {
+        btnOcr.addEventListener("click", async () => {
           if (!fileInput.files || fileInput.files.length === 0) {
             alert("Por favor, seleccione primero un archivo PDF o imagen de la factura.");
             return;
           }
 
+          const archivo = fileInput.files[0];
           ocrStatus.style.display = "block";
-          ocrStatus.textContent = "🔍 Analizando documento con motor OCR inteligente...";
-          
-          setTimeout(() => {
-            document.getElementById("form-folio").value = "98234";
-            document.getElementById("form-rut").value = "76.543.210-K";
-            document.getElementById("form-concepto").value = "Insumos y Jardinería Sur SpA";
-            document.getElementById("form-fecha").value = new Date().toISOString().split('T')[0];
-            document.getElementById("form-monto-neto").value = "45000";
-            
+          ocrStatus.style.color = "#0369a1";
+          ocrStatus.textContent = "📄 Iniciando lectura del documento...";
+          btnOcr.disabled = true;
+
+          try {
+            const { extraerDatosFactura } = await import("./js/facturaOcr.js");
+
+            const datos = await extraerDatosFactura(archivo, (mensaje) => {
+              ocrStatus.textContent = mensaje;
+            });
+
+            let camposEncontrados = 0;
+
+            if (datos.tipoDte) {
+              selectDte.value = datos.tipoDte;
+              camposEncontrados++;
+            }
+            if (datos.folio) {
+              document.getElementById("form-folio").value = datos.folio;
+              camposEncontrados++;
+            }
+            if (datos.rut) {
+              document.getElementById("form-rut").value = datos.rut;
+              camposEncontrados++;
+            }
+            if (datos.razonSocial) {
+              document.getElementById("form-concepto").value = datos.razonSocial;
+              camposEncontrados++;
+            }
+            if (datos.fecha) {
+              document.getElementById("form-fecha").value = datos.fecha;
+              camposEncontrados++;
+            }
+            if (datos.montoNeto != null) {
+              document.getElementById("form-monto-neto").value = datos.montoNeto;
+              camposEncontrados++;
+            }
+
             recalcularValores();
-            
-            ocrStatus.textContent = "✓ ¡Datos extraídos con éxito! Verifique los campos antes de guardar.";
-            ocrStatus.style.color = "#16a34a";
-          }, 1500);
+
+            if (camposEncontrados > 0) {
+              ocrStatus.textContent = `✓ Se extrajeron ${camposEncontrados} campo(s). Verifique todos los datos antes de guardar — la extracción es automática pero puede contener errores.`;
+              ocrStatus.style.color = "#16a34a";
+            } else {
+              ocrStatus.textContent = "⚠ No se pudieron identificar campos automáticamente en este documento. Complete el formulario manualmente.";
+              ocrStatus.style.color = "#d97706";
+            }
+          } catch (err) {
+            console.error("Error en extracción OCR:", err);
+            ocrStatus.textContent = "⚠ No se pudo procesar el documento (" + err.message + "). Complete el formulario manualmente.";
+            ocrStatus.style.color = "#dc2626";
+          } finally {
+            btnOcr.disabled = false;
+          }
         });
       }
     });
