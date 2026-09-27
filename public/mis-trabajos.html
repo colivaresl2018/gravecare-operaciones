@@ -86,6 +86,7 @@
   <script type="module">
     import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
     import { db } from "./js/firebaseConfig.js";
+    import { CEMENTERIOS_COORDS } from "./js/cementeriosCoords.js";
     import {
       collection, query, where, getDocs, doc, updateDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -209,7 +210,25 @@
         });
       });
 
-      trabajosParaMapa = trabajos.filter((t) => (t.lat && t.lng) || (t.ubicacionSepultura?.lat && t.ubicacionSepultura?.lng));
+      // Antes, un trabajo sin lat/lng propios (todavía no se registró la
+      // sepultura exacta en terreno) simplemente desaparecía del mapa. Ahora,
+      // si el cementerio tiene una coordenada de referencia conocida
+      // (CEMENTERIOS_COORDS), se usa esa como respaldo — el operador ve al
+      // menos hacia qué zona dirigirse, marcado como ubicación aproximada.
+      trabajosParaMapa = trabajos
+        .map((t) => {
+          const tieneCoordPropia = (t.lat && t.lng) || (t.ubicacionSepultura?.lat && t.ubicacionSepultura?.lng);
+          if (tieneCoordPropia) {
+            return { ...t, _coordAproximada: false };
+          }
+          const nombreCementerio = t.ubicacionSepultura?.cementerio;
+          const coordCementerio = nombreCementerio ? CEMENTERIOS_COORDS[nombreCementerio] : null;
+          if (coordCementerio) {
+            return { ...t, lat: coordCementerio.lat, lng: coordCementerio.lng, _coordAproximada: true };
+          }
+          return null;
+        })
+        .filter(Boolean);
       renderMarcadores();
     }
 
@@ -246,15 +265,22 @@
         const lat = t.lat || t.ubicacionSepultura?.lat;
         const lng = t.lng || t.ubicacionSepultura?.lng;
         const nombre = t.difunto ? `${t.difunto.nombres} ${t.difunto.apellidoPaterno}` : "Sepultura";
+        const esAproximado = t._coordAproximada === true;
 
         const marker = new google.maps.Marker({
           position: { lat, lng },
           map: mapInstance,
-          title: `${nombre} — ${t.ubicacionSepultura?.cementerio || ''}`
+          // Pin naranja para ubicación aproximada del cementerio (todavía
+          // no hay coordenada exacta de la sepultura); rojo (por defecto)
+          // cuando la coordenada sí es de la sepultura puntual.
+          icon: esAproximado
+            ? "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"
+            : undefined,
+          title: `${nombre} — ${t.ubicacionSepultura?.cementerio || ''}${esAproximado ? ' (ubicación aproximada)' : ''}`
         });
 
         const info = new google.maps.InfoWindow({
-          content: `<div style="color:#111;font-family:sans-serif;font-size:13px;"><strong>${nombre}</strong><br>${t.ubicacionSepultura?.cementerio || ''}</div>`
+          content: `<div style="color:#111;font-family:sans-serif;font-size:13px;"><strong>${nombre}</strong><br>${t.ubicacionSepultura?.cementerio || ''}${esAproximado ? '<br><span style="color:#b45309;font-weight:600;">📍 Ubicación aproximada del cementerio</span>' : ''}</div>`
         });
         marker.addListener("click", () => info.open(mapInstance, marker));
         markersActuales.push(marker);
