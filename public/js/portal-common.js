@@ -43,6 +43,20 @@ export function requireStaffAccess(onReady, paginaActual = null) {
         return;
       }
 
+      // Fuerza la renovación del ID token para que el Custom Claim
+      // staffActivo (sincronizado por la Cloud Function onStaffEscrito
+      // cada vez que cambia staff/{uid}) esté actualizado en el navegador.
+      // Sin esto, un usuario cuya cuenta se activó o desactivó recién no
+      // vería el cambio reflejado hasta cerrar y volver a iniciar sesión —
+      // storage.rules confía en request.auth.token.staffActivo para
+      // permitir subir fotos e informes, así que debe ir siempre al día.
+      // No bloquea la carga de la página si falla: solo se registra.
+      try {
+        await user.getIdToken(true);
+      } catch (err) {
+        console.warn("No se pudo renovar el token de staff:", err);
+      }
+
       // 2. Si se especifica la página, validar que el rol tenga privilegios
       if (paginaActual && PERMISOS_PAGINAS[paginaActual]) {
         const rolesPermitidos = PERMISOS_PAGINAS[paginaActual];

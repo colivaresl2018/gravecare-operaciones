@@ -169,35 +169,29 @@
 
   <!-- Script Principal Resiliente -->
   <script type="module">
-    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { 
-      getFirestore,
       doc, 
       getDoc, 
       setDoc, 
       updateDoc, 
       serverTimestamp 
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { 
-      getStorage, 
       ref, 
       uploadBytes, 
       getDownloadURL 
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
     import { requireStaffAccess } from "./js/portal-common.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
-      authDomain: "gravecare-2e8d2.firebaseapp.com",
-      projectId: "gravecare-2e8d2",
-      storageBucket: "gravecare-2e8d2.appspot.com",
-      messagingSenderId: "160012946248",
-      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
-    };
-
-    let appActiva = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-    const db = getFirestore(appActiva);
-    const storage = getStorage(appActiva);
+    // Antes este archivo tenía su PROPIA copia de firebaseConfig con
+    // storageBucket: "gravecare-2e8d2.appspot.com" — un bucket que nunca
+    // existió (gsutil lo confirma con "404 The specified bucket does not
+    // exist"). Aunque reutilizaba la app ya inicializada por
+    // firebaseConfig.js cuando esta ya estaba cargada, getStorage(app) sin
+    // el bucket explícito igual construye la URL con el patrón antiguo
+    // {projectId}.appspot.com, ignorando el storageBucket real de la app.
+    // Se elimina la copia duplicada y se usa el storage central, que ya
+    // pasa el bucket correcto explícitamente.
+    import { db, storage } from "./js/firebaseConfig.js";
 
     let coordenadasGPS = { lat: -33.4489, lng: -70.6693, precision: 10 };
     let ordenActual = null;
@@ -294,10 +288,11 @@
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
-        // 1600px de ancho sigue siendo más que suficiente para ver detalle
-        // en pantalla o imprimir un reporte A4; 1200px dejaba fotos algo
-        // pequeñas al hacer zoom en el informe del cliente.
-        const maxAncho = 1600;
+        // 1200px de ancho es suficiente para ver detalle en pantalla o
+        // imprimir un reporte A4 sin verse pixelado, y reduce bastante el
+        // peso final frente a 1600px — a más resolución, más KB por foto,
+        // y cada informe sube 4 de una vez.
+        const maxAncho = 1200;
         let ancho = bitmap.width;
         let alto = bitmap.height;
         if (ancho > maxAncho) {
@@ -337,11 +332,11 @@
               blob: blob || archivo,
               mime: blob ? mime : (archivo.type || "image/jpeg"),
               ext: blob ? ext : "jpg",
-              previewUrl: canvas.toDataURL("image/jpeg", 0.6),
+              previewUrl: canvas.toDataURL("image/jpeg", 0.5),
               timestamp: ahora.toISOString(),
               coordenadas: coords
             });
-          }, mime, 0.8);
+          }, mime, 0.65);
         });
       } catch (err) {
         return resultadoSinComprimir(archivo, coords);
@@ -362,7 +357,7 @@
             try {
               const canvas = document.createElement("canvas");
               const ctx = canvas.getContext("2d");
-              const maxAncho = 1600;
+              const maxAncho = 1200;
               let ancho = img.width;
               let alto = img.height;
               if (ancho > maxAncho) {
@@ -395,11 +390,11 @@
                   blob: blob || archivo,
                   mime: blob ? mime : (archivo.type || "image/jpeg"),
                   ext: blob ? ext : "jpg",
-                  previewUrl: canvas.toDataURL("image/jpeg", 0.6),
+                  previewUrl: canvas.toDataURL("image/jpeg", 0.5),
                   timestamp: ahora.toISOString(),
                   coordenadas: coords
                 });
-              }, mime, 0.8);
+              }, mime, 0.65);
             } catch (err) {
               resolve(resultadoSinComprimir(archivo, coords));
             }
@@ -575,18 +570,29 @@
           fotos: fotosUrls,
           coordenadas: coordenadasGPS,
           fechaCaptura: new Date().toISOString(),
-          estado: "aprobado",
+          // El informe queda pendiente de revisión de un supervisor —
+          // informe-revision.html es quien lo cambia a "aprobado" o
+          // "rechazado" (ver procesarAprobacion()/procesarRechazo() ahí).
+          // Antes esta página lo marcaba "aprobado" directamente al
+          // certificarlo, saltándose la revisión: el informe aparecía en
+          // "Informes Terminados" sin que ningún supervisor lo hubiera
+          // visto.
+          estado: "pendiente_revision",
           createdAt: serverTimestamp()
         };
 
         await setDoc(doc(db, "informes", informeId), dataInforme);
 
         try {
+          // La orden pasa a "en_revision" (no "completada" todavía — eso
+          // lo hace informe-revision.html recién cuando el supervisor
+          // aprueba), para que quede claro que el trabajo de campo
+          // terminó pero falta la aprobación.
           await updateDoc(doc(db, "ordenes", ordenActual.id), {
-            estado: "completada",
-            estadoInforme: "aprobado",
+            estado: "en_revision",
+            estadoInforme: "pendiente_revision",
             informeId: informeId,
-            fechaAprobacion: new Date().toISOString()
+            fechaCaptura: new Date().toISOString()
           });
         } catch (updateErr) {
           console.warn("Actualización de orden omitida:", updateErr);
@@ -598,8 +604,14 @@
         txtProgreso.textContent = "¡Informe certificado con éxito!";
 
         setTimeout(() => {
-          alert("Informe guardado y certificado correctamente.");
-          window.location.href = `informe.html?informeId=${informeId}&ordenId=${ordenActual.id}`;
+          alert("Informe guardado y certificado correctamente. Queda pendiente de revisión por un supervisor.");
+          // Antes redirigía a informe.html — esa página vive en el sitio
+          // del cliente (gravecare.cl), no en este portal de operaciones,
+          // así que siempre daba 404 aquí. Además, con el nuevo flujo de
+          // aprobación el operador ya terminó su parte del trabajo — lo
+          // natural es devolverlo a la lista de sus trabajos, igual que
+          // hace el botón "Volver" de esta misma página.
+          window.location.href = "portal.html#mis-trabajos";
         }, 800);
 
       } catch (err) {
