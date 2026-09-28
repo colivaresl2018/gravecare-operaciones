@@ -44,12 +44,12 @@ function inicializarFormulario() {
   const tipoFlujo = document.getElementById("form-tipo");
   const selectCategoria = document.getElementById("form-categoria");
 
-function actualizarCategorias() {
+  function actualizarCategorias() {
     const esGasto = tipoFlujo.value === "Gasto";
     const categorias = esGasto ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
     selectCategoria.innerHTML = categorias.map(c => `<option value="${c}">${c}</option>`).join("");
     if (selectCategoria.options.length > 0) {
-      selectCategoria.selectedIndex = 0; // Selecciona por defecto la primera categoría
+      selectCategoria.selectedIndex = 0;
     }
   }
 
@@ -93,6 +93,7 @@ function actualizarCategorias() {
         impuesto: parseFloat(document.getElementById("form-impuesto").value) || 0,
         total: parseFloat(document.getElementById("form-total").value) || 0,
         facturaUrl: facturaUrl,
+        origen: "manual",
         createdAt: serverTimestamp()
       };
 
@@ -119,18 +120,137 @@ function actualizarCategorias() {
 
 async function cargarMovimientos() {
   const tbody = document.getElementById("tabla-movimientos");
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Cargando registros contables...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Cargando registros contables e ingresos de ventas...</td></tr>';
 
   try {
-    const snap = await getDocs(collection(db, "gastos_ingresos"));
-    listaMovimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const movimientos = [];
+    const idsProcesados = new Set();
 
+    // 1. Cargar registros manuales existentes en 'gastos_ingresos'
+    try {
+      const snapManual = await getDocs(collection(db, "gastos_ingresos"));
+      snapManual.docs.forEach(d => {
+        const item = { id: d.id, ...d.data() };
+        movimientos.push(item);
+        if (item.ordenId) idsProcesados.add(item.ordenId);
+      });
+    } catch (e) {
+      console.warn("Aviso al leer gastos_ingresos:", e);
+    }
+
+    // 2. Extraer automáticamente ingresos desde la colección 'ordenes'
+    try {
+      const snapOrdenes = await getDocs(collection(db, "ordenes"));
+      snapOrdenes.docs.forEach(d => {
+        const ord = d.data();
+        const ordId = d.id;
+
+        // Evitar duplicar si ya fue registrado
+        if (idsProcesados.has(ordId)) return;
+
+        const estado = (ord.estado || "").toLowerCase().trim();
+        const esValida = ["pagada", "completada", "en_revision", "aprobado", "aprobada"].includes(estado) || ord.boletaEmitida;
+
+        const montoTotal = Number(ord.montoTotal || ord.monto || ord.precioNumerico || ord.total || 0);
+
+        if (esValida && montoTotal > 0) {
+          const neto = Math.round(montoTotal / 1.19);
+          const iva = montoTotal - neto;
+          
+          let fecha = new Date().toISOString().split("T")[0];
+          if (ord.fechaCreacion) {
+            fecha = String(ord.fechaCreacion).split("T")[0];
+          } else if (ord.createdAt?.toDate) {
+            fecha = ord.createdAt.toDate().toISOString().split("T")[0];
+          }
+
+          const clienteNombre = ord.titular ? ((ord.titular.nombres || '') + ' ' + (ord.titular.apellidoPaterno || '')).trim() : (ord.nombreTitular || ord.email || "Cliente Web");
+          const clienteRut = ord.titular?.rut || ord.rut || ord.clienteRut || "66.666.666-6";
+
+          movimientos.push({
+            id: ordId,
+            ordenId: ordId,
+            origen: "sistema_ordenes",
+            tipo: "Ingreso",
+            dte: ord.folioBoleta ? "Boleta Electrónica" : "Venta Webpay/Online",
+            folio: ord.folioBoleta || ord.numeroOrden || ordId.substring(0, 8),
+            rut: clienteRut,
+            contraparte: clienteNombre,
+            fecha: fecha,
+            categoria: "Planes y Suscripciones",
+            clasificacionF22: "Ingreso Operacional",
+            descripcion: ord.planNombre || ord.servicio || "Servicio Contratado en Terreno",
+            neto: neto,
+            impuesto: iva,
+            total: montoTotal,
+            facturaUrl: ord.urlBoletaPdf || ord.boletaPdf || ""
+          });
+
+          idsProcesados.add(ordId);
+        }
+      });
+    } catch (e) {
+      console.warn("Aviso al leer ordenes para balance contable:", e);
+    }
+
+    // 3. Revisar colección 'pagos' para no dejar pagos aprobados huérfanos
+    try {
+      const snapPagos = await getDocs(collection(db, "pagos"));
+      snapPagos.docs.forEach(d => {
+        const pago = d.data();
+        const pagoId = d.id;
+        const ordId = pago.ordenId;
+
+        // Si ya computamos la orden correspondiente, no duplicar
+        if (ordId && idsProcesados.has(ordId)) return;
+        if (idsProcesados.has(pagoId)) return;
+
+        const estadoPago = (pago.estado || pago.status || "").toLowerCase().trim();
+        const montoTotal = Number(pago.monto || pago.amount || 0);
+
+        if ((estadoPago === "aprobado" || estadoPago === "completed") && montoTotal > 0) {
+          const neto = Math.round(montoTotal / 1.19);
+          const iva = montoTotal - neto;
+          let fecha = new Date().toISOString().split("T")[0];
+          if (pago.fecha?.toDate) {
+            fecha = pago.fecha.toDate().toISOString().split("T")[0];
+          } else if (pago.fecha) {
+            fecha = String(pago.fecha).split("T")[0];
+          }
+
+          movimientos.push({
+            id: pagoId,
+            ordenId: ordId || pagoId,
+            origen: "sistema_pagos",
+            tipo: "Ingreso",
+            dte: "Transbank / Webpay",
+            folio: pago.authorizationCode || pago.tokenWs?.substring(0, 8) || pagoId.substring(0, 8),
+            rut: pago.rut || "Consumidor Final",
+            contraparte: pago.datosCliente?.email || pago.email || "Cliente Web",
+            fecha: fecha,
+            categoria: "Planes y Suscripciones",
+            clasificacionF22: "Ingreso Operacional",
+            descripcion: "Pago en línea pasarela",
+            neto: neto,
+            impuesto: iva,
+            total: montoTotal,
+            facturaUrl: ""
+          });
+
+          idsProcesados.add(pagoId);
+        }
+      });
+    } catch (e) {
+      console.warn("Aviso al leer pagos:", e);
+    }
+
+    listaMovimientos = movimientos;
     listaMovimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     aplicarFiltrosYRenderizar();
   } catch (err) {
     console.error("Error cargando movimientos:", err);
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #dc2626;">Error al cargar datos de Firestore: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #dc2626;">Error al cargar datos contables: ${err.message}</td></tr>`;
   }
 }
 
@@ -157,7 +277,7 @@ function renderTabla(movimientos) {
   const tbody = document.getElementById("tabla-movimientos");
 
   if (movimientos.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">No se encontraron movimientos registrados en la base de datos.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">No se encontraron movimientos registrados en el período.</td></tr>';
     return;
   }
 
@@ -169,8 +289,12 @@ function renderTabla(movimientos) {
     const badgeTipo = `<span style="font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${esGasto ? '#fee2e2' : '#dcfce7'}; color: ${esGasto ? '#991b1b' : '#166534'};">${m.tipo.toUpperCase()}</span>`;
 
     const linkRespaldo = m.facturaUrl 
-      ? `<a href="${m.facturaUrl}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: underline;">📄 Ver Factura</a>` 
+      ? `<a href="${m.facturaUrl}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: underline;">📄 Ver Respaldo</a>` 
       : '<span style="color: #94a3b8;">Sin archivo</span>';
+
+    const btnAccion = m.origen === "manual" 
+      ? `<button type="button" data-id="${m.id}" class="btn-eliminar" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Eliminar</button>`
+      : `<span style="font-size: 0.75rem; color: #64748b; font-style: italic;">Auto (Orden)</span>`;
 
     return `
       <tr>
@@ -182,9 +306,7 @@ function renderTabla(movimientos) {
         <td style="text-align: right; font-family: monospace; color: #64748b;">$ ${(m.impuesto || 0).toLocaleString("es-CL")}</td>
         <td style="text-align: right; font-family: monospace; font-weight: 700; ${colorMonto}">${signo} $ ${(m.total || 0).toLocaleString("es-CL")}</td>
         <td style="text-align: right;">${linkRespaldo}</td>
-        <td style="text-align: right;">
-          <button type="button" data-id="${m.id}" class="btn-eliminar" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Eliminar</button>
-        </td>
+        <td style="text-align: right;">${btnAccion}</td>
       </tr>
     `;
   }).join("");
@@ -192,7 +314,7 @@ function renderTabla(movimientos) {
   tbody.querySelectorAll(".btn-eliminar").forEach(btn => {
     btn.addEventListener("click", async (e) => {
       const id = e.target.getAttribute("data-id");
-      if (confirm("¿Estás seguro de eliminar este registro contable?")) {
+      if (confirm("¿Estás seguro de eliminar este registro contable manual?")) {
         try {
           await deleteDoc(doc(db, "gastos_ingresos", id));
           await cargarMovimientos();
@@ -214,10 +336,12 @@ function calcularResumen(movimientos) {
   movimientos.forEach(m => {
     if (m.tipo === "Ingreso") {
       ingresosNeto += (m.neto || 0);
-      if (m.dte === "Factura Afecta") ivaDebito += (m.impuesto || 0);
+      ivaDebito += (m.impuesto || 0);
     } else {
       gastosNeto += (m.neto || 0);
-      if (m.dte === "Factura Afecta") ivaCredito += (m.impuesto || 0);
+      if (m.dte === "Factura Afecta") {
+        ivaCredito += (m.impuesto || 0);
+      }
     }
   });
 

@@ -1,152 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="data:,">
-  <title>Historial de Informes Terminados | GraveCare Ops</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
-  <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
-    .filtros-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
-      align-items: end;
-    }
-    @media (max-width: 1024px) { .filtros-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 640px) { .filtros-grid { grid-template-columns: 1fr; } }
-    .campo { display: flex; flex-direction: column; }
-    .campo label { margin-bottom: 0.35rem; font-weight: 600; font-size: 0.8rem; color: #1e293b; }
-    .campo input {
-      width: 100%;
-      padding: 0.55rem 0.75rem;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      font-family: inherit;
-      background-color: #ffffff;
-      box-sizing: border-box;
-    }
-    .campo input:focus {
-      outline: none;
-      border-color: #002d1a;
-      box-shadow: 0 0 0 2px rgba(0, 45, 26, 0.1);
-    }
-    .card-informe {
-      background: #ffffff;
-      border: 1px solid rgba(193, 200, 193, 0.5);
-      border-radius: 12px;
-      padding: 1.25rem;
-      margin-bottom: 1.25rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .grid-fotos {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.75rem;
-      margin-top: 1rem;
-    }
-    @media (max-width: 768px) { .grid-fotos { grid-template-columns: repeat(2, 1fr); } }
-    .thumb-foto {
-      width: 100%;
-      height: 125px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .thumb-foto:hover { transform: scale(1.02); }
-    .hidden { display: none !important; }
-    .badge-aprobado {
-      background: #dcfce7;
-      color: #166534;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .btn-gestion {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1px solid #cbd5e1;
-      background: #ffffff;
-      color: #002d1a;
-      transition: all 0.2s;
-    }
-    .btn-gestion:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-    }
-    .btn-cliente {
-      background: #002d1a;
-      color: #ffffff;
-      border-color: #002d1a;
-    }
-    .btn-cliente:hover {
-      background: #1a432f;
-      border-color: #1a432f;
-      color: #ffffff;
-    }
-  </style>
-</head>
-<body class="p-6">
-
-  <div class="mb-6">
-    <h2 style="color: #002d1a; margin-bottom: 0.25rem;">Historial de Informes Terminados</h2>
-    <p style="color: #64748b; font-size: 0.9rem; margin: 0;">Gestión, auditoría y trazabilidad de los servicios completados y aprobados.</p>
-  </div>
-
-  <section class="card mb-6" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem;">
-    <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1rem; color: #002d1a;">Filtros de Búsqueda</h3>
-    <div class="filtros-grid">
-      <div class="campo">
-        <label for="filtro-cliente">Cliente / Titular</label>
-        <input type="text" id="filtro-cliente" placeholder="Nombre o email...">
-      </div>
-      <div class="campo">
-        <label for="filtro-difunto">Difunto</label>
-        <input type="text" id="filtro-difunto" placeholder="Nombre del difunto...">
-      </div>
-      <div class="campo">
-        <label for="filtro-desde">Fecha Desde</label>
-        <input type="date" id="filtro-desde">
-      </div>
-      <div class="campo">
-        <label for="filtro-hasta">Fecha Hasta</label>
-        <input type="date" id="filtro-hasta">
-      </div>
-    </div>
-    <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-      <span id="contador-resultados" style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Cargando registros...</span>
-      <button id="btn-limpiar" type="button" class="btn-secondary" style="padding: 0.5rem 1.2rem; cursor: pointer;">Limpiar Filtros</button>
-    </div>
-  </section>
-
-  <div id="contenedor-informes">
-    <p style="text-align: center; color: #64748b; padding: 2rem;">Cargando base de informes aprobados...</p>
-  </div>
-
-  <div id="modal-visor" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 1rem;" onclick="cerrarVisor()">
-    <div style="position: relative; max-width: 90vw; max-height: 90vh; text-align: center;" onclick="event.stopPropagation()">
-      <img id="img-visor" src="" style="max-width: 100%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-      <p id="pie-visor" style="color: white; margin-top: 0.5rem; font-weight: 600; font-size: 0.9rem;"></p>
-      <button onclick="cerrarVisor()" style="position: absolute; top: -35px; right: 0; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">✕</button>
-    </div>
-  </div>
-
-  <script type="module">
+<script type="module">
     import { db } from "./js/firebaseConfig.js";
     import { requireStaffAccess } from "./js/portal-common.js";
     import { 
@@ -155,6 +7,26 @@
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     let todosLosInformes = [];
+
+    function extraerNombreDifunto(obj) {
+      if (!obj) return "Ser Querido";
+      if (typeof obj === "string" && obj.trim()) return obj.trim();
+      if (typeof obj === "object") {
+        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return obj.nombreCompleto.trim();
+        const nom = obj.nombre || obj.nombres || "";
+        const ape = obj.apellido || obj.apellidos || obj.apellidoPaterno || "";
+        const combo = `${nom} ${ape}`.trim();
+        if (combo) return combo;
+      }
+      return "Ser Querido";
+    }
+
+    function extraerUrlFoto(fotoObj) {
+      if (!fotoObj) return "";
+      if (typeof fotoObj === "string") return fotoObj;
+      if (typeof fotoObj === "object" && fotoObj.url) return fotoObj.url;
+      return "";
+    }
 
     window.ampliarFoto = function(url, pie) {
       const modal = document.getElementById("modal-visor");
@@ -200,10 +72,10 @@
         '<tr><td colspan="2"><strong>Observaciones:</strong> ' + (item.nota || 'Labores ejecutadas en conformidad técnica.') + '</td></tr>' +
         '</table>' +
         '<div class="grid">' +
-        '<div><img src="' + (item.fotos?.antes?.url || '') + '"><div class="pie">1. Estado Inicial - Antes</div></div>' +
-        '<div><img src="' + (item.fotos?.despues?.url || '') + '"><div class="pie">2. Estado Final - Después</div></div>' +
-        '<div><img src="' + (item.fotos?.flores?.url || '') + '"><div class="pie">3. Ornamentación Floral</div></div>' +
-        '<div><img src="' + (item.fotos?.general?.url || '') + '"><div class="pie">4. Vista Panorámica</div></div>' +
+        '<div><img src="' + item.fAntes + '"><div class="pie">1. Estado Inicial - Antes</div></div>' +
+        '<div><img src="' + item.fDespues + '"><div class="pie">2. Estado Final - Después</div></div>' +
+        '<div><img src="' + item.fFlores + '"><div class="pie">3. Ornamentación Floral</div></div>' +
+        '<div><img src="' + item.fGeneral + '"><div class="pie">4. Vista Panorámica</div></div>' +
         '</div>' +
         '<script>window.print();<\/script>' +
         '</body>' +
@@ -215,6 +87,7 @@
     function formatFecha(str) {
       if (!str) return "-";
       const f = new Date(str);
+      if (isNaN(f.getTime())) return str;
       return f.toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
     }
 
@@ -223,18 +96,18 @@
 
       try {
         const ordenesMap = new Map();
-        const ordenesCompletadas = [];
 
+        // 1. Cargar metadatos de órdenes de forma aislada
         try {
           const snapOrdenes = await getDocs(collection(db, "ordenes"));
           snapOrdenes.forEach(docSnap => {
             const d = docSnap.data();
             const titular = d.titular ? ((d.titular.nombres || '') + ' ' + (d.titular.apellidoPaterno || '')).trim() : (d.nombreTitular || d.email || "Cliente Web");
-            const difunto = d.difunto ? (d.difunto.nombreCompleto || ((d.difunto.nombres || '') + ' ' + (d.difunto.apellidoPaterno || '')).trim()) : (d.nombreDifunto || d.nombreFallecido || "Sepultura");
-            const numOrden = d.numeroOrden || docSnap.id.substring(0, 8);
+            const difunto = extraerNombreDifunto(d.difunto || d.nombreDifunto || d.nombreFallecido);
+            const numOrden = d.numeroOrden || docSnap.id.replace("orden_", "").substring(0, 8);
             const ubi = d.ubicacionSepultura || {};
 
-            const infoOrden = {
+            ordenesMap.set(docSnap.id, {
               ordenId: docSnap.id,
               titular: titular || "Cliente Web",
               email: (d.titular?.email || d.email || "").toLowerCase(),
@@ -243,17 +116,10 @@
               cementerio: ubi.cementerio || d.cementerio || "-",
               sector: ubi.sector || "S/S",
               lote: ubi.numeroSepultura || ubi.numero || "S/N",
-              estado: (d.estado || "").toLowerCase().trim(),
-              estadoInforme: (d.estadoInforme || "").toLowerCase().trim(),
-              operadorNombre: d.operadorAsignadoNombre || "Staff",
-              fechaAprobacion: d.fechaAprobacion || d.fechaCompletada || (d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString())
-            };
-
-            ordenesMap.set(docSnap.id, infoOrden);
-
-            if (infoOrden.estado === "completada" || infoOrden.estado === "completado" || infoOrden.estadoInforme === "aprobado") {
-              ordenesCompletadas.push(infoOrden);
-            }
+              operadorNombre: d.operadorAsignadoNombre || "Staff Operativo",
+              fechaAprobacion: d.fechaAprobacion || d.fechaCompletada || (d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
+              fotos: d.fotos || {}
+            });
           });
         } catch (e) {
           console.warn("Aviso al leer órdenes:", e);
@@ -261,29 +127,50 @@
 
         const listaMap = new Map();
 
+        // 2. Fuente principal: Colección 'informes'
         try {
           const snapInformes = await getDocs(collection(db, "informes"));
           snapInformes.forEach(docSnap => {
             const inf = { id: docSnap.id, ...docSnap.data() };
             const estado = (inf.estado || "").toLowerCase().trim();
 
-            if (estado === "aprobado" || estado === "completada" || estado === "aprobada") {
+            const fAntes = extraerUrlFoto(inf.fotos?.antes);
+            const fDespues = extraerUrlFoto(inf.fotos?.despues);
+            const fFlores = extraerUrlFoto(inf.fotos?.flores);
+            const fGeneral = extraerUrlFoto(inf.fotos?.general);
+
+            // Acepta aprobados de 'informe-revision.html' o informes con evidencia final
+            const estaAprobado = ["aprobado", "aprobada", "completada", "completado", "terminado", "finalizado"].includes(estado) || Boolean(fDespues);
+
+            if (estaAprobado) {
               const datosOrden = ordenesMap.get(inf.ordenId) || {};
               const claveUnica = inf.ordenId || inf.id;
+
+              const nombreDifFinal = extraerNombreDifunto(inf.difunto) !== "Ser Querido" 
+                ? extraerNombreDifunto(inf.difunto) 
+                : (datosOrden.difunto || "Ser Querido");
+
+              let numOrdVisible = inf.numeroOrden || datosOrden.numeroOrden || "";
+              if (!numOrdVisible || numOrdVisible === "S/N" || numOrdVisible === "ORD-") {
+                numOrdVisible = inf.ordenId || inf.id.replace("informe_", "");
+              }
 
               listaMap.set(claveUnica, {
                 id: inf.id,
                 ordenId: inf.ordenId || inf.id,
                 clienteNombre: datosOrden.titular || inf.clienteNombre || "Cliente Web",
                 clienteEmail: datosOrden.email || (inf.clienteEmail || "").toLowerCase(),
-                numeroOrden: datosOrden.numeroOrden || inf.numeroOrden || (inf.ordenId ? inf.ordenId.substring(0, 8) : "-"),
-                difunto: inf.difunto || datosOrden.difunto || "Sin difunto",
+                numeroOrden: numOrdVisible,
+                difunto: nombreDifFinal,
                 cementerio: inf.cementerio || datosOrden.cementerio || "-",
                 sector: inf.sector || datosOrden.sector || "S/S",
                 lote: inf.lote || datosOrden.lote || "S/N",
                 operadorNombre: inf.operadorNombre || datosOrden.operadorNombre || "Staff",
                 nota: inf.nota || "",
-                fotos: inf.fotos || {},
+                fAntes: fAntes || extraerUrlFoto(datosOrden.fotos?.antes),
+                fDespues: fDespues || extraerUrlFoto(datosOrden.fotos?.despues),
+                fFlores: fFlores || extraerUrlFoto(datosOrden.fotos?.flores),
+                fGeneral: fGeneral || extraerUrlFoto(datosOrden.fotos?.general),
                 fechaCaptura: inf.fechaCaptura || inf.fechaAprobacion || datosOrden.fechaAprobacion,
                 fechaAprobacion: inf.fechaAprobacion || datosOrden.fechaAprobacion,
                 fechaBusqueda: (inf.fechaCaptura || inf.fechaAprobacion || datosOrden.fechaAprobacion || "").split("T")[0]
@@ -291,30 +178,8 @@
             }
           });
         } catch (e) {
-          console.warn("Aviso al leer informes:", e);
+          console.error("Error al leer colección informes:", e);
         }
-
-        ordenesCompletadas.forEach(ord => {
-          if (!listaMap.has(ord.ordenId)) {
-            listaMap.set(ord.ordenId, {
-              id: ord.ordenId,
-              ordenId: ord.ordenId,
-              clienteNombre: ord.titular,
-              clienteEmail: ord.email,
-              numeroOrden: ord.numeroOrden,
-              difunto: ord.difunto,
-              cementerio: ord.cementerio,
-              sector: ord.sector,
-              lote: ord.lote,
-              operadorNombre: ord.operadorNombre,
-              nota: "Servicio completado y cerrado en operaciones.",
-              fotos: {},
-              fechaCaptura: ord.fechaAprobacion,
-              fechaAprobacion: ord.fechaAprobacion,
-              fechaBusqueda: (ord.fechaAprobacion || "").split("T")[0]
-            });
-          }
-        });
 
         const listaFinal = Array.from(listaMap.values());
         listaFinal.sort((a, b) => new Date(b.fechaCaptura || 0) - new Date(a.fechaCaptura || 0));
@@ -323,7 +188,7 @@
         aplicarFiltros();
 
       } catch (err) {
-        console.error("Error al cargar informes terminados:", err);
+        console.error("Error general en cargarInformesTerminados:", err);
         contenedor.innerHTML = '<p style="color: #dc2626; text-align: center; font-weight: 600;">Error al cargar registros: ' + (err.message || err) + '</p>';
       }
     }
@@ -370,11 +235,6 @@
       }
 
       contenedor.innerHTML = lista.map(inf => {
-        const fotos = inf.fotos || {};
-        const fAntes = fotos.antes?.url || fotos.antes;
-        const fDespues = fotos.despues?.url || fotos.despues;
-        const fFlores = fotos.flores?.url || fotos.flores;
-        const fGeneral = fotos.general?.url || fotos.general;
         const opNombre = inf.operadorNombre || 'Staff';
 
         let htmlBloqueNota = '';
@@ -385,27 +245,29 @@
             '</div>';
         }
 
-        const slotAntes = fAntes
-          ? '<img src="' + fAntes + '" class="thumb-foto" onclick="ampliarFoto(\'' + fAntes + '\', \'1. Antes - ' + (inf.difunto || '') + '\')">'
+        const slotAntes = inf.fAntes
+          ? '<img src="' + inf.fAntes + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fAntes + '\', \'1. Antes - ' + (inf.difunto || '') + '\')">'
           : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
 
-        const slotDespues = fDespues
-          ? '<img src="' + fDespues + '" class="thumb-foto" onclick="ampliarFoto(\'' + fDespues + '\', \'2. Después - ' + (inf.difunto || '') + '\')">'
+        const slotDespues = inf.fDespues
+          ? '<img src="' + inf.fDespues + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fDespues + '\', \'2. Después - ' + (inf.difunto || '') + '\')">'
           : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
 
-        const slotFlores = fFlores
-          ? '<img src="' + fFlores + '" class="thumb-foto" onclick="ampliarFoto(\'' + fFlores + '\', \'3. Flores - ' + (inf.difunto || '') + '\')">'
+        const slotFlores = inf.fFlores
+          ? '<img src="' + inf.fFlores + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fFlores + '\', \'3. Flores - ' + (inf.difunto || '') + '\')">'
           : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
 
-        const slotGeneral = fGeneral
-          ? '<img src="' + fGeneral + '" class="thumb-foto" onclick="ampliarFoto(\'' + fGeneral + '\', \'4. Vista General - ' + (inf.difunto || '') + '\')">'
+        const slotGeneral = inf.fGeneral
+          ? '<img src="' + inf.fGeneral + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fGeneral + '\', \'4. Vista Panorámica - ' + (inf.difunto || '') + '\')">'
           : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
+
+        const numMostrar = inf.numeroOrden.startsWith('ORD-') ? inf.numeroOrden : 'ORD-' + inf.numeroOrden;
 
         return (
           '<div class="card-informe">' +
             '<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">' +
               '<div>' +
-                '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">ORDEN #' + inf.numeroOrden + '</span>' +
+                '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">' + numMostrar + '</span>' +
                 '<h3 style="margin: 0.2rem 0; color: #002d1a; font-size: 1.1rem;">' + (inf.difunto || "Sin difunto") + '</h3>' +
                 '<p style="margin: 0; font-size: 0.85rem; color: #475569;">' +
                   '<strong>Cliente:</strong> ' + inf.clienteNombre + ' (' + (inf.clienteEmail || "S/C") + ') · ' +
@@ -454,5 +316,3 @@
       await cargarInformesTerminados();
     }, "informes-terminados.html");
   </script>
-</body>
-</html>
