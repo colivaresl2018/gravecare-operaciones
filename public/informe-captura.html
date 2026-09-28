@@ -552,7 +552,22 @@
         const dataInforme = {
           ordenId: ordenActual.id,
           numeroOrden: ordenActual.numeroOrden || ordenActual.id,
-          difunto: ordenActual.difunto?.nombreCompleto || ordenActual.nombreDifunto || "Ser Querido",
+          // Nombre completo del difunto (con ambos apellidos). Las órdenes
+          // nuevas (contratacion-plan / contratacion-Spot) guardan
+          // difunto.nombre ya unido, más nombres / apellidoPaterno /
+          // apellidoMaterno por separado; las antiguas usan nombreCompleto
+          // o nombreDifunto / nombreFallecido. Antes solo se probaba
+          // nombreCompleto y nombreDifunto, así que las órdenes nuevas
+          // caían al texto "Ser Querido" aunque el nombre sí existiera.
+          difunto: (
+            ordenActual.difunto?.nombreCompleto ||
+            ordenActual.difunto?.nombre ||
+            [ordenActual.difunto?.nombres, ordenActual.difunto?.apellidoPaterno, ordenActual.difunto?.apellidoMaterno]
+              .filter(Boolean).join(" ").trim() ||
+            ordenActual.nombreDifunto ||
+            ordenActual.nombreFallecido ||
+            "Ser Querido"
+          ),
           clienteNombre: ordenActual.titular?.nombres || ordenActual.nombreTitular || "Cliente",
           clienteEmail: (ordenActual.titular?.email || ordenActual.email || "").toLowerCase().trim(),
           cementerio: ubi.cementerio || ordenActual.cementerio || "Cementerio",

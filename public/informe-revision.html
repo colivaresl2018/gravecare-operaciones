@@ -266,7 +266,7 @@
 
       div.innerHTML = `
         <div class="flex justify-between items-start mb-2" onclick="abrirModalRevision('${informe.id}')">
-          <span class="text-xs uppercase tracking-wider font-semibold text-[#4e6451]">${(informe.informeId || informe.id).substring(0, 12)}</span>
+          <span class="text-xs uppercase tracking-wider font-semibold text-[#4e6451]">${informe.numeroOrden || (informe.informeId || informe.id)}</span>
           <span class="${badgeColor} text-xs font-bold px-2 py-0.5 rounded-full">${badgeTexto}</span>
         </div>
         <h3 class="text-base font-bold text-[#002d1a] mb-1 line-clamp-2">${informe.difunto || 'Sin nombre'}</h3>
@@ -292,7 +292,7 @@
       if (!informe) return;
       informeSeleccionado = informe;
 
-      document.getElementById('modal-titulo').textContent = `Informe #${(informe.informeId || informe.id).substring(0, 12)}`;
+      document.getElementById('modal-titulo').textContent = `Informe #${informe.numeroOrden || (informe.informeId || informe.id)}`;
       document.getElementById('modal-difunto').textContent = informe.difunto || '-';
       document.getElementById('modal-cementerio').textContent = informe.cementerio || '-';
       document.getElementById('modal-sector').textContent = informe.sector || '-';
