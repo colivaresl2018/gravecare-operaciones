@@ -4,360 +4,199 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="data:,">
-  <title>Portal de Operaciones - GraveCare</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Portal de Operaciones | GraveCare Ops</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: "#002d1a",
+            brandLight: "#1a432f",
+            brandMuted: "#4e6451",
+            brandAccent: "#10b981",
+            sidebarDark: "#042215"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f5f5; color: #333; }
-    
-    .portal-container {
-      display: flex;
-      height: 100vh;
-      gap: 0;
-    }
-    
-    aside {
-      width: 260px;
-      background: linear-gradient(135deg, #002d1a 0%, #1a432f 100%);
-      color: white;
-      padding: 20px;
-      overflow-y: auto;
-      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .logo {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin-bottom: 25px;
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .nav-btn {
       display: flex;
       align-items: center;
-      gap: 10px;
-      color: #a4d1b5;
-    }
-    
-    .sidebar-nav {
-      flex: 1;
-    }
-
-    .sidebar-link {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 15px;
-      color: rgba(255, 255, 255, 0.75);
-      text-decoration: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      margin-bottom: 6px;
-      font-size: 0.9rem;
-    }
-    
-    .sidebar-link:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-    
-    .sidebar-link.active {
-      background: #a4d1b5;
-      color: #002d1a;
-      font-weight: 700;
-    }
-    
-    .sidebar-link i {
-      font-size: 1.1rem;
-      width: 22px;
-      text-align: center;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-    
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    
-    .header {
-      background: white;
-      padding: 15px 30px;
-      border-bottom: 1px solid #e0e0e0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    
-    .header h1 {
-      font-size: 1.3rem;
-      color: #002d1a;
-      font-weight: 700;
-    }
-    
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .user-badge {
-      background: #f0f4f1;
-      color: #002d1a;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    
-    .btn-logout {
-      background: #fee2e2;
-      color: #991b1b;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.85rem;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.2s;
-    }
-
-    .btn-logout:hover {
-      background: #fecaca;
-    }
-    
-    .main-content {
-      flex: 1;
-      overflow: hidden;
-      background: #fafafa;
-    }
-    
-    .module-container {
+      gap: 0.75rem;
       width: 100%;
-      height: 100%;
-      display: none;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #94a3b8;
+      transition: all 0.15s ease-in-out;
     }
-    
-    .module-container.active {
-      display: block;
+    .nav-btn:hover {
+      background-color: rgba(255, 255, 255, 0.06);
+      color: #f8fafc;
     }
-    
-    .module-container iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
+    .nav-btn.active {
+      background-color: #86efac;
+      color: #064e3b;
+      font-weight: 700;
     }
-
-    @media (max-width: 768px) {
-      .portal-container {
-        flex-direction: column;
-      }
-      aside {
-        width: 100%;
-        max-height: 140px;
-        overflow-x: auto;
-        padding: 10px;
-      }
-      .sidebar-nav {
-        display: flex;
-        gap: 6px;
-      }
-      .sidebar-link {
-        white-space: nowrap;
-      }
+    .nav-btn.active span {
+      color: #064e3b;
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 flex h-screen overflow-hidden text-slate-800">
 
-<div class="portal-container">
-  <!-- SIDEBAR IZQUIERDO -->
-  <aside>
-    <div class="logo">
-      <i class="fa-solid fa-leaf"></i>
-      GraveCare Ops
-    </div>
-    
-    <nav class="sidebar-nav">
-      <!-- Módulos Generales -->
-      <a href="#mis-trabajos" class="sidebar-link active" onclick="switchModule('mis-trabajos')">
-        <i class="fa-solid fa-briefcase"></i>
-        <span>Mis Trabajos</span>
-      </a>
-
-      <!-- ASIGNAR ÓRDENES: Supervisor y Administrador -->
-      <a href="#ordenes" id="link-ordenes" class="sidebar-link hidden" onclick="switchModule('ordenes')">
-        <i class="fa-solid fa-list-check"></i>
-        <span>Asignar Órdenes</span>
-      </a>
+  <!-- 1. BARRA LATERAL (SIDEBAR) -->
+  <aside class="w-64 bg-sidebarDark flex flex-col justify-between shrink-0 shadow-xl z-20">
+    <div class="p-4 space-y-6">
       
-      <!-- REVISIÓN: Supervisor y Administrador -->
-      <a href="#revision" id="link-revision" class="sidebar-link hidden" onclick="switchModule('revision')">
-        <i class="fa-solid fa-clipboard-check"></i>
-        <span>Revisión Informes</span>
-      </a>
+      <!-- Logo GraveCare Ops -->
+      <div class="flex items-center gap-2.5 px-2">
+        <span class="material-symbols-outlined text-emerald-400 text-2xl">spa</span>
+        <span class="text-white font-extrabold text-lg tracking-tight">GraveCare Ops</span>
+      </div>
 
-      <!-- TODOS LOS TRABAJOS: Supervisor y Administrador -->
-	<a href="#todos-los-trabajos" id="link-todos-los-trabajos" class="sidebar-link hidden" onclick="switchModule('todos-los-	trabajos')">
-  	<i class="fa-solid fa-folder-open"></i>
-  	<span>Todos los Trabajos</span>
-	</a>
+      <!-- Menú de Módulos Operativos y Administrativos -->
+      <nav class="space-y-1.5" id="nav-modulos">
+        <button onclick="cambiarSeccion('mis-trabajos')" id="btn-mis-trabajos" class="nav-btn active">
+          <span class="material-symbols-outlined text-lg">assignment_ind</span>
+          <span>Mis Trabajos</span>
+        </button>
 
-      <!-- PLANIFICACIÓN & GANTT: Supervisor y Administrador -->
-      <a href="planificacion.html" id="link-planificacion" class="sidebar-link">
-        <i class="fa-solid fa-calendar-days"></i>
-        <span>Planificación & Gantt</span>
-      </a>
+        <button onclick="cambiarSeccion('asignar')" id="btn-asignar" class="nav-btn">
+          <span class="material-symbols-outlined text-lg">rule</span>
+          <span>Asignar Órdenes</span>
+        </button>
 
-      <!-- GASTOS E INGRESOS: Exclusivo Administrador -->
-      <a href="#contabilidad" id="link-contabilidad" class="sidebar-link hidden" onclick="switchModule('contabilidad')">
-        <i class="fa-solid fa-calculator"></i>
-        <span>Gastos e Ingresos</span>
-      </a>
+        <button onclick="cambiarSeccion('revision')" id="btn-revision" class="nav-btn">
+          <span class="material-symbols-outlined text-lg">rate_review</span>
+          <span>Revisión Informes</span>
+        </button>
 
-      <!-- PRIVILEGIOS STAFF: Exclusivo Administrador -->
-      <a href="#admin-staff" id="link-admin-staff" class="sidebar-link hidden" onclick="switchModule('admin-staff')">
-        <i class="fa-solid fa-user-shield"></i>
-        <span>Privilegios Staff</span>
-      </a>
-    </nav>
+        <button onclick="cambiarSeccion('todos-trabajos')" id="btn-todos-trabajos" class="nav-btn">
+          <span class="material-symbols-outlined text-lg">folder_open</span>
+          <span>Todos los Trabajos</span>
+        </button>
+
+        <button onclick="cambiarSeccion('gantt')" id="btn-gantt" class="nav-btn">
+          <span class="material-symbols-outlined text-lg">calendar_month</span>
+          <span>Planificación & Gantt</span>
+        </button>
+
+        <button onclick="cambiarSeccion('finanzas')" id="btn-finanzas" class="nav-btn">
+          <span class="material-symbols-outlined text-lg">receipt_long</span>
+          <span>Gastos e Ingresos</span>
+        </button>
+
+        <button onclick="cambiarSeccion('staff')" id="btn-staff" class="nav-btn">
+          <span class="material-symbols-outlined text-lg">manage_accounts</span>
+          <span>Privilegios Staff</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Pie de Barra Lateral -->
+    <div class="p-4 border-t border-white/5 space-y-2">
+      <div class="flex items-center gap-2.5 px-2 text-xs text-slate-400">
+        <span class="material-symbols-outlined text-base text-emerald-400">verified_user</span>
+        <span class="truncate" id="txt-rol-badge">Acceso Verificado</span>
+      </div>
+    </div>
   </aside>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main>
-    <header class="header">
-      <h1 id="module-title">📋 Mis Trabajos</h1>
-      <div class="user-info">
-        <span id="user-role" class="user-badge">-</span>
-        <span id="user-email" style="font-size: 0.85rem; font-weight: 500;">Cargando...</span>
-        <button id="btn-logout" class="btn-logout">
-          <i class="fa-solid fa-sign-out-alt"></i> Salir
+  <!-- 2. CONTENIDO PRINCIPAL CON IFRAME DE MÓDULOS -->
+  <div class="flex-1 flex flex-col h-full overflow-hidden">
+    
+    <!-- Barra Superior -->
+    <header class="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2 text-xs font-bold text-slate-500">
+        <span id="txt-seccion-icono" class="material-symbols-outlined text-base text-brand">assignment_ind</span>
+        <span id="txt-seccion-titulo" class="text-slate-800 text-sm">Mis Trabajos</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200" id="badge-rol-header">
+          ADMINISTRADOR
+        </span>
+        <span class="text-xs font-bold text-slate-700" id="txt-nombre-usuario">Christian Olivares</span>
+        <button id="btn-logout" class="px-3 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">logout</span> Salir
         </button>
       </div>
     </header>
 
-    <!-- CONTENEDORES IFRAME -->
-    <div class="main-content">
-      
-      <!-- Mis Trabajos -->
-      <div id="mis-trabajos-module" class="module-container active">
-        <iframe data-src="mis-trabajos.html"></iframe>
-      </div>
+    <!-- Contenedor del Iframe Dinámico -->
+    <main class="flex-1 bg-slate-100/60 p-2 overflow-hidden relative">
+      <iframe id="iframe-modulo" src="mis-trabajos.html" class="w-full h-full border-0 rounded-xl bg-transparent"></iframe>
+    </main>
 
-      <!-- Asignar Órdenes -->
-      <div id="ordenes-module" class="module-container">
-        <iframe data-src="ordenes.html"></iframe>
-      </div>
+  </div>
 
-      <!-- Revisión de Informes -->
-      <div id="revision-module" class="module-container">
-        <iframe data-src="informe-revision.html"></iframe>
-      </div>
+  <script type="module">
+    import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
 
-      <!-- Todos los Trabajos (reemplaza a informes-terminados) -->
-	<div id="todos-los-trabajos-module" class="module-container">
- 	 <iframe data-src="informes-terminados.html"></iframe>
-	</div>
+    const mapaRutas = {
+      "mis-trabajos": { url: "mis-trabajos.html", titulo: "Mis Trabajos", icono: "assignment_ind" },
+      "asignar": { url: "asignar-ordenes.html", titulo: "Asignación de Órdenes", icono: "rule" },
+      "revision": { url: "informes-revision.html", titulo: "Revisión y Auditoría de Informes", icono: "rate_review" },
+      "todos-trabajos": { url: "todos-trabajos.html", titulo: "Todos los Trabajos en Terreno", icono: "folder_open" },
+      "gantt": { url: "planificacion.html", titulo: "Planificación & Carta Gantt", icono: "calendar_month" },
+      "finanzas": { url: "gastos-ingresos.html", titulo: "Gestión de Gastos e Ingresos", icono: "receipt_long" },
+      "staff": { url: "staff.html", titulo: "Administración y Privilegios Staff", icono: "manage_accounts" }
+    };
 
-      <!-- Gastos e Ingresos -->
-      <div id="contabilidad-module" class="module-container">
-        <iframe data-src="gastos-ingresos.html"></iframe>
-      </div>
+    window.cambiarSeccion = function(key) {
+      const config = mapaRutas[key] || mapaRutas["mis-trabajos"];
+      const iframe = document.getElementById("iframe-modulo");
+      const txtTitulo = document.getElementById("txt-seccion-titulo");
+      const txtIcono = document.getElementById("txt-seccion-icono");
 
-      <!-- Administración de Staff -->
-      <div id="admin-staff-module" class="module-container">
-        <iframe data-src="admin-usuarios.html"></iframe>
-      </div>
+      if (iframe) iframe.src = config.url;
+      if (txtTitulo) txtTitulo.textContent = config.titulo;
+      if (txtIcono) txtIcono.textContent = config.icono;
 
-    </div>
-  </main>
-</div>
+      document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("active"));
+      const btnActivo = document.getElementById(`btn-${key}`);
+      if (btnActivo) btnActivo.classList.add("active");
 
-<script type="module">
-  import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
+      window.location.hash = key;
+    };
 
-  let staffGlobal = null;
+    // Lectura de Hash inicial (#mis-trabajos, #asignar, etc.)
+    const hashInicial = window.location.hash.replace("#", "") || "mis-trabajos";
+    if (mapaRutas[hashInicial]) {
+      cambiarSeccion(hashInicial);
+    }
 
-  const titles = {
-    'mis-trabajos': '📋 Mis Trabajos',
-    'ordenes': '📝 Asignación de Órdenes de Trabajo',
-    'revision': '🔍 Revisión de Informes Técnicos',
-    'todos-los-trabajos': '📁 Todos los Trabajos y Contratos',
-    'contabilidad': '💰 Control de Gastos, Ingresos y F29/F22',
-    'admin-staff': '🛡️ Gestión de Privilegios y Usuarios Staff'
-  };
+    requireStaffAccess((user, staffProfile) => {
+      wireLogoutButton("btn-logout");
 
-  window.switchModule = function(moduleName) {
-    // 1. Ocultar todos los módulos
-    document.querySelectorAll('.module-container').forEach(mod => mod.classList.remove('active'));
-    
-    // 2. Activar el contenedor seleccionado
-    const selected = document.getElementById(moduleName + '-module');
-    if (selected) {
-      selected.classList.add('active');
-      
-      // Lazy loading: cargar el iframe si aún no tiene src asignado
-      const iframe = selected.querySelector('iframe');
-      if (iframe && !iframe.getAttribute('src')) {
-        const urlDestino = iframe.getAttribute('data-src');
-        if (urlDestino) iframe.setAttribute('src', urlDestino);
+      const nombre = staffProfile?.nombres || staffProfile?.nombreCompleto || "Christian Olivares";
+      const rol = (staffProfile?.rol || "ADMINISTRADOR").toUpperCase();
+
+      document.getElementById("txt-nombre-usuario").textContent = nombre;
+      document.getElementById("badge-rol-header").textContent = rol;
+      document.getElementById("txt-rol-badge").textContent = `Rol: ${rol}`;
+
+      // Si el rol es operador estricto, ocultar módulos exclusivos de administrador
+      if (rol === "OPERADOR") {
+        const ocultables = ["btn-asignar", "btn-revision", "btn-finanzas", "btn-staff"];
+        ocultables.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        });
       }
-    }
-
-    // 3. Cambiar título del header
-    document.getElementById('module-title').textContent = titles[moduleName] || 'Portal de Operaciones';
-
-    // 4. Actualizar estado activo en la botonera lateral
-    document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
-    const activeLink = document.querySelector(`.sidebar-link[href="#${moduleName}"]`);
-    if (activeLink) activeLink.classList.add('active');
-  };
-
-  // Escuchar cambios de hash en la barra de direcciones
-  window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#', '');
-    if (document.getElementById(hash + '-module')) {
-      window.switchModule(hash);
-    }
-  });
-
-  requireStaffAccess((user, staffProfile) => {
-    staffGlobal = staffProfile;
-    wireLogoutButton("btn-logout");
-
-    // Datos del usuario logueado
-    document.getElementById("user-email").textContent = staffProfile.nombre || staffProfile.nombres || user.email;
-    document.getElementById("user-role").textContent = (staffProfile.rol || "operador").toUpperCase();
-
-    // Mostrar módulos según rol
-    if (staffProfile.rol === "supervisor" || staffProfile.rol === "administrador") {
-      document.getElementById("link-ordenes")?.classList.remove("hidden");
-      document.getElementById("link-revision")?.classList.remove("hidden");
-      document.getElementById("link-todos-los-trabajos")?.classList.remove("hidden");
-    }
-    
-    if (staffProfile.rol === "administrador") {
-      document.getElementById("link-contabilidad")?.classList.remove("hidden");
-      document.getElementById("link-admin-staff")?.classList.remove("hidden");
-    }
-
-    // Cargar el módulo inicial indicado en la URL o por defecto 'mis-trabajos'
-    const initialHash = window.location.hash.replace('#', '') || 'mis-trabajos';
-    if (document.getElementById(initialHash + '-module')) {
-      window.switchModule(initialHash);
-    } else {
-      window.switchModule('mis-trabajos');
-    }
-  }, "portal.html");
-</script>
-
+    });
+  </script>
 </body>
 </html>
