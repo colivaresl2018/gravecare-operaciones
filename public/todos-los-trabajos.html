@@ -26,9 +26,7 @@
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
     .thumb-mini { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
-    select[multiple] {
-      scrollbar-width: thin;
-    }
+    select[multiple] { scrollbar-width: thin; }
   </style>
 </head>
 <body class="p-4 md:p-8 text-slate-800">
@@ -44,7 +42,7 @@
       </div>
       <div class="flex items-center gap-3">
         <span id="badge-total" class="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">Cargando contratos...</span>
-        <button onclick="cargarTodosLosTrabajos()" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600 transition" title="Recargar base de datos">
+        <button id="btn-recargar" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600 transition cursor-pointer" title="Recargar base de datos">
           <span class="material-symbols-outlined text-lg">refresh</span>
         </button>
       </div>
@@ -55,8 +53,6 @@
       
       <!-- Fila 1: Búsqueda Global y Rango de Fechas -->
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
-        
-        <!-- Búsqueda unificada en texto -->
         <div class="md:col-span-5">
           <label class="block font-bold text-slate-700 mb-1">
             Búsqueda General (Cliente, Titular, Difunto, Cementerio o N° Orden):
@@ -67,7 +63,6 @@
           </div>
         </div>
 
-        <!-- Filtro Mes -->
         <div class="md:col-span-2">
           <label class="block font-bold text-slate-700 mb-1">Mes Contratación:</label>
           <select id="filtro-mes" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
@@ -87,7 +82,6 @@
           </select>
         </div>
 
-        <!-- Filtro Año -->
         <div class="md:col-span-2">
           <label class="block font-bold text-slate-700 mb-1">Año Contratación:</label>
           <select id="filtro-anio" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
@@ -98,7 +92,6 @@
           </select>
         </div>
 
-        <!-- Período de Tiempo: Desde y Hasta -->
         <div class="md:col-span-3 grid grid-cols-2 gap-2">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Desde:</label>
@@ -109,58 +102,47 @@
             <input type="date" id="filtro-hasta" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
           </div>
         </div>
-
       </div>
 
-      <!-- Fila 2: Filtros Desplegables Multiselección para Encabezados de Columna -->
+      <!-- Fila 2: Filtros Desplegables Multiselección -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
-        
-        <!-- Desplegable Clientes / Titulares -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-bold text-slate-700">Cliente / Titular:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
           </div>
-          <select id="select-filtro-cliente" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
-          </select>
+          <select id="select-filtro-cliente" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
 
-        <!-- Desplegable Planes -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-bold text-slate-700">Plan de Servicio:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
           </div>
-          <select id="select-filtro-plan" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
-          </select>
+          <select id="select-filtro-plan" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
 
-        <!-- Desplegable Operador Asignado -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-bold text-slate-700">Operador Asignado:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
           </div>
-          <select id="select-filtro-operador" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
-          </select>
+          <select id="select-filtro-operador" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
 
-        <!-- Desplegable Cementerios -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <label class="font-bold text-slate-700">Cementerio:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
           </div>
-          <select id="select-filtro-cementerio" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
-          </select>
+          <select id="select-filtro-cementerio" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
 
-        <!-- Desplegable Estado de la Orden y Limpiar -->
         <div class="flex flex-col justify-between">
           <div>
             <div class="flex justify-between items-center mb-1">
               <label class="font-bold text-slate-700">Estado Orden:</label>
-              <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+              <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
             </div>
             <select id="select-filtro-estado" multiple class="w-full h-16 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
               <option value="iniciada">Iniciada / Creada</option>
@@ -171,17 +153,14 @@
               <option value="activa">Suscripción Activa</option>
             </select>
           </div>
-          
-          <button id="btn-limpiar" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition mt-2 flex items-center justify-center gap-1">
-            <span class="material-symbols-outlined text-sm">filter_alt_off</span> Limpiar Todos los Filtros
+          <button id="btn-limpiar" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition mt-2 flex items-center justify-center gap-1 cursor-pointer">
+            <span class="material-symbols-outlined text-sm">filter_alt_off</span> Limpiar Filtros
           </button>
         </div>
-
       </div>
-
     </section>
 
-    <!-- Tabla Maestra de Resultados -->
+    <!-- Tabla Maestra de Trabajos -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
@@ -212,7 +191,7 @@
 
   </div>
 
-  <!-- Modal Detalle de Informe y Evidencia Técnica -->
+  <!-- Modal Detalle de Informe y Evidencia -->
   <div id="modal-informe" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-5">
       <div class="flex justify-between items-start border-b border-slate-200 pb-3">
@@ -221,12 +200,11 @@
           <h2 id="modal-difunto" class="text-xl font-black text-brand">Nombre Difunto</h2>
           <p id="modal-subtitulo" class="text-xs text-slate-500">Detalle técnico de mantención</p>
         </div>
-        <button onclick="cerrarModalInforme()" class="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+        <button id="btn-cerrar-modal" class="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
           <span class="material-symbols-outlined text-2xl">close</span>
         </button>
       </div>
 
-      <!-- Datos Técnicos y Observaciones -->
       <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-2">
         <p><strong>Cliente Titular:</strong> <span id="modal-cliente">-</span></p>
         <p><strong>Operador a Cargo:</strong> <span id="modal-operador">-</span></p>
@@ -234,7 +212,6 @@
         <p><strong>Observaciones Técnicas:</strong> <span id="modal-observaciones" class="italic text-slate-600">Sin notas técnicas.</span></p>
       </div>
 
-      <!-- Cuadrícula de Evidencia Fotográfica -->
       <div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Evidencia Fotográfica en Terreno</h3>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-[11px]">
@@ -257,7 +234,6 @@
         </div>
       </div>
 
-      <!-- Botones de Acción del Modal -->
       <div class="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
         <button id="btn-modal-ver-oficial" class="px-4 py-2 bg-brand text-white font-bold text-xs rounded-lg hover:bg-brandLight transition flex items-center gap-1.5 cursor-pointer">
           <span class="material-symbols-outlined text-sm">visibility</span> Ver Informe Oficial
@@ -269,394 +245,392 @@
     </div>
   </div>
 
-  <!-- Script Firebase v10.7.0 -->
   <script type="module">
-    import { db } from "./js/firebaseConfig.js";
     import { requireStaffAccess } from "./js/portal-common.js";
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
+      getFirestore, 
       collection, 
       getDocs 
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.appspot.com",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
+
+    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     let listaTotalTrabajos = [];
+    let trabajoSeleccionado = null;
 
     function formatearFecha(f) {
       if (!f) return "-";
-      const d = f?.toDate ? f.toDate() : new Date(f);
-      if (isNaN(d.getTime())) return f;
+      let d = null;
+      if (typeof f?.toDate === "function") {
+        d = f.toDate();
+      } else if (f instanceof Date) {
+        d = f;
+      } else if (typeof f === "string") {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
+          const [anio, mes, dia] = f.split('-').map(Number);
+          d = new Date(anio, mes - 1, dia);
+        } else {
+          d = new Date(f);
+        }
+      }
+      if (!d || isNaN(d.getTime())) return f || "-";
       return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+
+    function extraerFechaDate(f) {
+      if (!f) return null;
+      if (typeof f?.toDate === "function") return f.toDate();
+      if (f instanceof Date) return f;
+      if (typeof f === "string") {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
+          const [anio, mes, dia] = f.split('-').map(Number);
+          return new Date(anio, mes - 1, dia);
+        }
+        const parsed = new Date(f);
+        if (!isNaN(parsed.getTime())) return parsed;
+      }
+      return null;
+    }
+
+    function formatearDinero(val) {
+      if (val === undefined || val === null || val === "") return "$0";
+      const num = Number(val);
+      if (isNaN(num)) return `$${val}`;
+      return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(num);
     }
 
     function extraerNombreDifunto(obj) {
       if (!obj) return "Ser Querido";
-      if (typeof obj === "string" && obj.trim()) return obj.trim();
+      if (typeof obj === "string" && obj.trim()) {
+        const str = obj.trim();
+        const palabras = str.split(/\s+/);
+        if (palabras.length >= 4 && palabras.slice(0, 2).join(" ") === palabras.slice(2, 4).join(" ")) {
+          return palabras.slice(0, 2).join(" ");
+        }
+        return str;
+      }
       if (typeof obj === "object") {
-        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return obj.nombreCompleto.trim();
-        const nom = obj.nombre || obj.nombres || "";
-        const ape = [obj.apellidoPaterno, obj.apellidoMaterno, obj.apellido, obj.apellidos].filter(Boolean).join(" ").trim();
-        const combo = `${nom} ${ape}`.trim();
+        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return extraerNombreDifunto(obj.nombreCompleto);
+        const nom = (obj.nombre || obj.nombres || "").trim();
+        const apePat = (obj.apellidoPaterno || obj.apellido || "").trim();
+        const apeMat = (obj.apellidoMaterno || "").trim();
+        const combo = `${nom} ${apePat} ${apeMat}`.trim();
         if (combo) return combo;
       }
       return "Ser Querido";
     }
 
-    function extraerUrl(foto) {
-      if (!foto) return "";
-      if (typeof foto === "string") return foto;
-      if (typeof foto === "object") return foto.url || foto.downloadURL || "";
-      return "";
-    }
-
-    window.cerrarModalInforme = function() {
-      document.getElementById("modal-informe").classList.add("hidden");
-    };
-
-    window.abrirModalInforme = function(idx) {
-      const item = listaTotalTrabajos[idx];
-      if (!item) return;
-
-      document.getElementById("modal-orden-id").textContent = item.numeroOrden;
-      document.getElementById("modal-difunto").textContent = item.difunto;
-      document.getElementById("modal-subtitulo").textContent = `${item.cementerio} — Sector: ${item.sector}, Sepultura: #${item.numeroSepultura}`;
-      document.getElementById("modal-cliente").textContent = `${item.cliente} (${item.clienteEmail})`;
-      document.getElementById("modal-operador").textContent = item.operadorAsignado;
-      document.getElementById("modal-ubicacion").textContent = `${item.cementerio} (Sector ${item.sector}, Sepultura #${item.numeroSepultura})`;
-      document.getElementById("modal-observaciones").textContent = item.nota || "Labores ejecutadas en conformidad técnica.";
-
-      const renderFotoBox = (url, label) => {
-        if (url) {
-          return `<img src="${url}" class="thumb-mini cursor-pointer hover:opacity-90" onclick="window.open('${url}','_blank')" alt="${label}">`;
-        }
-        return `<div class="thumb-mini bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">Sin fotografía</div>`;
-      };
-
-      document.getElementById("box-foto-antes").innerHTML = renderFotoBox(item.fAntes, "Antes");
-      document.getElementById("box-foto-despues").innerHTML = renderFotoBox(item.fDespues, "Después");
-      document.getElementById("box-foto-flores").innerHTML = renderFotoBox(item.fFlores, "Flores");
-      document.getElementById("box-foto-general").innerHTML = renderFotoBox(item.fGeneral, "General");
-
-      document.getElementById("btn-modal-ver-oficial").onclick = () => {
-        window.open(`informe.html?informeId=${item.informeId}&ordenId=${item.ordenId}`, '_blank');
-      };
-
-      document.getElementById("btn-modal-imprimir").onclick = () => {
-        const w = window.open('', '_blank');
-        w.document.write(`
-          <html><head><title>GraveCare - Certificado #${item.numeroOrden}</title>
-          <style>body{font-family:sans-serif;padding:30px;color:#111;} h1{color:#002d1a;} .datos{width:100%;border-collapse:collapse;margin:15px 0;} .datos td{padding:6px;border-bottom:1px solid #ddd;font-size:12px;} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;} img{width:100%;height:180px;object-fit:cover;border-radius:6px;}</style>
-          </head><body>
-          <h1>GraveCare Chile — Certificado de Servicio</h1>
-          <table class="datos">
-            <tr><td><strong>Orden:</strong> ${item.numeroOrden}</td><td><strong>Fecha Servicio:</strong> ${formatearFecha(item.ultimaVisita)}</td></tr>
-            <tr><td><strong>Cliente:</strong> ${item.cliente}</td><td><strong>Difunto:</strong> ${item.difunto}</td></tr>
-            <tr><td><strong>Ubicación:</strong> ${item.cementerio} (Sector ${item.sector}, Sepultura #${item.numeroSepultura})</td><td><strong>Operador:</strong> ${item.operadorAsignado}</td></tr>
-            <tr><td colspan="2"><strong>Observaciones:</strong> ${item.nota || 'Trabajo ejecutado según protocolo de calidad.'}</td></tr>
-          </table>
-          <div class="grid">
-            <div>${item.fAntes ? `<img src="${item.fAntes}">` : ''}<p style="font-size:11px;">1. Antes</p></div>
-            <div>${item.fDespues ? `<img src="${item.fDespues}">` : ''}<p style="font-size:11px;">2. Después</p></div>
-            <div>${item.fFlores ? `<img src="${item.fFlores}">` : ''}<p style="font-size:11px;">3. Flores</p></div>
-            <div>${item.fGeneral ? `<img src="${item.fGeneral}">` : ''}<p style="font-size:11px;">4. Vista Panorámica</p></div>
-          </div>
-          <script>window.print();<\/script></body></html>
-        `);
-        w.document.close();
-      };
-
-      document.getElementById("modal-informe").classList.remove("hidden");
-    };
-
-    function poblarDesplegables(items) {
-      const clientesSet = new Set();
-      const planesSet = new Set();
-      const operadoresSet = new Set();
-      const cementeriosSet = new Set();
-      const aniosSet = new Set();
-
-      items.forEach(t => {
-        if (t.cliente) clientesSet.add(t.cliente);
-        if (t.plan) planesSet.add(t.plan);
-        if (t.operadorAsignado) operadoresSet.add(t.operadorAsignado);
-        if (t.cementerio) cementeriosSet.add(t.cementerio);
-        if (t.fechaObj && !isNaN(t.fechaObj.getTime())) {
-          aniosSet.add(t.fechaObj.getFullYear());
-        }
-      });
-
-      const llenarSelect = (id, setValores) => {
-        const sel = document.getElementById(id);
-        if (!sel) return;
-        sel.innerHTML = Array.from(setValores).sort().map(val => 
-          `<option value="${val.toLowerCase()}">${val}</option>`
-        ).join("");
-      };
-
-      llenarSelect("select-filtro-cliente", clientesSet);
-      llenarSelect("select-filtro-plan", planesSet);
-      llenarSelect("select-filtro-operador", operadoresSet);
-      llenarSelect("select-filtro-cementerio", cementeriosSet);
-
-      // Años
-      const selAnio = document.getElementById("filtro-anio");
-      if (aniosSet.size > 0 && selAnio) {
-        const actual = selAnio.value;
-        selAnio.innerHTML = '<option value="">Todos los Años</option>' + 
-          Array.from(aniosSet).sort((a,b) => b - a).map(a => `<option value="${a}">${a}</option>`).join("");
-        selAnio.value = actual;
-      }
-    }
-
-    function obtenerSeleccionados(selectId) {
-      const sel = document.getElementById(selectId);
-      if (!sel) return [];
-      return Array.from(sel.selectedOptions).map(opt => opt.value.toLowerCase());
-    }
-
-    window.cargarTodosLosTrabajos = async function() {
+    // Carga de datos
+    async function cargarTodosLosTrabajos() {
       const cuerpo = document.getElementById("tabla-cuerpo");
-      cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando todas las órdenes contratadas...</td></tr>`;
+      const badge = document.getElementById("badge-total");
+      cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando registros en Firebase...</td></tr>`;
+      badge.textContent = "Sincronizando...";
 
       try {
-        const informesMap = new Map();
+        const [snapOrdenes, snapInformes] = await Promise.all([
+          getDocs(collection(db, "ordenes")),
+          getDocs(collection(db, "informes")).catch(() => ({ docs: [] }))
+        ]);
 
-        // 1. Cargar colección 'informes' para cruzar fotos y notas
-        try {
-          const snapInf = await getDocs(collection(db, "informes"));
-          snapInf.forEach(d => {
-            const data = d.data();
-            const idDoc = d.id;
-            const ordKey = data.ordenId || data.numeroOrden || idDoc.replace("informe_", "");
-            informesMap.set(ordKey, { id: idDoc, ...data });
-          });
-        } catch (e) {
-          console.warn("Aviso: Informes no leídos de forma masiva:", e);
-        }
+        const ordenesRaw = snapOrdenes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const informesRaw = snapInformes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // 2. Cargar todas las órdenes sin filtrar por estado
-        const snapOrdenes = await getDocs(collection(db, "ordenes"));
-        const lista = [];
-
-        snapOrdenes.forEach(docSnap => {
-          const d = docSnap.data();
-          const ordId = docSnap.id;
-          const numOrd = d.numeroOrden || ordId;
-
-          // Datos del titular/cliente
-          const titularObj = d.titular || {};
-          let nombreTitular = titularObj.nombre || [titularObj.nombres, titularObj.apellidoPaterno, titularObj.apellidoMaterno].filter(Boolean).join(" ");
-          if (!nombreTitular) nombreTitular = d.nombreTitular || d.emailCliente || d.email || "Cliente Titular";
-          const emailTitular = titularObj.email || d.emailCliente || d.email || "";
-
-          // Plan y fechas
-          const planNombre = d.servicio?.planNombre || d.planNombre || d.plan || "Plan Base";
-          const fechaContratacionRaw = d.creadoEl || d.createdAt || d.fechaPago || null;
-          const fechaObj = fechaContratacionRaw?.toDate ? fechaContratacionRaw.toDate() : (fechaContratacionRaw ? new Date(fechaContratacionRaw) : null);
-          const fechaTermino = d.fechaTermino || d.fechaFin || d.vigenciaHasta || null;
-
-          // Monto
-          const montoTotal = Number(d.montoTotal || d.precioNumerico || d.valores?.total || 0);
-
-          // Cálculos de visitas
-          const totalVisitasPlan = Number(d.visitas || d.servicio?.visitas || (planNombre.toLowerCase().includes("semestral") ? 6 : planNombre.toLowerCase().includes("anual") ? 12 : 1));
-          const realizadas = Number(d.serviciosRealizados || (d.estado === "completada" ? 1 : 0));
-          const pendientes = Math.max(0, totalVisitasPlan - realizadas);
-
-          // Ubicación
-          const ubi = d.ubicacionSepultura || {};
-          const cementerio = ubi.cementerio || d.cementerio || "Cementerio";
-          const sector = ubi.sector || "S/S";
-          const numSep = ubi.numeroSepultura || ubi.numero || "S/N";
-
-          // Difunto
-          const difunto = extraerNombreDifunto(d.difunto || d.nombreDifunto || d.nombreFallecido);
-
-          // Evidencia fotográfica e informe vinculado
-          const infVinculado = informesMap.get(numOrd) || informesMap.get(ordId) || {};
-          const fotosOrd = d.fotos || {};
-          const fotosArray = Array.isArray(d.fotosUrl) ? d.fotosUrl : [];
-
-          const fAntes = extraerUrl(infVinculado.fotos?.antes) || extraerUrl(fotosOrd.antes) || fotosArray[0] || "";
-          const fDespues = extraerUrl(infVinculado.fotos?.despues) || extraerUrl(fotosOrd.despues) || fotosArray[1] || "";
-          const fFlores = extraerUrl(infVinculado.fotos?.flores) || extraerUrl(fotosOrd.flores) || fotosArray[2] || "";
-          const fGeneral = extraerUrl(infVinculado.fotos?.general) || extraerUrl(fotosOrd.general) || fotosArray[3] || "";
-
-          lista.push({
-            ordenId: ordId,
-            numeroOrden: numOrd,
-            cliente: nombreTitular,
-            clienteEmail: emailTitular,
-            difunto,
-            plan: planNombre,
-            operadorAsignado: d.operadorAsignadoNombre || "Sin asignar",
-            contratacion: fechaContratacionRaw,
-            fechaObj: fechaObj,
-            termino: fechaTermino,
-            montoPagado: montoTotal,
-            realizadas,
-            pendientes,
-            ultimaVisita: d.fechaUltimaVisita || infVinculado.fechaCaptura || (realizadas > 0 ? (d.fechaCompletada || d.fechaAprobacion) : null),
-            proximaVisita: d.proximaVisita || d.fechaProximaVisita || null,
-            cementerio,
-            sector,
-            numeroSepultura: numSep,
-            estado: (d.estado || "activa").toLowerCase().trim(),
-            informeId: infVinculado.id || `inf_${ordId}`,
-            nota: infVinculado.nota || d.nota || d.observaciones || "",
-            fAntes,
-            fDespues,
-            fFlores,
-            fGeneral
-          });
+        const mapaInformesPorOrden = new Map();
+        informesRaw.forEach(inf => {
+          const ordKey = inf.ordenId || inf.numeroOrden || inf.id.replace("informe_", "");
+          if (!mapaInformesPorOrden.has(ordKey)) {
+            mapaInformesPorOrden.set(ordKey, []);
+          }
+          mapaInformesPorOrden.get(ordKey).push(inf);
+          mapaInformesPorOrden.set(inf.id, [inf]);
         });
 
-        // Ordenar por fecha de contratación más reciente primero
-        lista.sort((a, b) => new Date(b.contratacion || 0) - new Date(a.contratacion || 0));
-        listaTotalTrabajos = lista;
+        listaTotalTrabajos = ordenesRaw.map(ord => {
+          const infsAsociados = mapaInformesPorOrden.get(ord.id) || mapaInformesPorOrden.get(ord.numeroOrden) || [];
+          
+          infsAsociados.sort((a, b) => {
+            const fa = extraerFechaDate(a.fechaCaptura || a.fechaCreacion || a.fechaVisita) || 0;
+            const fb = extraerFechaDate(b.fechaCaptura || b.fechaCreacion || b.fechaVisita) || 0;
+            return fb - fa;
+          });
 
-        document.getElementById("badge-total").textContent = `${lista.length} Trabajos Contratados`;
+          const ultimoInforme = infsAsociados[0] || null;
 
-        poblarDesplegables(lista);
-        aplicarFiltros();
+          const titularObj = ord.titular || {};
+          let clienteNombre = titularObj.nombre || [titularObj.nombres, titularObj.apellidoPaterno].filter(Boolean).join(" ");
+          if (!clienteNombre) clienteNombre = ord.clienteNombre || ord.nombreTitular || ord.cliente || "Cliente";
+
+          const difuntoNombre = extraerNombreDifunto(ord.difunto || ord.nombreDifunto || ord.enMemoriaDe);
+          const plan = ord.servicio?.planNombre || ord.planNombre || ord.plan || "Plan Específico";
+          const operador = ord.operadorAsignadoNombre || ord.operador || ultimoInforme?.operadorNombre || "Sin Asignar";
+          
+          const ubi = ord.ubicacionSepultura || {};
+          const cementerio = ubi.cementerio || ord.cementerio || ultimoInforme?.cementerio || "No especificado";
+          const sector = ubi.sector || ord.sector || ultimoInforme?.sector || "-";
+          const lote = ubi.numeroSepultura || ord.lote || ultimoInforme?.lote || "-";
+          const estado = (ord.estado || "activa").toLowerCase();
+
+          const fechaContrato = ord.creadoEl || ord.createdAt || ord.fechaContratacion || ord.fechaPago;
+          const fechaTermino = ord.fechaTermino || ord.vigenciaHasta || ord.fechaFin;
+          const fechaUltimaVisita = ord.fechaUltimaVisita || ord.fechaAprobacion || ultimoInforme?.fechaCaptura;
+          const fechaProximaVisita = ord.proximaVisita || ord.fechaProximaVisita;
+
+          const monto = Number(ord.montoTotal || ord.precioNumerico || ord.valores?.total || 0);
+          const realizadas = ord.serviciosRealizados ?? (infsAsociados.length > 0 ? infsAsociados.length : (estado === "completada" ? 1 : 0));
+          const pendientes = Math.max(0, (ord.visitas || 1) - realizadas);
+
+          const pdfUrl = ord.ultimoInformePdfUrl || ultimoInforme?.pdfUrl || "";
+
+          return {
+            id: ord.id,
+            ordenId: ord.numeroOrden || ord.id,
+            cliente: clienteNombre,
+            difunto: difuntoNombre,
+            plan: plan,
+            operador: operador,
+            fechaContrato: fechaContrato,
+            fechaContratoDate: extraerFechaDate(fechaContrato),
+            fechaTermino: fechaTermino,
+            monto: monto,
+            realizadas: realizadas,
+            pendientes: pendientes,
+            ultimaVisita: fechaUltimaVisita,
+            proximaVisita: fechaProximaVisita,
+            cementerio: cementerio,
+            sector: sector,
+            lote: lote,
+            estado: estado,
+            ultimoInforme: ultimoInforme,
+            pdfUrl: pdfUrl,
+            rawOrden: ord
+          };
+        });
+
+        poblarOpcionesFiltros(listaTotalTrabajos);
+        renderizarTabla(listaTotalTrabajos);
+        badge.textContent = `${listaTotalTrabajos.length} trabajos registrados`;
 
       } catch (err) {
-        console.error("Error al cargar todos los trabajos:", err);
-        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-rose-600 font-bold">Error al cargar registros: ${err.message}</td></tr>`;
+        console.error("Error al cargar trabajos:", err);
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-red-600 font-semibold">Error al sincronizar con Firestore: ${err.message}</td></tr>`;
+        badge.textContent = "Error al conectar";
       }
-    };
+    }
+
+    function poblarOpcionesFiltros(lista) {
+      const llenarSelect = (idSelect, valores) => {
+        const sel = document.getElementById(idSelect);
+        if (!sel) return;
+        const seleccionados = Array.from(sel.selectedOptions).map(o => o.value);
+        sel.innerHTML = "";
+        Array.from(valores).sort().forEach(val => {
+          if (!val || val === "-" || val === "Sin Asignar") return;
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = val;
+          if (seleccionados.includes(val)) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      };
+
+      llenarSelect("select-filtro-cliente", new Set(lista.map(i => i.cliente)));
+      llenarSelect("select-filtro-plan", new Set(lista.map(i => i.plan)));
+      llenarSelect("select-filtro-operador", new Set(lista.map(i => i.operador)));
+      llenarSelect("select-filtro-cementerio", new Set(lista.map(i => i.cementerio)));
+    }
 
     function aplicarFiltros() {
-      const qGlobal = document.getElementById("filtro-texto-global").value.toLowerCase().trim();
+      const q = document.getElementById("filtro-texto-global").value.toLowerCase().trim();
       const mesFiltro = document.getElementById("filtro-mes").value;
       const anioFiltro = document.getElementById("filtro-anio").value;
-      const fDesde = document.getElementById("filtro-desde").value;
-      const fHasta = document.getElementById("filtro-hasta").value;
+      const desdeFiltro = document.getElementById("filtro-desde").value;
+      const hastaFiltro = document.getElementById("filtro-hasta").value;
 
-      // Filtros multiselección
-      const clientesSel = obtenerSeleccionados("select-filtro-cliente");
-      const planesSel = obtenerSeleccionados("select-filtro-plan");
-      const operadoresSel = obtenerSeleccionados("select-filtro-operador");
-      const cementeriosSel = obtenerSeleccionados("select-filtro-cementerio");
-      const estadosSel = obtenerSeleccionados("select-filtro-estado");
+      const getSeleccionados = id => Array.from(document.getElementById(id).selectedOptions).map(o => o.value.toLowerCase());
+      const clientesSel = getSeleccionados("select-filtro-cliente");
+      const planesSel = getSeleccionados("select-filtro-plan");
+      const operadoresSel = getSeleccionados("select-filtro-operador");
+      const cementeriosSel = getSeleccionados("select-filtro-cementerio");
+      const estadosSel = getSeleccionados("select-filtro-estado");
 
-      const filtrados = listaTotalTrabajos.filter(t => {
-        
-        // 1. Búsqueda Global de texto
-        if (qGlobal) {
-          const matchCli = t.cliente.toLowerCase().includes(qGlobal);
-          const matchEmail = t.clienteEmail.toLowerCase().includes(qGlobal);
-          const matchDif = t.difunto.toLowerCase().includes(qGlobal);
-          const matchCem = t.cementerio.toLowerCase().includes(qGlobal);
-          const matchNum = t.numeroOrden.toLowerCase().includes(qGlobal);
-          const matchOp = t.operadorAsignado.toLowerCase().includes(qGlobal);
+      const dDesde = desdeFiltro ? new Date(desdeFiltro + "T00:00:00") : null;
+      const dHasta = hastaFiltro ? new Date(hastaFiltro + "T23:59:59") : null;
 
-          if (!matchCli && !matchEmail && !matchDif && !matchCem && !matchNum && !matchOp) {
-            return false;
-          }
+      const filtrados = listaTotalTrabajos.filter(item => {
+        if (q) {
+          const matchTexto = 
+            item.cliente.toLowerCase().includes(q) ||
+            item.difunto.toLowerCase().includes(q) ||
+            item.cementerio.toLowerCase().includes(q) ||
+            item.ordenId.toLowerCase().includes(q) ||
+            item.plan.toLowerCase().includes(q);
+          if (!matchTexto) return false;
         }
 
-        // 2. Filtro Año
-        if (anioFiltro) {
-          if (!t.fechaObj || isNaN(t.fechaObj.getTime()) || String(t.fechaObj.getFullYear()) !== anioFiltro) {
-            return false;
-          }
-        }
-
-        // 3. Filtro Mes
-        if (mesFiltro !== "") {
-          if (!t.fechaObj || isNaN(t.fechaObj.getTime()) || String(t.fechaObj.getMonth()) !== mesFiltro) {
-            return false;
-          }
-        }
-
-        // 4. Período de tiempo (Desde y Hasta)
-        if (fDesde && t.fechaObj) {
-          const fechaIso = t.fechaObj.toISOString().split("T")[0];
-          if (fechaIso < fDesde) return false;
-        }
-        if (fHasta && t.fechaObj) {
-          const fechaIso = t.fechaObj.toISOString().split("T")[0];
-          if (fechaIso > fHasta) return false;
-        }
-
-        // 5. Filtros Desplegables de Columnas (Multiselección)
-        if (clientesSel.length > 0 && !clientesSel.includes(t.cliente.toLowerCase())) {
+        if (item.fechaContratoDate) {
+          if (mesFiltro !== "" && item.fechaContratoDate.getMonth() !== Number(mesFiltro)) return false;
+          if (anioFiltro !== "" && item.fechaContratoDate.getFullYear() !== Number(anioFiltro)) return false;
+          if (dDesde && item.fechaContratoDate < dDesde) return false;
+          if (dHasta && item.fechaContratoDate > dHasta) return false;
+        } else if (mesFiltro !== "" || anioFiltro !== "" || dDesde || dHasta) {
           return false;
         }
 
-        if (planesSel.length > 0 && !planesSel.includes(t.plan.toLowerCase())) {
-          return false;
-        }
-
-        if (operadoresSel.length > 0 && !operadoresSel.includes(t.operadorAsignado.toLowerCase())) {
-          return false;
-        }
-
-        if (cementeriosSel.length > 0 && !cementeriosSel.includes(t.cementerio.toLowerCase())) {
-          return false;
-        }
-
-        if (estadosSel.length > 0 && !estadosSel.includes(t.estado)) {
-          return false;
-        }
+        if (clientesSel.length > 0 && !clientesSel.includes(item.cliente.toLowerCase())) return false;
+        if (planesSel.length > 0 && !planesSel.includes(item.plan.toLowerCase())) return false;
+        if (operadoresSel.length > 0 && !operadoresSel.includes(item.operador.toLowerCase())) return false;
+        if (cementeriosSel.length > 0 && !cementeriosSel.includes(item.cementerio.toLowerCase())) return false;
+        if (estadosSel.length > 0 && !estadosSel.includes(item.estado.toLowerCase())) return false;
 
         return true;
       });
 
       renderizarTabla(filtrados);
+      document.getElementById("badge-total").textContent = `${filtrados.length} de ${listaTotalTrabajos.length} trabajos`;
     }
 
-    function renderizarTabla(items) {
+    function renderizarTabla(datos) {
       const cuerpo = document.getElementById("tabla-cuerpo");
-      if (items.length === 0) {
-        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400">No se encontraron trabajos según los filtros seleccionados.</td></tr>`;
+      cuerpo.innerHTML = "";
+
+      if (datos.length === 0) {
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">No se encontraron trabajos con los filtros seleccionados.</td></tr>`;
         return;
       }
 
-      cuerpo.innerHTML = items.map((t, idx) => {
-        const montoFmt = t.montoPagado > 0 ? `$${t.montoPagado.toLocaleString('es-CL')}` : "-";
-        
-        return `
-          <tr class="hover:bg-slate-50 transition cursor-pointer border-b border-slate-100" onclick="window.abrirModalInforme(${idx})">
-            <td class="p-3">
-              <span class="font-bold text-brand block">${t.cliente}</span>
-              <span class="text-[10px] text-slate-400 block">${t.clienteEmail}</span>
-              <span class="text-[10px] text-brandMuted font-semibold">Difunto: ${t.difunto}</span>
-            </td>
-            <td class="p-3 font-semibold text-slate-800">${t.plan}</td>
-            <td class="p-3 text-slate-600">${t.operadorAsignado}</td>
-            <td class="p-3 text-slate-600">${formatearFecha(t.contratacion)}</td>
-            <td class="p-3 text-slate-600">${formatearFecha(t.termino)}</td>
-            <td class="p-3 text-right font-bold text-slate-800">${montoFmt}</td>
-            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">${t.realizadas}</span></td>
-            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">${t.pendientes}</span></td>
-            <td class="p-3 text-slate-600">${formatearFecha(t.ultimaVisita)}</td>
-            <td class="p-3 font-semibold text-brand">${formatearFecha(t.proximaVisita)}</td>
-            <td class="p-3 text-slate-600">
-              <span class="font-medium block">${t.cementerio}</span>
-              <span class="text-[10px] text-slate-400">Sec: ${t.sector} | #${t.numeroSepultura}</span>
-            </td>
-            <td class="p-3 text-center" onclick="event.stopPropagation()">
-              <button onclick="window.abrirModalInforme(${idx})" class="p-1.5 rounded-lg border border-slate-200 text-brand hover:bg-emerald-50 transition cursor-pointer" title="Ver Informe Detallado">
-                <span class="material-symbols-outlined text-base">assignment</span>
-              </button>
-            </td>
-          </tr>
+      datos.forEach(t => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100 cursor-pointer";
+
+        tr.innerHTML = `
+          <td class="p-3">
+            <span class="font-bold text-slate-900 block">${t.cliente}</span>
+            <span class="text-[11px] text-brandMuted block">Difunto: ${t.difunto}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${t.ordenId}</span>
+          </td>
+          <td class="p-3 font-medium text-slate-700">${t.plan}</td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[11px] ${t.operador === 'Sin Asignar' ? 'bg-amber-100 text-amber-800 font-bold' : 'bg-slate-100 text-slate-800'}">
+              ${t.operador}
+            </span>
+          </td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.fechaContrato)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.fechaTermino)}</td>
+          <td class="p-3 text-right font-bold text-slate-900">${formatearDinero(t.monto)}</td>
+          <td class="p-3 text-center">
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[11px]">${t.realizadas}</span>
+          </td>
+          <td class="p-3 text-center">
+            <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[11px]">${t.pendientes}</span>
+          </td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.ultimaVisita)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600 font-semibold text-brand">${formatearFecha(t.proximaVisita)}</td>
+          <td class="p-3">
+            <span class="font-medium text-slate-800 block">${t.cementerio}</span>
+            <span class="text-[10px] text-slate-400 block">Sec: ${t.sector} | Lote: ${t.lote}</span>
+          </td>
+          <td class="p-3 text-center" onclick="event.stopPropagation()">
+            <button class="btn-ver-modal p-1.5 rounded-lg bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200 transition cursor-pointer" title="Ver Evidencias y Ficha">
+              <span class="material-symbols-outlined text-base">visibility</span>
+            </button>
+          </td>
         `;
-      }).join("");
+
+        tr.addEventListener("click", () => abrirModalTrabajo(t));
+        tr.querySelector(".btn-ver-modal").addEventListener("click", () => abrirModalTrabajo(t));
+        cuerpo.appendChild(tr);
+      });
     }
 
-    // Eventos para filtros en tiempo real
-    document.getElementById("filtro-texto-global")?.addEventListener("input", aplicarFiltros);
-    document.getElementById("filtro-mes")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-anio")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-desde")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-hasta")?.addEventListener("change", aplicarFiltros);
+    function abrirModalTrabajo(trabajo) {
+      trabajoSeleccionado = trabajo;
+      const inf = trabajo.ultimoInforme;
 
-    document.getElementById("select-filtro-cliente")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("select-filtro-plan")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("select-filtro-operador")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("select-filtro-cementerio")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("select-filtro-estado")?.addEventListener("change", aplicarFiltros);
+      document.getElementById("modal-orden-id").textContent = trabajo.ordenId;
+      document.getElementById("modal-difunto").textContent = trabajo.difunto;
+      document.getElementById("modal-subtitulo").textContent = `Plan: ${trabajo.plan} • Estado: ${trabajo.estado.toUpperCase()}`;
+      document.getElementById("modal-cliente").textContent = trabajo.cliente;
+      document.getElementById("modal-operador").textContent = trabajo.operador;
+      document.getElementById("modal-ubicacion").textContent = `${trabajo.cementerio} - Sector: ${trabajo.sector}, Lote: ${trabajo.lote}`;
+      document.getElementById("modal-observaciones").textContent = inf?.nota || inf?.notas || inf?.observaciones || "Sin observaciones técnicas registradas.";
+
+      const cargarFotoBox = (idBox, url, titulo) => {
+        const box = document.getElementById(idBox);
+        if (url) {
+          box.innerHTML = `<a href="${url}" target="_blank" title="Abrir imagen"><img src="${url}" class="thumb-mini hover:opacity-90 transition cursor-pointer" alt="${titulo}"></a>`;
+        } else {
+          box.innerHTML = `<div class="thumb-mini bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] italic">Sin foto</div>`;
+        }
+      };
+
+      const extraerFotoUrl = (f) => typeof f === 'string' ? f : (f?.url || f?.previewBase64 || "");
+      const fotos = inf?.fotos || inf?.fotosUrls || {};
+      cargarFotoBox("box-foto-antes", extraerFotoUrl(fotos.antes), "Antes");
+      cargarFotoBox("box-foto-despues", extraerFotoUrl(fotos.despues), "Después");
+      cargarFotoBox("box-foto-flores", extraerFotoUrl(fotos.flores), "Flores");
+      cargarFotoBox("box-foto-general", extraerFotoUrl(fotos.general || fotos.panoramica), "Panorámica");
+
+      const btnOficial = document.getElementById("btn-modal-ver-oficial");
+      btnOficial.onclick = () => {
+        if (trabajo.pdfUrl && trabajo.pdfUrl.startsWith("https://")) {
+          window.open(trabajo.pdfUrl, "_blank");
+        } else if (inf?.pdfUrl && inf.pdfUrl.startsWith("https://")) {
+          window.open(inf.pdfUrl, "_blank");
+        } else {
+          const infIdParam = inf?.id ? `&informeId=${inf.id}` : "";
+          const urlFallback = `https://gravecare.cl/informe.html?ordenId=${trabajo.ordenId}${infIdParam}`;
+          window.open(urlFallback, "_blank");
+        }
+      };
+
+      document.getElementById("modal-informe").classList.remove("hidden");
+    }
+
+    function cerrarModalInforme() {
+      document.getElementById("modal-informe").classList.add("hidden");
+      trabajoSeleccionado = null;
+    }
+
+    document.getElementById("btn-recargar")?.addEventListener("click", cargarTodosLosTrabajos);
+    document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModalInforme);
+    document.getElementById("btn-modal-imprimir")?.addEventListener("click", () => window.print());
+
+    document.getElementById("modal-informe")?.addEventListener("click", (e) => {
+      if (e.target.id === "modal-informe") cerrarModalInforme();
+    });
+
+    const triggers = [
+      "filtro-texto-global", 
+      "filtro-mes", 
+      "filtro-anio", 
+      "filtro-desde", 
+      "filtro-hasta",
+      "select-filtro-cliente",
+      "select-filtro-plan",
+      "select-filtro-operador",
+      "select-filtro-cementerio",
+      "select-filtro-estado"
+    ];
+
+    triggers.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", aplicarFiltros);
+        el.addEventListener("change", aplicarFiltros);
+      }
+    });
 
     document.getElementById("btn-limpiar")?.addEventListener("click", () => {
       document.getElementById("filtro-texto-global").value = "";
@@ -664,18 +638,10 @@
       document.getElementById("filtro-anio").value = "";
       document.getElementById("filtro-desde").value = "";
       document.getElementById("filtro-hasta").value = "";
-
-      const deseleccionar = (id) => {
-        const sel = document.getElementById(id);
-        if (sel) Array.from(sel.options).forEach(opt => opt.selected = false);
-      };
-
-      deseleccionar("select-filtro-cliente");
-      deseleccionar("select-filtro-plan");
-      deseleccionar("select-filtro-operador");
-      deseleccionar("select-filtro-cementerio");
-      deseleccionar("select-filtro-estado");
-
+      ["select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"].forEach(id => {
+        const s = document.getElementById(id);
+        if (s) Array.from(s.options).forEach(opt => opt.selected = false);
+      });
       aplicarFiltros();
     });
 
