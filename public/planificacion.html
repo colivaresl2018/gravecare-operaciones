@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control & Planificación Gantt | GraveCare Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
+    .gantt-col { min-width: 145px; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+  <!-- Header -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div>
+      <div class="flex items-center gap-2">
+        <a href="portal.html" class="p-1.5 rounded-lg hover:bg-slate-200 text-[#002d1a] transition">
+          <span class="material-symbols-outlined align-middle">arrow_back</span>
+        </a>
+        <h1 class="text-2xl font-bold text-[#002d1a]">Control & Planificación Operativa</h1>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, estados de cuenta, asignación de operadores y carta Gantt a 6 meses móviles.</p>
+    </div>
+
+    <!-- Switch de Vistas -->
+    <div class="flex items-center bg-slate-200/80 p-1 rounded-xl">
+      <button id="btn-vista-gantt" onclick="cambiarVista('gantt')" class="px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_view_month</span> Carta Gantt (6 Meses)
+      </button>
+      <button id="btn-vista-tabla" onclick="cambiarVista('tabla')" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">table_chart</span> Tabla de Clientes
+      </button>
+    </div>
+  </header>
+
+  <!-- Filtros -->
+  <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex flex-wrap gap-3 items-center flex-1">
+      <div class="w-full sm:w-64">
+        <input type="text" id="filtro-busqueda" placeholder="Buscar cliente, difunto o N°..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-48">
+        <select id="filtro-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-48">
+        <select id="filtro-operador" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Operadores</option>
+        </select>
+      </div>
+    </div>
+    <div class="text-xs font-semibold text-slate-500" id="contador-planes">Cargando contratos...</div>
+  </section>
+
+  <!-- VISTA 1: CARTA GANTT -->
+  <section id="contenedor-gantt" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div>
+        <h2 class="text-sm font-bold text-[#002d1a]">Línea de Tiempo y Proyección Operativa</h2>
+        <p class="text-[11px] text-slate-500">Planificación de intervenciones y mantenimiento preventivo por sepultura con operador asignado.</p>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Realizada</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Por Realizar</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-200 inline-block"></span> Sin servicio</span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr id="cabecera-gantt" class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+            <th class="py-3 px-4 sticky left-0 bg-slate-100 z-10 w-72 border-r border-slate-200">Cliente, Sepultura & Operador</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-gantt" class="divide-y divide-slate-100">
+          <tr><td colspan="7" class="py-8 text-center text-slate-400">Cargando cronograma...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- VISTA 2: TABLA MAESTRA DETALLADA -->
+  <section id="contenedor-tabla" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+            <th class="py-3.5 px-3">Cliente / Titular</th>
+            <th class="py-3.5 px-3">Plan</th>
+            <th class="py-3.5 px-3">Operador Asignado</th>
+            <th class="py-3.5 px-3">Contratación</th>
+            <th class="py-3.5 px-3">Término</th>
+            <th class="py-3.5 px-3 text-right">Monto Pagado</th>
+            <th class="py-3.5 px-2 text-center">Realizadas</th>
+            <th class="py-3.5 px-2 text-center">Pendientes</th>
+            <th class="py-3.5 px-3">Última Visita</th>
+            <th class="py-3.5 px-3">Próxima Visita</th>
+            <th class="py-3.5 px-3">Cementerio</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-tabla" class="divide-y divide-slate-100">
+          <tr><td colspan="11" class="py-8 text-center text-slate-400">Cargando base de datos...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      getDocs, 
+      doc, 
+      updateDoc 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
+
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let datosConsolidados = [];
+    let listaOperadores = [];
+    const mesesMoviles = [];
+
+    function inicializarMesesMoviles() {
+      const hoy = new Date();
+      mesesMoviles.length = 0;
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+        const anio = d.getFullYear();
+        const mesIndex = d.getMonth();
+        const key = `${anio}-${String(mesIndex + 1).padStart(2, '0')}`;
+        const nombre = d.toLocaleDateString("es-CL", { month: "short", year: "numeric" });
+        mesesMoviles.push({ key, label: nombre.toUpperCase() });
+      }
+    }
+
+    function extraerNombre(obj, fallback = "Cliente") {
+      if (!obj) return fallback;
+      if (typeof obj === "string") return obj.trim();
+      if (typeof obj === "object") {
+        if (obj.nombreCompleto) return obj.nombreCompleto.trim();
+        const combo = `${obj.nombres || obj.nombre || ''} ${obj.apellidoPaterno || obj.apellido || ''}`.trim();
+        if (combo) return combo;
+      }
+      return fallback;
+    }
+
+    function formatearDinero(m) {
+      return "$ " + Number(m || 0).toLocaleString("es-CL");
+    }
+
+    function formatearFecha(f) {
+      if (!f) return "-";
+      const d = f.toDate ? f.toDate() : new Date(f);
+      if (isNaN(d.getTime())) return "-";
+      return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+
+    async function cargarOperadores() {
+      listaOperadores = [];
+      try {
+        const snapUsers = await getDocs(collection(db, "staff"));
+        snapUsers.forEach(d => {
+          const s = d.data();
+          listaOperadores.push({
+            id: d.id,
+            nombre: s.nombre || s.email || "Operador " + d.id.substring(0, 4)
+          });
+        });
+      } catch (e) {
+        console.warn("Aviso al cargar operadores desde staff:", e);
+      }
+
+      if (listaOperadores.length === 0) {
+        try {
+          const snapUsuarios = await getDocs(collection(db, "usuarios"));
+          snapUsuarios.forEach(d => {
+            const u = d.data();
+            if (u.rol === "operador" || u.rol === "supervisor" || u.tipoUsuario === "staff") {
+              listaOperadores.push({
+                id: d.id,
+                nombre: u.nombre || u.email || "Operador"
+              });
+            }
+          });
+        } catch (e) {
+          console.warn("Aviso al cargar operadores desde usuarios:", e);
+        }
+      }
+
+      if (listaOperadores.length === 0) {
+        listaOperadores = [
+          { id: "op1", nombre: "Staff Operativo 1" },
+          { id: "op2", nombre: "Staff Operativo 2" }
+        ];
+      }
+
+      const selOp = document.getElementById("filtro-operador");
+      if (selOp) {
+        selOp.innerHTML = '<option value="">Todos los Operadores</option>' + 
+          listaOperadores.map(o => `<option value="${o.nombre}">${o.nombre}</option>`).join("");
+      }
+    }
+
+    async function cargarDatos() {
+      inicializarMesesMoviles();
+      await cargarOperadores();
+
+      try {
+        const visitasPorOrden = new Map();
+
+        try {
+          const snapInformes = await getDocs(collection(db, "informes"));
+          snapInformes.forEach(docSnap => {
+            const inf = docSnap.data();
+            const ordId = inf.ordenId;
+            const estado = (inf.estado || "").toLowerCase().trim();
+            if (ordId && (["aprobado", "aprobada", "completada", "completado", "terminado"].includes(estado) || inf.fotos?.despues)) {
+              if (!visitasPorOrden.has(ordId)) visitasPorOrden.set(ordId, []);
+              visitasPorOrden.get(ordId).push(inf.fechaCaptura || inf.fechaAprobacion || new Date().toISOString());
+            }
+          });
+        } catch (errInf) {
+          console.warn("Aviso al consultar informes:", errInf);
+        }
+
+        const snapOrdenes = await getDocs(collection(db, "ordenes"));
+        const lista = [];
+        const cementeriosSet = new Set();
+
+        snapOrdenes.forEach(docSnap => {
+          const ord = docSnap.data();
+          const ordId = docSnap.id;
+          const estado = (ord.estado || "").toLowerCase().trim();
+
+          const esValida = ["pagada", "completada", "en_revision", "aprobado", "aprobada", "activa"].includes(estado) || ord.boletaEmitida;
+          if (!esValida) return;
+
+          const plan = ord.planNombre || ord.servicio || "Plan Mensual";
+          const titular = ord.titular ? extraerNombre(ord.titular, "Titular Web") : (ord.nombreTitular || ord.email || "Cliente");
+          const difunto = extraerNombre(ord.difunto, "Ser Querido");
+          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo";
+          cementeriosSet.add(cementerio);
+
+          const operadorAsignado = ord.operadorAsignadoNombre || ord.operadorNombre || "Sin asignar";
+
+          let fInicio = ord.fechaCreacion || ord.createdAt;
+          if (fInicio?.toDate) fInicio = fInicio.toDate().toISOString();
+
+          let totalVisitasPlan = 1;
+          let mesesDuracion = 1;
+          const planL = plan.toLowerCase();
+          if (planL.includes("anual")) { totalVisitasPlan = 12; mesesDuracion = 12; }
+          else if (planL.includes("semestral")) { totalVisitasPlan = 6; mesesDuracion = 6; }
+          else if (planL.includes("trimestral")) { totalVisitasPlan = 3; mesesDuracion = 3; }
+          else if (planL.includes("mensual")) { totalVisitasPlan = 12; mesesDuracion = 12; }
+
+          let fTermino = ord.fechaTermino;
+          if (!fTermino && fInicio) {
+            const d = new Date(fInicio);
+            d.setMonth(d.getMonth() + mesesDuracion);
+            fTermino = d.toISOString();
+          }
+
+          const visitasHechas = visitasPorOrden.get(ordId) || [];
+          const cantRealizadas = visitasHechas.length;
+          const cantPendientes = Math.max(0, totalVisitasPlan - cantRealizadas);
+
+          visitasHechas.sort((a, b) => new Date(b) - new Date(a));
+          const ultimaVisita = visitasHechas[0] || null;
+
+          let proximaVisita = ord.proximaVisita || null;
+          if (!proximaVisita && cantPendientes > 0) {
+            const base = ultimaVisita ? new Date(ultimaVisita) : (fInicio ? new Date(fInicio) : new Date());
+            base.setDate(base.getDate() + 30);
+            proximaVisita = base.toISOString();
+          }
+
+          lista.push({
+            id: ordId,
+            numeroOrden: ord.numeroOrden || ordId.substring(0, 8),
+            titular,
+            difunto,
+            plan,
+            operadorAsignado,
+            fInicio,
+            fTermino,
+            montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || 0,
+            cantRealizadas,
+            cantPendientes,
+            ultimaVisita,
+            proximaVisita,
+            cementerio,
+            visitasHechas
+          });
+        });
+
+        datosConsolidados = lista;
+
+        const selCem = document.getElementById("filtro-cementerio");
+        if (selCem) {
+          selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
+            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+        }
+
+        renderizarTodo();
+
+      } catch (err) {
+        console.error("Error al cargar planificación:", err);
+        const cont = document.getElementById("cuerpo-gantt");
+        if (cont) cont.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-red-500">Error al cargar registros: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderizarTodo() {
+      const q = document.getElementById("filtro-busqueda").value.toLowerCase().trim();
+      const c = document.getElementById("filtro-cementerio").value;
+      const op = document.getElementById("filtro-operador").value;
+
+      const filtrados = datosConsolidados.filter(item => {
+        if (q && !item.titular.toLowerCase().includes(q) && !item.difunto.toLowerCase().includes(q) && !item.numeroOrden.toLowerCase().includes(q)) return false;
+        if (c && item.cementerio !== c) return false;
+        if (op && item.operadorAsignado !== op) return false;
+        return true;
+      });
+
+      document.getElementById("contador-planes").textContent = `Mostrando ${filtrados.length} servicio(s) activo(s)`;
+
+      renderizarGantt(filtrados);
+      renderizarTabla(filtrados);
+    }
+
+    window.asignarOperadorEnOrden = async function(ordenId, selectElem) {
+      const nuevoOperador = selectElem.value;
+      selectElem.disabled = true;
+
+      try {
+        await updateDoc(doc(db, "ordenes", ordenId), {
+          operadorAsignadoNombre: nuevoOperador
+        });
+
+        const item = datosConsolidados.find(d => d.id === ordenId);
+        if (item) item.operadorAsignado = nuevoOperador;
+
+        renderizarTodo();
+        alert(`✓ Operador asignado exitosamente: ${nuevoOperador}`);
+      } catch (err) {
+        console.error("Error al asignar operador:", err);
+        alert("No se pudo actualizar el operador: " + err.message);
+      } finally {
+        selectElem.disabled = false;
+      }
+    };
+
+    function renderizarGantt(lista) {
+      const thead = document.getElementById("cabecera-gantt");
+      thead.innerHTML = '<th class="py-3 px-4 sticky left-0 bg-slate-100 z-10 w-80 border-r border-slate-200">Cliente, Sepultura & Operador</th>' +
+        mesesMoviles.map(m => `<th class="py-3 px-3 text-center gantt-col border-r border-slate-200">${m.label}</th>`).join("");
+
+      const tbody = document.getElementById("cuerpo-gantt");
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-400">No hay servicios para los filtros seleccionados.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = lista.map(item => {
+        const celdasMeses = mesesMoviles.map(mes => {
+          const visitasEnMes = item.visitasHechas.filter(f => String(f).startsWith(mes.key));
+          const proximaEnMes = item.proximaVisita && String(item.proximaVisita).startsWith(mes.key);
+
+          let contenido = '<span class="text-slate-300 text-xs">—</span>';
+
+          if (visitasEnMes.length > 0) {
+            contenido = `
+              <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1">
+                <span class="material-symbols-outlined text-[13px] text-emerald-600">check_circle</span>
+                <span>Realizada</span>
+              </div>`;
+          } else if (proximaEnMes) {
+            contenido = `
+              <div class="bg-amber-50 border border-amber-300 text-amber-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm">
+                <span class="material-symbols-outlined text-[13px] text-amber-600">pending</span>
+                <span>Por Realizar</span>
+              </div>`;
+          }
+
+          return `<td class="py-3 px-2 text-center border-r border-slate-100 align-middle">${contenido}</td>`;
+        }).join("");
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200">
+              <div class="font-bold text-slate-800">${item.titular}</div>
+              <div class="text-[11px] text-[#002d1a] font-semibold">Difunto: ${item.difunto}</div>
+              <div class="text-[10px] text-slate-500">${item.cementerio} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">${item.plan}</span></div>
+              <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
+                <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
+                <strong>Operador:</strong> ${item.operadorAsignado}
+              </div>
+            </td>
+            ${celdasMeses}
+          </tr>`;
+      }).join("");
+    }
+
+    function renderizarTabla(lista) {
+      const tbody = document.getElementById("cuerpo-tabla");
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-slate-400">No se encontraron clientes registrados.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = lista.map(item => {
+        const opcionesOperadores = listaOperadores.map(op => 
+          `<option value="${op.nombre}" ${item.operadorAsignado === op.nombre ? 'selected' : ''}>${op.nombre}</option>`
+        ).join("");
+
+        return `
+        <tr class="hover:bg-slate-50 transition text-slate-700">
+          <td class="py-3 px-3">
+            <div class="font-bold text-slate-800">${item.titular}</div>
+            <div class="text-[11px] text-slate-500 font-medium">Difunto: ${item.difunto}</div>
+            <div class="text-[10px] text-slate-400 font-mono">#${item.numeroOrden}</div>
+          </td>
+          <td class="py-3 px-3 font-semibold text-slate-800">${item.plan}</td>
+          <td class="py-3 px-3">
+            <select onchange="asignarOperadorEnOrden('${item.id}', this)" class="px-2 py-1 text-xs border border-slate-300 rounded focus:border-[#002d1a] bg-white font-medium">
+              <option value="Sin asignar">Sin asignar</option>
+              ${opcionesOperadores}
+            </select>
+          </td>
+          <td class="py-3 px-3 font-mono text-[11px]">${formatearFecha(item.fInicio)}</td>
+          <td class="py-3 px-3 font-mono text-[11px]">${formatearFecha(item.fTermino)}</td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-[#002d1a]">${formatearDinero(item.montoPagado)}</td>
+          <td class="py-3 px-2 text-center font-bold text-emerald-700 bg-emerald-50/50">${item.cantRealizadas}</td>
+          <td class="py-3 px-2 text-center font-bold text-amber-700 bg-amber-50/50">${item.cantPendientes}</td>
+          <td class="py-3 px-3 font-mono text-[11px]">${formatearFecha(item.ultimaVisita)}</td>
+          <td class="py-3 px-3 font-mono text-[11px] font-semibold text-amber-900">${formatearFecha(item.proximaVisita)}</td>
+          <td class="py-3 px-3 text-slate-600">${item.cementerio}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    window.cambiarVista = function(vista) {
+      const g = document.getElementById("contenedor-gantt");
+      const t = document.getElementById("contenedor-tabla");
+      const btnG = document.getElementById("btn-vista-gantt");
+      const btnT = document.getElementById("btn-vista-tabla");
+
+      if (vista === "gantt") {
+        g.classList.remove("hidden");
+        t.classList.add("hidden");
+        btnG.className = "px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition";
+        btnT.className = "px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition";
+      } else {
+        g.classList.add("hidden");
+        t.classList.remove("hidden");
+        btnT.className = "px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition";
+        btnG.className = "px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition";
+      }
+    };
+
+    document.getElementById("filtro-busqueda").addEventListener("input", renderizarTodo);
+    document.getElementById("filtro-cementerio").addEventListener("change", renderizarTodo);
+    document.getElementById("filtro-operador").addEventListener("change", renderizarTodo);
+
+    // Validación de sesión usando Auth nativo
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+        return;
+      }
+      await cargarDatos();
+    });
+  </script>
