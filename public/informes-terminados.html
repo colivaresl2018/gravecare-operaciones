@@ -1,318 +1,675 @@
-<script type="module">
-    import { db } from "./js/firebaseConfig.js";
-    import { requireStaffAccess } from "./js/portal-common.js";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todos los Trabajos | GraveCare Ops</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: "#002d1a",
+            brandLight: "#1a432f",
+            brandMuted: "#4e6451"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
+    .thumb-mini { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
+    select[multiple] { scrollbar-width: thin; }
+  </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+  <div class="max-w-[98%] mx-auto space-y-6">
+
+    <!-- Encabezado Principal -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div>
+        <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Gestión Global de Contratos</span>
+        <h1 class="text-2xl sm:text-3xl font-black text-brand">Todos los Trabajos</h1>
+        <p class="text-xs text-slate-500 mt-1">Listado consolidado de servicios contratados, avances de visitas y evidencias técnicas</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="badge-total" class="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">Cargando contratos...</span>
+        <button id="btn-recargar" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600 transition cursor-pointer" title="Recargar base de datos">
+          <span class="material-symbols-outlined text-lg">refresh</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Panel de Filtros Combinados y Desplegables -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+      
+      <!-- Fila 1: Búsqueda Global y Rango de Fechas -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <div class="md:col-span-5">
+          <label class="block font-bold text-slate-700 mb-1">
+            Búsqueda General (Cliente, Titular, Difunto, Cementerio o N° Orden):
+          </label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-base">search</span>
+            <input type="text" id="filtro-texto-global" placeholder="Ej: Domingo Santa María, Meléndez, Cordillera, ORD-..." class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-brand focus:border-brand">
+          </div>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">Mes Contratación:</label>
+          <select id="filtro-mes" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+            <option value="">Todos los Meses</option>
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">Año Contratación:</label>
+          <select id="filtro-anio" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+            <option value="">Todos los Años</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-3 grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Desde:</label>
+            <input type="date" id="filtro-desde" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Hasta:</label>
+            <input type="date" id="filtro-hasta" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+          </div>
+        </div>
+      </div>
+
+      <!-- Fila 2: Filtros Desplegables Multiselección -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Cliente / Titular:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
+          </div>
+          <select id="select-filtro-cliente" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Plan de Servicio:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
+          </div>
+          <select id="select-filtro-plan" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Operador Asignado:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
+          </div>
+          <select id="select-filtro-operador" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Cementerio:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
+          </div>
+          <select id="select-filtro-cementerio" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+
+        <div class="flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="font-bold text-slate-700">Estado Orden:</label>
+              <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
+            </div>
+            <select id="select-filtro-estado" multiple class="w-full h-16 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+              <option value="iniciada">Iniciada / Creada</option>
+              <option value="asignada">Asignada</option>
+              <option value="en proceso">En Proceso</option>
+              <option value="en_revision">En Revisión</option>
+              <option value="completada">Completada</option>
+              <option value="activa">Suscripción Activa</option>
+            </select>
+          </div>
+          <button id="btn-limpiar" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition mt-2 flex items-center justify-center gap-1 cursor-pointer">
+            <span class="material-symbols-outlined text-sm">filter_alt_off</span> Limpiar Filtros
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabla Maestra de Trabajos -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+              <th class="p-3">Cliente / Titular</th>
+              <th class="p-3">Plan</th>
+              <th class="p-3">Operador Asignado</th>
+              <th class="p-3">Contratación</th>
+              <th class="p-3">Término</th>
+              <th class="p-3 text-right">Monto Pagado</th>
+              <th class="p-3 text-center">Realizadas</th>
+              <th class="p-3 text-center">Pendientes</th>
+              <th class="p-3">Última Visita</th>
+              <th class="p-3">Próxima Visita</th>
+              <th class="p-3">Cementerio</th>
+              <th class="p-3 text-center">Informe</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-cuerpo" class="divide-y divide-slate-100 text-slate-700">
+            <tr>
+              <td colspan="12" class="p-8 text-center text-slate-400 font-medium">Cargando contratos y órdenes...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Detalle de Informe y Evidencia -->
+  <div id="modal-informe" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-5">
+      <div class="flex justify-between items-start border-b border-slate-200 pb-3">
+        <div>
+          <span id="modal-orden-id" class="text-xs font-extrabold text-brandMuted uppercase tracking-wider">ORD-XXXX</span>
+          <h2 id="modal-difunto" class="text-xl font-black text-brand">Nombre Difunto</h2>
+          <p id="modal-subtitulo" class="text-xs text-slate-500">Detalle técnico de mantención</p>
+        </div>
+        <button id="btn-cerrar-modal" class="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <span class="material-symbols-outlined text-2xl">close</span>
+        </button>
+      </div>
+
+      <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-2">
+        <p><strong>Cliente Titular:</strong> <span id="modal-cliente">-</span></p>
+        <p><strong>Operador a Cargo:</strong> <span id="modal-operador">-</span></p>
+        <p><strong>Ubicación Registrada:</strong> <span id="modal-ubicacion">-</span></p>
+        <p><strong>Observaciones Técnicas:</strong> <span id="modal-observaciones" class="italic text-slate-600">Sin notas técnicas.</span></p>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Evidencia Fotográfica en Terreno</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-[11px]">
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">1. Antes</span>
+            <div id="box-foto-antes"></div>
+          </div>
+          <div>
+            <span class="font-bold text-brand block mb-1">2. Después</span>
+            <div id="box-foto-despues"></div>
+          </div>
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">3. Flores</span>
+            <div id="box-foto-flores"></div>
+          </div>
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">4. Vista Panorámica</span>
+            <div id="box-foto-general"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
+        <button id="btn-modal-ver-oficial" class="px-4 py-2 bg-brand text-white font-bold text-xs rounded-lg hover:bg-brandLight transition flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-sm">visibility</span> Ver Informe Oficial
+        </button>
+        <button id="btn-modal-imprimir" class="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-sm">print</span> Imprimir Ficha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as fbConf from "./js/firebaseConfig.js";
+    import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
+      getFirestore, 
       collection, 
       getDocs 
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let todosLosInformes = [];
+    // Resuelve la instancia de Firestore asegurando compatibilidad total
+    let firestoreDb = fbConf.db || fbConf.default?.db || fbConf.firestore || null;
+    
+    function obtenerDbSegura() {
+      if (firestoreDb && typeof firestoreDb.collection === "function") {
+        return firestoreDb; // Instancia Compat
+      }
+      try {
+        const app = getApps().length > 0 ? getApp() : null;
+        return app ? getFirestore(app) : getFirestore();
+      } catch (e) {
+        return firestoreDb;
+      }
+    }
+
+    // Helper universal para leer colecciones sin importar si el SDK es compat o modular
+    async function consultarColeccionUniversal(nombreCol) {
+      const base = obtenerDbSegura();
+      
+      if (base && typeof base.collection === "function") {
+        const snap = await base.collection(nombreCol).get();
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+      
+      const snap = await getDocs(collection(base, nombreCol));
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    let listaTotalTrabajos = [];
+    let trabajoSeleccionado = null;
+
+    function formatearFecha(f) {
+      if (!f) return "-";
+      let d = null;
+      if (typeof f?.toDate === "function") {
+        d = f.toDate();
+      } else if (f instanceof Date) {
+        d = f;
+      } else if (typeof f === "string") {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
+          const [anio, mes, dia] = f.split('-').map(Number);
+          d = new Date(anio, mes - 1, dia);
+        } else {
+          d = new Date(f);
+        }
+      }
+      if (!d || isNaN(d.getTime())) return f || "-";
+      return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+
+    function extraerFechaDate(f) {
+      if (!f) return null;
+      if (typeof f?.toDate === "function") return f.toDate();
+      if (f instanceof Date) return f;
+      if (typeof f === "string") {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
+          const [anio, mes, dia] = f.split('-').map(Number);
+          return new Date(anio, mes - 1, dia);
+        }
+        const parsed = new Date(f);
+        if (!isNaN(parsed.getTime())) return parsed;
+      }
+      return null;
+    }
+
+    function formatearDinero(val) {
+      if (val === undefined || val === null || val === "") return "$0";
+      const num = Number(val);
+      if (isNaN(num)) return `$${val}`;
+      return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(num);
+    }
 
     function extraerNombreDifunto(obj) {
       if (!obj) return "Ser Querido";
-      if (typeof obj === "string" && obj.trim()) return obj.trim();
+      if (typeof obj === "string" && obj.trim()) {
+        const str = obj.trim();
+        const palabras = str.split(/\s+/);
+        if (palabras.length >= 4 && palabras.slice(0, 2).join(" ") === palabras.slice(2, 4).join(" ")) {
+          return palabras.slice(0, 2).join(" ");
+        }
+        return str;
+      }
       if (typeof obj === "object") {
-        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return obj.nombreCompleto.trim();
-        const nom = obj.nombre || obj.nombres || "";
-        const ape = obj.apellido || obj.apellidos || obj.apellidoPaterno || "";
-        const combo = `${nom} ${ape}`.trim();
+        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return extraerNombreDifunto(obj.nombreCompleto);
+        const nom = (obj.nombre || obj.nombres || "").trim();
+        const apePat = (obj.apellidoPaterno || obj.apellido || "").trim();
+        const apeMat = (obj.apellidoMaterno || "").trim();
+        const combo = `${nom} ${apePat} ${apeMat}`.trim();
         if (combo) return combo;
       }
       return "Ser Querido";
     }
 
-    function extraerUrlFoto(fotoObj) {
-      if (!fotoObj) return "";
-      if (typeof fotoObj === "string") return fotoObj;
-      if (typeof fotoObj === "object" && fotoObj.url) return fotoObj.url;
-      return "";
-    }
-
-    window.ampliarFoto = function(url, pie) {
-      const modal = document.getElementById("modal-visor");
-      document.getElementById("img-visor").src = url;
-      document.getElementById("pie-visor").textContent = pie || "";
-      modal.classList.remove("hidden");
-    };
-
-    window.cerrarVisor = function() {
-      document.getElementById("modal-visor").classList.add("hidden");
-    };
-
-    window.verInformeCliente = function(informeId, ordenId) {
-      window.open(`informe.html?informeId=${informeId}&ordenId=${ordenId}`, '_blank');
-    };
-
-    window.imprimirInforme = function(informeId) {
-      const item = todosLosInformes.find(i => i.id === informeId);
-      if (!item) return;
-
-      const ventana = window.open('', '_blank');
-      ventana.document.write(
-        '<html>' +
-        '<head>' +
-        '<title>GraveCare - Certificado #' + item.numeroOrden + '</title>' +
-        '<style>' +
-        'body { font-family: sans-serif; padding: 25px; color: #111; }' +
-        'h1 { color: #002d1a; margin-bottom: 4px; }' +
-        '.datos { margin: 15px 0; border-collapse: collapse; width: 100%; }' +
-        '.datos td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 13px; }' +
-        '.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }' +
-        '.grid img { width: 100%; height: 180px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }' +
-        '.pie { margin-top: 5px; font-size: 12px; font-weight: bold; }' +
-        '</style>' +
-        '</head>' +
-        '<body>' +
-        '<h1>GraveCare Chile — Certificado de Servicio</h1>' +
-        '<p style="color: #666; font-size: 12px; margin-top: 0;">Evidencia oficial de mantención técnica aprobada.</p>' +
-        '<table class="datos">' +
-        '<tr><td><strong>N° Orden:</strong> ' + item.numeroOrden + '</td><td><strong>Fecha Servicio:</strong> ' + formatFecha(item.fechaCaptura) + '</td></tr>' +
-        '<tr><td><strong>Difunto:</strong> ' + item.difunto + '</td><td><strong>Cliente:</strong> ' + item.clienteNombre + ' (' + item.clienteEmail + ')</td></tr>' +
-        '<tr><td><strong>Ubicación:</strong> ' + item.cementerio + ' · Sector: ' + item.sector + ', Sepultura: #' + item.lote + '</td><td><strong>Operador:</strong> ' + item.operadorNombre + '</td></tr>' +
-        '<tr><td colspan="2"><strong>Observaciones:</strong> ' + (item.nota || 'Labores ejecutadas en conformidad técnica.') + '</td></tr>' +
-        '</table>' +
-        '<div class="grid">' +
-        '<div><img src="' + item.fAntes + '"><div class="pie">1. Estado Inicial - Antes</div></div>' +
-        '<div><img src="' + item.fDespues + '"><div class="pie">2. Estado Final - Después</div></div>' +
-        '<div><img src="' + item.fFlores + '"><div class="pie">3. Ornamentación Floral</div></div>' +
-        '<div><img src="' + item.fGeneral + '"><div class="pie">4. Vista Panorámica</div></div>' +
-        '</div>' +
-        '<script>window.print();<\/script>' +
-        '</body>' +
-        '</html>'
-      );
-      ventana.document.close();
-    };
-
-    function formatFecha(str) {
-      if (!str) return "-";
-      const f = new Date(str);
-      if (isNaN(f.getTime())) return str;
-      return f.toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
-    }
-
-    async function cargarInformesTerminados() {
-      const contenedor = document.getElementById("contenedor-informes");
+    // Carga consolidada de datos
+    async function cargarTodosLosTrabajos() {
+      const cuerpo = document.getElementById("tabla-cuerpo");
+      const badge = document.getElementById("badge-total");
+      cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando registros en Firebase...</td></tr>`;
+      badge.textContent = "Sincronizando...";
 
       try {
-        const ordenesMap = new Map();
+        const [ordenesRaw, informesRaw] = await Promise.all([
+          consultarColeccionUniversal("ordenes").catch(() => []),
+          consultarColeccionUniversal("informes").catch(() => [])
+        ]);
 
-        // 1. Cargar metadatos de órdenes de forma aislada
-        try {
-          const snapOrdenes = await getDocs(collection(db, "ordenes"));
-          snapOrdenes.forEach(docSnap => {
-            const d = docSnap.data();
-            const titular = d.titular ? ((d.titular.nombres || '') + ' ' + (d.titular.apellidoPaterno || '')).trim() : (d.nombreTitular || d.email || "Cliente Web");
-            const difunto = extraerNombreDifunto(d.difunto || d.nombreDifunto || d.nombreFallecido);
-            const numOrden = d.numeroOrden || docSnap.id.replace("orden_", "").substring(0, 8);
-            const ubi = d.ubicacionSepultura || {};
-
-            ordenesMap.set(docSnap.id, {
-              ordenId: docSnap.id,
-              titular: titular || "Cliente Web",
-              email: (d.titular?.email || d.email || "").toLowerCase(),
-              numeroOrden: numOrden,
-              difunto: difunto,
-              cementerio: ubi.cementerio || d.cementerio || "-",
-              sector: ubi.sector || "S/S",
-              lote: ubi.numeroSepultura || ubi.numero || "S/N",
-              operadorNombre: d.operadorAsignadoNombre || "Staff Operativo",
-              fechaAprobacion: d.fechaAprobacion || d.fechaCompletada || (d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-              fotos: d.fotos || {}
-            });
-          });
-        } catch (e) {
-          console.warn("Aviso al leer órdenes:", e);
-        }
-
-        const listaMap = new Map();
-
-        // 2. Fuente principal: Colección 'informes'
-        try {
-          const snapInformes = await getDocs(collection(db, "informes"));
-          snapInformes.forEach(docSnap => {
-            const inf = { id: docSnap.id, ...docSnap.data() };
-            const estado = (inf.estado || "").toLowerCase().trim();
-
-            const fAntes = extraerUrlFoto(inf.fotos?.antes);
-            const fDespues = extraerUrlFoto(inf.fotos?.despues);
-            const fFlores = extraerUrlFoto(inf.fotos?.flores);
-            const fGeneral = extraerUrlFoto(inf.fotos?.general);
-
-            // Acepta aprobados de 'informe-revision.html' o informes con evidencia final
-            const estaAprobado = ["aprobado", "aprobada", "completada", "completado", "terminado", "finalizado"].includes(estado) || Boolean(fDespues);
-
-            if (estaAprobado) {
-              const datosOrden = ordenesMap.get(inf.ordenId) || {};
-              const claveUnica = inf.ordenId || inf.id;
-
-              const nombreDifFinal = extraerNombreDifunto(inf.difunto) !== "Ser Querido" 
-                ? extraerNombreDifunto(inf.difunto) 
-                : (datosOrden.difunto || "Ser Querido");
-
-              let numOrdVisible = inf.numeroOrden || datosOrden.numeroOrden || "";
-              if (!numOrdVisible || numOrdVisible === "S/N" || numOrdVisible === "ORD-") {
-                numOrdVisible = inf.ordenId || inf.id.replace("informe_", "");
-              }
-
-              listaMap.set(claveUnica, {
-                id: inf.id,
-                ordenId: inf.ordenId || inf.id,
-                clienteNombre: datosOrden.titular || inf.clienteNombre || "Cliente Web",
-                clienteEmail: datosOrden.email || (inf.clienteEmail || "").toLowerCase(),
-                numeroOrden: numOrdVisible,
-                difunto: nombreDifFinal,
-                cementerio: inf.cementerio || datosOrden.cementerio || "-",
-                sector: inf.sector || datosOrden.sector || "S/S",
-                lote: inf.lote || datosOrden.lote || "S/N",
-                operadorNombre: inf.operadorNombre || datosOrden.operadorNombre || "Staff",
-                nota: inf.nota || "",
-                fAntes: fAntes || extraerUrlFoto(datosOrden.fotos?.antes),
-                fDespues: fDespues || extraerUrlFoto(datosOrden.fotos?.despues),
-                fFlores: fFlores || extraerUrlFoto(datosOrden.fotos?.flores),
-                fGeneral: fGeneral || extraerUrlFoto(datosOrden.fotos?.general),
-                fechaCaptura: inf.fechaCaptura || inf.fechaAprobacion || datosOrden.fechaAprobacion,
-                fechaAprobacion: inf.fechaAprobacion || datosOrden.fechaAprobacion,
-                fechaBusqueda: (inf.fechaCaptura || inf.fechaAprobacion || datosOrden.fechaAprobacion || "").split("T")[0]
-              });
+        // Mapa de informes por ordenId y por id propio
+        const mapaInformesPorOrden = new Map();
+        informesRaw.forEach(inf => {
+          if (inf.ordenId) {
+            if (!mapaInformesPorOrden.has(inf.ordenId)) {
+              mapaInformesPorOrden.set(inf.ordenId, []);
             }
+            mapaInformesPorOrden.get(inf.ordenId).push(inf);
+          }
+          mapaInformesPorOrden.set(inf.id, [inf]);
+        });
+
+        listaTotalTrabajos = ordenesRaw.map(ord => {
+          const infsAsociados = mapaInformesPorOrden.get(ord.id) || mapaInformesPorOrden.get(ord.ordenId) || [];
+          
+          // Ordenar informes por fecha descendente para obtener el último
+          infsAsociados.sort((a, b) => {
+            const fa = extraerFechaDate(a.fechaCreacion || a.fechaVisita) || 0;
+            const fb = extraerFechaDate(b.fechaCreacion || b.fechaVisita) || 0;
+            return fb - fa;
           });
-        } catch (e) {
-          console.error("Error al leer colección informes:", e);
-        }
 
-        const listaFinal = Array.from(listaMap.values());
-        listaFinal.sort((a, b) => new Date(b.fechaCaptura || 0) - new Date(a.fechaCaptura || 0));
-        todosLosInformes = listaFinal;
+          const ultimoInforme = infsAsociados[0] || null;
 
-        aplicarFiltros();
+          const clienteNombre = ord.clienteNombre || ord.cliente || ord.nombreCliente || ord.titular || "-";
+          const difuntoNombre = extraerNombreDifunto(ord.difunto || ord.nombreDifunto || ord.enMemoriaDe);
+          const plan = ord.plan || ord.tipoPlan || ord.servicio || "Plan Específico";
+          const operador = ord.operador || ord.operadorAsignado || ultimoInforme?.operador || "Sin Asignar";
+          const cementerio = ord.cementerio || ord.cementerioNombre || ultimoInforme?.cementerio || "No especificado";
+          const sector = ord.sector || ultimoInforme?.sector || "";
+          const lote = ord.lote || ultimoInforme?.lote || "";
+          const estado = (ord.estado || "activa").toLowerCase();
+
+          const fechaContrato = ord.fechaContratacion || ord.fecha || ord.createdAt || ord.creacion;
+          const fechaTermino = ord.fechaTermino || ord.vencimiento || ord.termino;
+          const fechaUltimaVisita = ord.fechaUltimaVisita || ultimoInforme?.fechaVisita || ultimoInforme?.fechaCreacion;
+          const fechaProximaVisita = ord.fechaProximaVisita || ord.proximaVisita;
+
+          const monto = ord.monto || ord.precio || ord.total || 0;
+          const realizadas = ord.visitasRealizadas ?? (infsAsociados.length > 0 ? infsAsociados.length : 0);
+          const pendientes = ord.visitasPendientes ?? Math.max(0, (ord.visitasTotales || 1) - realizadas);
+
+          // URL del PDF oficial: primero de Storage si existe en informe/orden, o fallback
+          const pdfUrl = ord.ultimoInformePdfUrl || ultimoInforme?.pdfUrl || ultimoInforme?.urlInformeOficial || "";
+
+          return {
+            id: ord.id,
+            ordenId: ord.ordenId || ord.id,
+            cliente: clienteNombre,
+            difunto: difuntoNombre,
+            plan: plan,
+            operador: operador,
+            fechaContrato: fechaContrato,
+            fechaContratoDate: extraerFechaDate(fechaContrato),
+            fechaTermino: fechaTermino,
+            monto: monto,
+            realizadas: realizadas,
+            pendientes: pendientes,
+            ultimaVisita: fechaUltimaVisita,
+            proximaVisita: fechaProximaVisita,
+            cementerio: cementerio,
+            sector: sector,
+            lote: lote,
+            estado: estado,
+            ultimoInforme: ultimoInforme,
+            pdfUrl: pdfUrl,
+            rawOrden: ord
+          };
+        });
+
+        poblarOpcionesFiltros(listaTotalTrabajos);
+        renderizarTabla(listaTotalTrabajos);
+        badge.textContent = `${listaTotalTrabajos.length} trabajos activos`;
 
       } catch (err) {
-        console.error("Error general en cargarInformesTerminados:", err);
-        contenedor.innerHTML = '<p style="color: #dc2626; text-align: center; font-weight: 600;">Error al cargar registros: ' + (err.message || err) + '</p>';
+        console.error("Error al cargar trabajos:", err);
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-red-600 font-semibold">Error al sincronizar con Firestore: ${err.message}</td></tr>`;
+        badge.textContent = "Error al conectar";
       }
     }
 
+    // Poblar desplegables de filtros únicos
+    function poblarOpcionesFiltros(lista) {
+      const llenarSelect = (idSelect, valores) => {
+        const sel = document.getElementById(idSelect);
+        const seleccionados = Array.from(sel.selectedOptions).map(o => o.value);
+        sel.innerHTML = "";
+        Array.from(valores).sort().forEach(val => {
+          if (!val || val === "-" || val === "Sin Asignar") return;
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = val;
+          if (seleccionados.includes(val)) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      };
+
+      llenarSelect("select-filtro-cliente", new Set(lista.map(i => i.cliente)));
+      llenarSelect("select-filtro-plan", new Set(lista.map(i => i.plan)));
+      llenarSelect("select-filtro-operador", new Set(lista.map(i => i.operador)));
+      llenarSelect("select-filtro-cementerio", new Set(lista.map(i => i.cementerio)));
+    }
+
+    // Motor de filtrado
     function aplicarFiltros() {
-      const fCliente = document.getElementById("filtro-cliente").value.toLowerCase().trim();
-      const fDifunto = document.getElementById("filtro-difunto").value.toLowerCase().trim();
-      const fDesde = document.getElementById("filtro-desde").value;
-      const fHasta = document.getElementById("filtro-hasta").value;
+      const q = document.getElementById("filtro-texto-global").value.toLowerCase().trim();
+      const mesFiltro = document.getElementById("filtro-mes").value;
+      const anioFiltro = document.getElementById("filtro-anio").value;
+      const desdeFiltro = document.getElementById("filtro-desde").value;
+      const hastaFiltro = document.getElementById("filtro-hasta").value;
 
-      const filtrados = todosLosInformes.filter(inf => {
-        if (fCliente) {
-          const coincideNom = (inf.clienteNombre || "").toLowerCase().includes(fCliente);
-          const coincideEmail = (inf.clienteEmail || "").toLowerCase().includes(fCliente);
-          if (!coincideNom && !coincideEmail) return false;
+      const getSeleccionados = id => Array.from(document.getElementById(id).selectedOptions).map(o => o.value.toLowerCase());
+      const clientesSel = getSeleccionados("select-filtro-cliente");
+      const planesSel = getSeleccionados("select-filtro-plan");
+      const operadoresSel = getSeleccionados("select-filtro-operador");
+      const cementeriosSel = getSeleccionados("select-filtro-cementerio");
+      const estadosSel = getSeleccionados("select-filtro-estado");
+
+      const dDesde = desdeFiltro ? new Date(desdeFiltro + "T00:00:00") : null;
+      const dHasta = hastaFiltro ? new Date(hastaFiltro + "T23:59:59") : null;
+
+      const filtrados = listaTotalTrabajos.filter(item => {
+        // Texto general
+        if (q) {
+          const matchTexto = 
+            item.cliente.toLowerCase().includes(q) ||
+            item.difunto.toLowerCase().includes(q) ||
+            item.cementerio.toLowerCase().includes(q) ||
+            item.ordenId.toLowerCase().includes(q) ||
+            item.plan.toLowerCase().includes(q);
+          if (!matchTexto) return false;
         }
 
-        if (fDifunto) {
-          const coincideDif = (inf.difunto || "").toLowerCase().includes(fDifunto);
-          if (!coincideDif) return false;
+        // Fecha de contratación: Mes y Año
+        if (item.fechaContratoDate) {
+          if (mesFiltro !== "" && item.fechaContratoDate.getMonth() !== Number(mesFiltro)) return false;
+          if (anioFiltro !== "" && item.fechaContratoDate.getFullYear() !== Number(anioFiltro)) return false;
+          if (dDesde && item.fechaContratoDate < dDesde) return false;
+          if (dHasta && item.fechaContratoDate > dHasta) return false;
+        } else if (mesFiltro !== "" || anioFiltro !== "" || dDesde || dHasta) {
+          return false;
         }
 
-        if (fDesde && inf.fechaBusqueda < fDesde) return false;
-        if (fHasta && inf.fechaBusqueda > fHasta) return false;
+        // Multiselecciones
+        if (clientesSel.length > 0 && !clientesSel.includes(item.cliente.toLowerCase())) return false;
+        if (planesSel.length > 0 && !planesSel.includes(item.plan.toLowerCase())) return false;
+        if (operadoresSel.length > 0 && !operadoresSel.includes(item.operador.toLowerCase())) return false;
+        if (cementeriosSel.length > 0 && !cementeriosSel.includes(item.cementerio.toLowerCase())) return false;
+        if (estadosSel.length > 0 && !estadosSel.includes(item.estado.toLowerCase())) return false;
 
         return true;
       });
 
-      renderizarLista(filtrados);
+      renderizarTabla(filtrados);
+      document.getElementById("badge-total").textContent = `${filtrados.length} de ${listaTotalTrabajos.length} trabajos`;
     }
 
-    function renderizarLista(lista) {
-      const contenedor = document.getElementById("contenedor-informes");
-      const contador = document.getElementById("contador-resultados");
+    // Renderizar cuerpo de la tabla
+    function renderizarTabla(datos) {
+      const cuerpo = document.getElementById("tabla-cuerpo");
+      cuerpo.innerHTML = "";
 
-      contador.textContent = 'Mostrando ' + lista.length + ' informe(s) terminado(s)';
-
-      if (lista.length === 0) {
-        contenedor.innerHTML = 
-          '<div style="background: white; border-radius: 12px; padding: 2.5rem; text-align: center; border: 1px solid #e2e8f0;">' +
-          '<p style="color: #64748b; margin: 0; font-weight: 600;">No se encontraron informes terminados para los criterios seleccionados.</p>' +
-          '</div>';
+      if (datos.length === 0) {
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">No se encontraron trabajos con los filtros seleccionados.</td></tr>`;
         return;
       }
 
-      contenedor.innerHTML = lista.map(inf => {
-        const opNombre = inf.operadorNombre || 'Staff';
+      datos.forEach(t => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
 
-        let htmlBloqueNota = '';
-        if (inf.nota) {
-          htmlBloqueNota = 
-            '<div style="background: #f8faf8; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.6rem; margin-top: 0.75rem; font-size: 0.8rem; color: #334155;">' +
-            '<strong>Nota del Operador (' + opNombre + '):</strong> ' + inf.nota +
-            '</div>';
-        }
+        tr.innerHTML = `
+          <td class="p-3">
+            <span class="font-bold text-slate-900 block">${t.cliente}</span>
+            <span class="text-[11px] text-brandMuted block">Difunto: ${t.difunto}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${t.ordenId}</span>
+          </td>
+          <td class="p-3 font-medium text-slate-700">${t.plan}</td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[11px] ${t.operador === 'Sin Asignar' ? 'bg-amber-100 text-amber-800 font-bold' : 'bg-slate-100 text-slate-800'}">
+              ${t.operador}
+            </span>
+          </td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.fechaContrato)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.fechaTermino)}</td>
+          <td class="p-3 text-right font-bold text-slate-900">${formatearDinero(t.monto)}</td>
+          <td class="p-3 text-center">
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[11px]">${t.realizadas}</span>
+          </td>
+          <td class="p-3 text-center">
+            <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[11px]">${t.pendientes}</span>
+          </td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.ultimaVisita)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.proximaVisita)}</td>
+          <td class="p-3">
+            <span class="font-medium text-slate-800 block">${t.cementerio}</span>
+            <span class="text-[10px] text-slate-400 block">Sec: ${t.sector || '-'} | Lote: ${t.lote || '-'}</span>
+          </td>
+          <td class="p-3 text-center">
+            <button class="btn-ver-modal p-1.5 rounded-lg bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200 transition" title="Ver Evidencias y Ficha">
+              <span class="material-symbols-outlined text-base">visibility</span>
+            </button>
+          </td>
+        `;
 
-        const slotAntes = inf.fAntes
-          ? '<img src="' + inf.fAntes + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fAntes + '\', \'1. Antes - ' + (inf.difunto || '') + '\')">'
-          : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
-
-        const slotDespues = inf.fDespues
-          ? '<img src="' + inf.fDespues + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fDespues + '\', \'2. Después - ' + (inf.difunto || '') + '\')">'
-          : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
-
-        const slotFlores = inf.fFlores
-          ? '<img src="' + inf.fFlores + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fFlores + '\', \'3. Flores - ' + (inf.difunto || '') + '\')">'
-          : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
-
-        const slotGeneral = inf.fGeneral
-          ? '<img src="' + inf.fGeneral + '" class="thumb-foto" onclick="ampliarFoto(\'' + inf.fGeneral + '\', \'4. Vista Panorámica - ' + (inf.difunto || '') + '\')">'
-          : '<div style="background: #f1f5f9; height: 125px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #94a3b8;">Sin foto</div>';
-
-        const numMostrar = inf.numeroOrden.startsWith('ORD-') ? inf.numeroOrden : 'ORD-' + inf.numeroOrden;
-
-        return (
-          '<div class="card-informe">' +
-            '<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">' +
-              '<div>' +
-                '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">' + numMostrar + '</span>' +
-                '<h3 style="margin: 0.2rem 0; color: #002d1a; font-size: 1.1rem;">' + (inf.difunto || "Sin difunto") + '</h3>' +
-                '<p style="margin: 0; font-size: 0.85rem; color: #475569;">' +
-                  '<strong>Cliente:</strong> ' + inf.clienteNombre + ' (' + (inf.clienteEmail || "S/C") + ') · ' +
-                  '<strong>Cementerio:</strong> ' + (inf.cementerio || "-") + ' · Sector: ' + (inf.sector || "S/S") + ', Sepultura #' + (inf.lote || "S/N") +
-                '</p>' +
-              '</div>' +
-              '<div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">' +
-                '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">' +
-                  '<span class="badge-aprobado">✓ Completada</span>' +
-                  '<button class="btn-gestion btn-cliente" onclick="verInformeCliente(\'' + inf.id + '\', \'' + inf.ordenId + '\')">' +
-                    '<span class="material-symbols-outlined" style="font-size: 16px;">visibility</span> Ver Informe Oficial' +
-                  '</button>' +
-                  '<button class="btn-gestion" onclick="imprimirInforme(\'' + inf.id + '\')">' +
-                    '<span class="material-symbols-outlined" style="font-size: 16px;">print</span> Imprimir Ficha' +
-                  '</button>' +
-                '</div>' +
-                '<p style="margin: 0; font-size: 0.8rem; color: #64748b;">Aprobado el ' + formatFecha(inf.fechaAprobacion || inf.fechaCaptura) + '</p>' +
-              '</div>' +
-            '</div>' +
-            htmlBloqueNota +
-            '<div class="grid-fotos">' +
-              '<div><span style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase;">1. Antes</span>' + slotAntes + '</div>' +
-              '<div><span style="font-size: 0.7rem; font-weight: 700; color: #002d1a; text-transform: uppercase;">2. Después</span>' + slotDespues + '</div>' +
-              '<div><span style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase;">3. Flores</span>' + slotFlores + '</div>' +
-              '<div><span style="font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase;">4. General</span>' + slotGeneral + '</div>' +
-            '</div>' +
-          '</div>'
-        );
-      }).join("");
+        tr.querySelector(".btn-ver-modal").addEventListener("click", () => abrirModalTrabajo(t));
+        cuerpo.appendChild(tr);
+      });
     }
 
-    document.getElementById("filtro-cliente").addEventListener("input", aplicarFiltros);
-    document.getElementById("filtro-difunto").addEventListener("input", aplicarFiltros);
-    document.getElementById("filtro-desde").addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-hasta").addEventListener("change", aplicarFiltros);
+    // Modal de informe y evidencias
+    function abrirModalTrabajo(trabajo) {
+      trabajoSeleccionado = trabajo;
+      const inf = trabajo.ultimoInforme;
+
+      document.getElementById("modal-orden-id").textContent = trabajo.ordenId;
+      document.getElementById("modal-difunto").textContent = trabajo.difunto;
+      document.getElementById("modal-subtitulo").textContent = `Plan: ${trabajo.plan} • Estado: ${trabajo.estado.toUpperCase()}`;
+      document.getElementById("modal-cliente").textContent = trabajo.cliente;
+      document.getElementById("modal-operador").textContent = trabajo.operador;
+      document.getElementById("modal-ubicacion").textContent = `${trabajo.cementerio} - Sector: ${trabajo.sector || '-'}, Lote: ${trabajo.lote || '-'}`;
+      document.getElementById("modal-observaciones").textContent = inf?.notas || inf?.observaciones || "Sin observaciones técnicas registradas en la última visita.";
+
+      // Fotos
+      const cargarFotoBox = (idBox, url, titulo) => {
+        const box = document.getElementById(idBox);
+        if (url) {
+          box.innerHTML = `<a href="${url}" target="_blank" title="Abrir imagen"><img src="${url}" class="thumb-mini hover:opacity-90 transition cursor-pointer" alt="${titulo}"></a>`;
+        } else {
+          box.innerHTML = `<div class="thumb-mini bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] italic">Sin foto</div>`;
+        }
+      };
+
+      const fotos = inf?.fotosUrls || inf?.fotos || {};
+      cargarFotoBox("box-foto-antes", fotos.antes, "Antes");
+      cargarFotoBox("box-foto-despues", fotos.despues, "Después");
+      cargarFotoBox("box-foto-flores", fotos.flores, "Flores");
+      cargarFotoBox("box-foto-general", fotos.panoramica || fotos.general, "Panorámica");
+
+      // Botón Ver Informe Oficial: Firebase Storage PDF directo o portal cliente
+      const btnOficial = document.getElementById("btn-modal-ver-oficial");
+      btnOficial.onclick = () => {
+        if (trabajo.pdfUrl && trabajo.pdfUrl.startsWith("https://")) {
+          window.open(trabajo.pdfUrl, "_blank");
+        } else if (inf?.pdfUrl && inf.pdfUrl.startsWith("https://")) {
+          window.open(inf.pdfUrl, "_blank");
+        } else {
+          const infIdParam = inf?.id ? `&informeId=${inf.id}` : "";
+          const urlFallback = `https://gravecare.cl/informe.html?ordenId=${trabajo.ordenId}${infIdParam}`;
+          window.open(urlFallback, "_blank");
+        }
+      };
+
+      document.getElementById("modal-informe").classList.remove("hidden");
+    }
+
+    function cerrarModalInforme() {
+      document.getElementById("modal-informe").classList.add("hidden");
+      trabajoSeleccionado = null;
+    }
+
+    // Listeners interactivos
+    document.getElementById("btn-recargar").addEventListener("click", cargarTodosLosTrabajos);
+    document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModalInforme);
+    document.getElementById("btn-modal-imprimir").addEventListener("click", () => window.print());
+
+    // Cierre modal al hacer click fuera
+    document.getElementById("modal-informe").addEventListener("click", (e) => {
+      if (e.target.id === "modal-informe") cerrarModalInforme();
+    });
+
+    // Inputs de filtro
+    const triggers = [
+      "filtro-texto-global", 
+      "filtro-mes", 
+      "filtro-anio", 
+      "filtro-desde", 
+      "filtro-hasta",
+      "select-filtro-cliente",
+      "select-filtro-plan",
+      "select-filtro-operador",
+      "select-filtro-cementerio",
+      "select-filtro-estado"
+    ];
+
+    triggers.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", aplicarFiltros);
+        el.addEventListener("change", aplicarFiltros);
+      }
+    });
 
     document.getElementById("btn-limpiar").addEventListener("click", () => {
-      document.getElementById("filtro-cliente").value = "";
-      document.getElementById("filtro-difunto").value = "";
+      document.getElementById("filtro-texto-global").value = "";
+      document.getElementById("filtro-mes").value = "";
+      document.getElementById("filtro-anio").value = "";
       document.getElementById("filtro-desde").value = "";
       document.getElementById("filtro-hasta").value = "";
+      ["select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"].forEach(id => {
+        const s = document.getElementById(id);
+        Array.from(s.options).forEach(opt => opt.selected = false);
+      });
       aplicarFiltros();
     });
 
-    requireStaffAccess(async (user, staffProfile) => {
-      await cargarInformesTerminados();
-    }, "informes-terminados.html");
+    // Inicialización automática
+    window.addEventListener("DOMContentLoaded", () => {
+      cargarTodosLosTrabajos();
+    });
   </script>
+</body>
+</html>

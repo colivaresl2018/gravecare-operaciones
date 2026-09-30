@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "target": "operaciones",
+    "site": "gravecare-ops",
     "public": "public",
     "ignore": [
       "firebase.json",

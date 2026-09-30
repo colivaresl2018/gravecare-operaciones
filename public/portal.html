@@ -205,10 +205,11 @@
         <span>Revisión Informes</span>
       </a>
 
-	<a href="#informes-terminados" id="link-informes-terminados" class="sidebar-link hidden" onclick="switchModule('informes-terminados')">
-        <i class="fa-solid fa-folder-closed"></i>
-        <span>Informes Terminados</span>
-      </a>
+      <!-- TODOS LOS TRABAJOS: Supervisor y Administrador -->
+	<a href="#todos-los-trabajos" id="link-todos-los-trabajos" class="sidebar-link hidden" onclick="switchModule('todos-los-	trabajos')">
+  	<i class="fa-solid fa-folder-open"></i>
+  	<span>Todos los Trabajos</span>
+	</a>
 
       <!-- PLANIFICACIÓN & GANTT: Supervisor y Administrador -->
       <a href="planificacion.html" id="link-planificacion" class="sidebar-link">
@@ -261,10 +262,10 @@
         <iframe data-src="informe-revision.html"></iframe>
       </div>
 
-      <!-- Informes Terminados -->
-      <div id="informes-terminados-module" class="module-container">
-        <iframe data-src="informes-terminados.html"></iframe>
-      </div>
+      <!-- Todos los Trabajos (reemplaza a informes-terminados) -->
+	<div id="todos-los-trabajos-module" class="module-container">
+ 	 <iframe data-src="informes-terminados.html"></iframe>
+	</div>
 
       <!-- Gastos e Ingresos -->
       <div id="contabilidad-module" class="module-container">
@@ -289,7 +290,7 @@
     'mis-trabajos': '📋 Mis Trabajos',
     'ordenes': '📝 Asignación de Órdenes de Trabajo',
     'revision': '🔍 Revisión de Informes Técnicos',
-    'informes-terminados': '📁 Historial de Informes Terminados',
+    'todos-los-trabajos': '📁 Todos los Trabajos y Contratos',
     'contabilidad': '💰 Control de Gastos, Ingresos y F29/F22',
     'admin-staff': '🛡️ Gestión de Privilegios y Usuarios Staff'
   };
@@ -322,7 +323,7 @@
 
   // Escuchar cambios de hash en la barra de direcciones
   window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#', '') || 'mis-trabajos';
+    const hash = window.location.hash.replace('#', '');
     if (document.getElementById(hash + '-module')) {
       window.switchModule(hash);
     }
@@ -333,14 +334,14 @@
     wireLogoutButton("btn-logout");
 
     // Datos del usuario logueado
-    document.getElementById("user-email").textContent = staffProfile.nombre || user.email;
+    document.getElementById("user-email").textContent = staffProfile.nombre || staffProfile.nombres || user.email;
     document.getElementById("user-role").textContent = (staffProfile.rol || "operador").toUpperCase();
 
     // Mostrar módulos según rol
     if (staffProfile.rol === "supervisor" || staffProfile.rol === "administrador") {
       document.getElementById("link-ordenes")?.classList.remove("hidden");
       document.getElementById("link-revision")?.classList.remove("hidden");
-      document.getElementById("link-informes-terminados")?.classList.remove("hidden");
+      document.getElementById("link-todos-los-trabajos")?.classList.remove("hidden");
     }
     
     if (staffProfile.rol === "administrador") {

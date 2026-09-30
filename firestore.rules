@@ -32,7 +32,7 @@ service cloud.firestore {
     }
 
     // =================================================================
-    // Perfiles de CLIENTES (gravecare.cl) - MODIFICADO
+    // Perfiles de CLIENTES (gravecare.cl)
     // =================================================================
     match /usuarios/{userId} {
       // Lectura: el propio usuario o el personal staff
@@ -41,9 +41,8 @@ service cloud.firestore {
       // Actualización: el propio dueño del perfil o el staff
       allow update: if (request.auth != null && request.auth.uid == userId) || esStaff();
       
-      // CREAR: Se permite si el usuario recién se autenticó (su UID coincide con el documento)
-      // O si es un registro público desde el formulario web
-      allow create: if (request.auth != null && request.auth.uid == userId) || request.auth == null || true;
+      // Creación: registro público desde checkout o login inicial autenticado
+      allow create: if true;
       
       allow delete: if false;
 
@@ -58,9 +57,9 @@ service cloud.firestore {
     }
 
     // Índice público de resolución de RUT a Correo (login con RUT)
-	match /rut_lookup/{rut} {
+    match /rut_lookup/{rut} {
       allow read: if true;
-      allow create, update: if request.auth != null;
+      allow create, update: if true;
       allow delete: if false;
     }
 
@@ -73,18 +72,17 @@ service cloud.firestore {
     }
 
     // =================================================================
-    // Órdenes (checkout y portal cliente) - MODIFICADO
+    // Órdenes (checkout, resumen-pago y portal cliente)
     // =================================================================
     match /ordenes/{ordenId} {
-      // El cliente dueño puede leerla, y el staff tiene acceso completo
-      allow read: if esDuenoDeOrden() || esStaff();
+      // Lectura pública para que resumen-pago consulte la orden, además de cliente y staff
+      allow read: if true;
       
       // Creación permitida en checkout público o autenticado
       allow create: if true;
       
-      // Actualización permitida si es dueño de orden, si es staff,
-      // o si un usuario autenticado está vinculando su cuenta a la orden
-      allow update: if esDuenoDeOrden() || esStaff() || (request.auth != null);
+      // Actualización para asociar contratoUrl, webpayToken o datos de pago
+      allow update: if true;
       
       allow delete: if esAdministrador();
     }
@@ -99,10 +97,10 @@ service cloud.firestore {
     }
 
     // =================================================================
-    // Pagos (histórico, si se usa como colección propia)
+    // Pagos (histórico y comprobantes de pasarela)
     // =================================================================
     match /pagos/{pagoId} {
-      allow read: if esDuenoDeOrden() || esStaff();
+      allow read: if esDuenoDeOrden() || esStaff() || (request.auth != null);
       allow create: if true;
       allow update, delete: if esStaff();
     }

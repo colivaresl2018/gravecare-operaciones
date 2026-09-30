@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todos los Trabajos | GraveCare Ops</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: "#002d1a",
+            brandLight: "#1a432f",
+            brandMuted: "#4e6451"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
+    .thumb-mini { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
+    select[multiple] {
+      scrollbar-width: thin;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+  <div class="max-w-[98%] mx-auto space-y-6">
+
+    <!-- Encabezado Principal -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div>
+        <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Gestión Global de Contratos</span>
+        <h1 class="text-2xl sm:text-3xl font-black text-brand">Todos los Trabajos</h1>
+        <p class="text-xs text-slate-500 mt-1">Listado consolidado de servicios contratados, avances de visitas y evidencias técnicas</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="badge-total" class="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">Cargando contratos...</span>
+        <button onclick="cargarTodosLosTrabajos()" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600 transition" title="Recargar base de datos">
+          <span class="material-symbols-outlined text-lg">refresh</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Panel de Filtros Combinados y Desplegables -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+      
+      <!-- Fila 1: Búsqueda Global y Rango de Fechas -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        
+        <!-- Búsqueda unificada en texto -->
+        <div class="md:col-span-5">
+          <label class="block font-bold text-slate-700 mb-1">
+            Búsqueda General (Cliente, Titular, Difunto, Cementerio o N° Orden):
+          </label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-base">search</span>
+            <input type="text" id="filtro-texto-global" placeholder="Ej: Domingo Santa María, Meléndez, Cordillera, ORD-..." class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-brand focus:border-brand">
+          </div>
+        </div>
+
+        <!-- Filtro Mes -->
+        <div class="md:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">Mes Contratación:</label>
+          <select id="filtro-mes" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+            <option value="">Todos los Meses</option>
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+          </select>
+        </div>
+
+        <!-- Filtro Año -->
+        <div class="md:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">Año Contratación:</label>
+          <select id="filtro-anio" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+            <option value="">Todos los Años</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </div>
+
+        <!-- Período de Tiempo: Desde y Hasta -->
+        <div class="md:col-span-3 grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Desde:</label>
+            <input type="date" id="filtro-desde" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Hasta:</label>
+            <input type="date" id="filtro-hasta" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Fila 2: Filtros Desplegables Multiselección para Encabezados de Columna -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
+        
+        <!-- Desplegable Clientes / Titulares -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Cliente / Titular:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+          </div>
+          <select id="select-filtro-cliente" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+          </select>
+        </div>
+
+        <!-- Desplegable Planes -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Plan de Servicio:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+          </div>
+          <select id="select-filtro-plan" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+          </select>
+        </div>
+
+        <!-- Desplegable Operador Asignado -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Operador Asignado:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+          </div>
+          <select id="select-filtro-operador" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+          </select>
+        </div>
+
+        <!-- Desplegable Cementerios -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="font-bold text-slate-700">Cementerio:</label>
+            <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+          </div>
+          <select id="select-filtro-cementerio" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+          </select>
+        </div>
+
+        <!-- Desplegable Estado de la Orden y Limpiar -->
+        <div class="flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="font-bold text-slate-700">Estado Orden:</label>
+              <span class="text-[10px] text-slate-400">(Ctrl + clic mult.)</span>
+            </div>
+            <select id="select-filtro-estado" multiple class="w-full h-16 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+              <option value="iniciada">Iniciada / Creada</option>
+              <option value="asignada">Asignada</option>
+              <option value="en proceso">En Proceso</option>
+              <option value="en_revision">En Revisión</option>
+              <option value="completada">Completada</option>
+              <option value="activa">Suscripción Activa</option>
+            </select>
+          </div>
+          
+          <button id="btn-limpiar" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition mt-2 flex items-center justify-center gap-1">
+            <span class="material-symbols-outlined text-sm">filter_alt_off</span> Limpiar Todos los Filtros
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- Tabla Maestra de Resultados -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+              <th class="p-3">Cliente / Titular</th>
+              <th class="p-3">Plan</th>
+              <th class="p-3">Operador Asignado</th>
+              <th class="p-3">Contratación</th>
+              <th class="p-3">Término</th>
+              <th class="p-3 text-right">Monto Pagado</th>
+              <th class="p-3 text-center">Realizadas</th>
+              <th class="p-3 text-center">Pendientes</th>
+              <th class="p-3">Última Visita</th>
+              <th class="p-3">Próxima Visita</th>
+              <th class="p-3">Cementerio</th>
+              <th class="p-3 text-center">Informe</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-cuerpo" class="divide-y divide-slate-100 text-slate-700">
+            <tr>
+              <td colspan="12" class="p-8 text-center text-slate-400 font-medium">Cargando contratos y órdenes...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Detalle de Informe y Evidencia Técnica -->
+  <div id="modal-informe" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-5">
+      <div class="flex justify-between items-start border-b border-slate-200 pb-3">
+        <div>
+          <span id="modal-orden-id" class="text-xs font-extrabold text-brandMuted uppercase tracking-wider">ORD-XXXX</span>
+          <h2 id="modal-difunto" class="text-xl font-black text-brand">Nombre Difunto</h2>
+          <p id="modal-subtitulo" class="text-xs text-slate-500">Detalle técnico de mantención</p>
+        </div>
+        <button onclick="cerrarModalInforme()" class="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <span class="material-symbols-outlined text-2xl">close</span>
+        </button>
+      </div>
+
+      <!-- Datos Técnicos y Observaciones -->
+      <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-2">
+        <p><strong>Cliente Titular:</strong> <span id="modal-cliente">-</span></p>
+        <p><strong>Operador a Cargo:</strong> <span id="modal-operador">-</span></p>
+        <p><strong>Ubicación Registrada:</strong> <span id="modal-ubicacion">-</span></p>
+        <p><strong>Observaciones Técnicas:</strong> <span id="modal-observaciones" class="italic text-slate-600">Sin notas técnicas.</span></p>
+      </div>
+
+      <!-- Cuadrícula de Evidencia Fotográfica -->
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Evidencia Fotográfica en Terreno</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-[11px]">
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">1. Antes</span>
+            <div id="box-foto-antes"></div>
+          </div>
+          <div>
+            <span class="font-bold text-brand block mb-1">2. Después</span>
+            <div id="box-foto-despues"></div>
+          </div>
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">3. Flores</span>
+            <div id="box-foto-flores"></div>
+          </div>
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">4. Vista Panorámica</span>
+            <div id="box-foto-general"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones de Acción del Modal -->
+      <div class="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
+        <button id="btn-modal-ver-oficial" class="px-4 py-2 bg-brand text-white font-bold text-xs rounded-lg hover:bg-brandLight transition flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-sm">visibility</span> Ver Informe Oficial
+        </button>
+        <button id="btn-modal-imprimir" class="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-sm">print</span> Imprimir Ficha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Firebase v10.7.0 -->
+  <script type="module">
+    import { db } from "./js/firebaseConfig.js";
+    import { requireStaffAccess } from "./js/portal-common.js";
+    import { 
+      collection, 
+      getDocs 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    let listaTotalTrabajos = [];
+
+    function formatearFecha(f) {
+      if (!f) return "-";
+      const d = f?.toDate ? f.toDate() : new Date(f);
+      if (isNaN(d.getTime())) return f;
+      return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+
+    function extraerNombreDifunto(obj) {
+      if (!obj) return "Ser Querido";
+      if (typeof obj === "string" && obj.trim()) return obj.trim();
+      if (typeof obj === "object") {
+        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return obj.nombreCompleto.trim();
+        const nom = obj.nombre || obj.nombres || "";
+        const ape = [obj.apellidoPaterno, obj.apellidoMaterno, obj.apellido, obj.apellidos].filter(Boolean).join(" ").trim();
+        const combo = `${nom} ${ape}`.trim();
+        if (combo) return combo;
+      }
+      return "Ser Querido";
+    }
+
+    function extraerUrl(foto) {
+      if (!foto) return "";
+      if (typeof foto === "string") return foto;
+      if (typeof foto === "object") return foto.url || foto.downloadURL || "";
+      return "";
+    }
+
+    window.cerrarModalInforme = function() {
+      document.getElementById("modal-informe").classList.add("hidden");
+    };
+
+    window.abrirModalInforme = function(idx) {
+      const item = listaTotalTrabajos[idx];
+      if (!item) return;
+
+      document.getElementById("modal-orden-id").textContent = item.numeroOrden;
+      document.getElementById("modal-difunto").textContent = item.difunto;
+      document.getElementById("modal-subtitulo").textContent = `${item.cementerio} — Sector: ${item.sector}, Sepultura: #${item.numeroSepultura}`;
+      document.getElementById("modal-cliente").textContent = `${item.cliente} (${item.clienteEmail})`;
+      document.getElementById("modal-operador").textContent = item.operadorAsignado;
+      document.getElementById("modal-ubicacion").textContent = `${item.cementerio} (Sector ${item.sector}, Sepultura #${item.numeroSepultura})`;
+      document.getElementById("modal-observaciones").textContent = item.nota || "Labores ejecutadas en conformidad técnica.";
+
+      const renderFotoBox = (url, label) => {
+        if (url) {
+          return `<img src="${url}" class="thumb-mini cursor-pointer hover:opacity-90" onclick="window.open('${url}','_blank')" alt="${label}">`;
+        }
+        return `<div class="thumb-mini bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">Sin fotografía</div>`;
+      };
+
+      document.getElementById("box-foto-antes").innerHTML = renderFotoBox(item.fAntes, "Antes");
+      document.getElementById("box-foto-despues").innerHTML = renderFotoBox(item.fDespues, "Después");
+      document.getElementById("box-foto-flores").innerHTML = renderFotoBox(item.fFlores, "Flores");
+      document.getElementById("box-foto-general").innerHTML = renderFotoBox(item.fGeneral, "General");
+
+      document.getElementById("btn-modal-ver-oficial").onclick = () => {
+        window.open(`informe.html?informeId=${item.informeId}&ordenId=${item.ordenId}`, '_blank');
+      };
+
+      document.getElementById("btn-modal-imprimir").onclick = () => {
+        const w = window.open('', '_blank');
+        w.document.write(`
+          <html><head><title>GraveCare - Certificado #${item.numeroOrden}</title>
+          <style>body{font-family:sans-serif;padding:30px;color:#111;} h1{color:#002d1a;} .datos{width:100%;border-collapse:collapse;margin:15px 0;} .datos td{padding:6px;border-bottom:1px solid #ddd;font-size:12px;} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;} img{width:100%;height:180px;object-fit:cover;border-radius:6px;}</style>
+          </head><body>
+          <h1>GraveCare Chile — Certificado de Servicio</h1>
+          <table class="datos">
+            <tr><td><strong>Orden:</strong> ${item.numeroOrden}</td><td><strong>Fecha Servicio:</strong> ${formatearFecha(item.ultimaVisita)}</td></tr>
+            <tr><td><strong>Cliente:</strong> ${item.cliente}</td><td><strong>Difunto:</strong> ${item.difunto}</td></tr>
+            <tr><td><strong>Ubicación:</strong> ${item.cementerio} (Sector ${item.sector}, Sepultura #${item.numeroSepultura})</td><td><strong>Operador:</strong> ${item.operadorAsignado}</td></tr>
+            <tr><td colspan="2"><strong>Observaciones:</strong> ${item.nota || 'Trabajo ejecutado según protocolo de calidad.'}</td></tr>
+          </table>
+          <div class="grid">
+            <div>${item.fAntes ? `<img src="${item.fAntes}">` : ''}<p style="font-size:11px;">1. Antes</p></div>
+            <div>${item.fDespues ? `<img src="${item.fDespues}">` : ''}<p style="font-size:11px;">2. Después</p></div>
+            <div>${item.fFlores ? `<img src="${item.fFlores}">` : ''}<p style="font-size:11px;">3. Flores</p></div>
+            <div>${item.fGeneral ? `<img src="${item.fGeneral}">` : ''}<p style="font-size:11px;">4. Vista Panorámica</p></div>
+          </div>
+          <script>window.print();<\/script></body></html>
+        `);
+        w.document.close();
+      };
+
+      document.getElementById("modal-informe").classList.remove("hidden");
+    };
+
+    function poblarDesplegables(items) {
+      const clientesSet = new Set();
+      const planesSet = new Set();
+      const operadoresSet = new Set();
+      const cementeriosSet = new Set();
+      const aniosSet = new Set();
+
+      items.forEach(t => {
+        if (t.cliente) clientesSet.add(t.cliente);
+        if (t.plan) planesSet.add(t.plan);
+        if (t.operadorAsignado) operadoresSet.add(t.operadorAsignado);
+        if (t.cementerio) cementeriosSet.add(t.cementerio);
+        if (t.fechaObj && !isNaN(t.fechaObj.getTime())) {
+          aniosSet.add(t.fechaObj.getFullYear());
+        }
+      });
+
+      const llenarSelect = (id, setValores) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = Array.from(setValores).sort().map(val => 
+          `<option value="${val.toLowerCase()}">${val}</option>`
+        ).join("");
+      };
+
+      llenarSelect("select-filtro-cliente", clientesSet);
+      llenarSelect("select-filtro-plan", planesSet);
+      llenarSelect("select-filtro-operador", operadoresSet);
+      llenarSelect("select-filtro-cementerio", cementeriosSet);
+
+      // Años
+      const selAnio = document.getElementById("filtro-anio");
+      if (aniosSet.size > 0 && selAnio) {
+        const actual = selAnio.value;
+        selAnio.innerHTML = '<option value="">Todos los Años</option>' + 
+          Array.from(aniosSet).sort((a,b) => b - a).map(a => `<option value="${a}">${a}</option>`).join("");
+        selAnio.value = actual;
+      }
+    }
+
+    function obtenerSeleccionados(selectId) {
+      const sel = document.getElementById(selectId);
+      if (!sel) return [];
+      return Array.from(sel.selectedOptions).map(opt => opt.value.toLowerCase());
+    }
+
+    window.cargarTodosLosTrabajos = async function() {
+      const cuerpo = document.getElementById("tabla-cuerpo");
+      cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando todas las órdenes contratadas...</td></tr>`;
+
+      try {
+        const informesMap = new Map();
+
+        // 1. Cargar colección 'informes' para cruzar fotos y notas
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          snapInf.forEach(d => {
+            const data = d.data();
+            const idDoc = d.id;
+            const ordKey = data.ordenId || data.numeroOrden || idDoc.replace("informe_", "");
+            informesMap.set(ordKey, { id: idDoc, ...data });
+          });
+        } catch (e) {
+          console.warn("Aviso: Informes no leídos de forma masiva:", e);
+        }
+
+        // 2. Cargar todas las órdenes sin filtrar por estado
+        const snapOrdenes = await getDocs(collection(db, "ordenes"));
+        const lista = [];
+
+        snapOrdenes.forEach(docSnap => {
+          const d = docSnap.data();
+          const ordId = docSnap.id;
+          const numOrd = d.numeroOrden || ordId;
+
+          // Datos del titular/cliente
+          const titularObj = d.titular || {};
+          let nombreTitular = titularObj.nombre || [titularObj.nombres, titularObj.apellidoPaterno, titularObj.apellidoMaterno].filter(Boolean).join(" ");
+          if (!nombreTitular) nombreTitular = d.nombreTitular || d.emailCliente || d.email || "Cliente Titular";
+          const emailTitular = titularObj.email || d.emailCliente || d.email || "";
+
+          // Plan y fechas
+          const planNombre = d.servicio?.planNombre || d.planNombre || d.plan || "Plan Base";
+          const fechaContratacionRaw = d.creadoEl || d.createdAt || d.fechaPago || null;
+          const fechaObj = fechaContratacionRaw?.toDate ? fechaContratacionRaw.toDate() : (fechaContratacionRaw ? new Date(fechaContratacionRaw) : null);
+          const fechaTermino = d.fechaTermino || d.fechaFin || d.vigenciaHasta || null;
+
+          // Monto
+          const montoTotal = Number(d.montoTotal || d.precioNumerico || d.valores?.total || 0);
+
+          // Cálculos de visitas
+          const totalVisitasPlan = Number(d.visitas || d.servicio?.visitas || (planNombre.toLowerCase().includes("semestral") ? 6 : planNombre.toLowerCase().includes("anual") ? 12 : 1));
+          const realizadas = Number(d.serviciosRealizados || (d.estado === "completada" ? 1 : 0));
+          const pendientes = Math.max(0, totalVisitasPlan - realizadas);
+
+          // Ubicación
+          const ubi = d.ubicacionSepultura || {};
+          const cementerio = ubi.cementerio || d.cementerio || "Cementerio";
+          const sector = ubi.sector || "S/S";
+          const numSep = ubi.numeroSepultura || ubi.numero || "S/N";
+
+          // Difunto
+          const difunto = extraerNombreDifunto(d.difunto || d.nombreDifunto || d.nombreFallecido);
+
+          // Evidencia fotográfica e informe vinculado
+          const infVinculado = informesMap.get(numOrd) || informesMap.get(ordId) || {};
+          const fotosOrd = d.fotos || {};
+          const fotosArray = Array.isArray(d.fotosUrl) ? d.fotosUrl : [];
+
+          const fAntes = extraerUrl(infVinculado.fotos?.antes) || extraerUrl(fotosOrd.antes) || fotosArray[0] || "";
+          const fDespues = extraerUrl(infVinculado.fotos?.despues) || extraerUrl(fotosOrd.despues) || fotosArray[1] || "";
+          const fFlores = extraerUrl(infVinculado.fotos?.flores) || extraerUrl(fotosOrd.flores) || fotosArray[2] || "";
+          const fGeneral = extraerUrl(infVinculado.fotos?.general) || extraerUrl(fotosOrd.general) || fotosArray[3] || "";
+
+          lista.push({
+            ordenId: ordId,
+            numeroOrden: numOrd,
+            cliente: nombreTitular,
+            clienteEmail: emailTitular,
+            difunto,
+            plan: planNombre,
+            operadorAsignado: d.operadorAsignadoNombre || "Sin asignar",
+            contratacion: fechaContratacionRaw,
+            fechaObj: fechaObj,
+            termino: fechaTermino,
+            montoPagado: montoTotal,
+            realizadas,
+            pendientes,
+            ultimaVisita: d.fechaUltimaVisita || infVinculado.fechaCaptura || (realizadas > 0 ? (d.fechaCompletada || d.fechaAprobacion) : null),
+            proximaVisita: d.proximaVisita || d.fechaProximaVisita || null,
+            cementerio,
+            sector,
+            numeroSepultura: numSep,
+            estado: (d.estado || "activa").toLowerCase().trim(),
+            informeId: infVinculado.id || `inf_${ordId}`,
+            nota: infVinculado.nota || d.nota || d.observaciones || "",
+            fAntes,
+            fDespues,
+            fFlores,
+            fGeneral
+          });
+        });
+
+        // Ordenar por fecha de contratación más reciente primero
+        lista.sort((a, b) => new Date(b.contratacion || 0) - new Date(a.contratacion || 0));
+        listaTotalTrabajos = lista;
+
+        document.getElementById("badge-total").textContent = `${lista.length} Trabajos Contratados`;
+
+        poblarDesplegables(lista);
+        aplicarFiltros();
+
+      } catch (err) {
+        console.error("Error al cargar todos los trabajos:", err);
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-rose-600 font-bold">Error al cargar registros: ${err.message}</td></tr>`;
+      }
+    };
+
+    function aplicarFiltros() {
+      const qGlobal = document.getElementById("filtro-texto-global").value.toLowerCase().trim();
+      const mesFiltro = document.getElementById("filtro-mes").value;
+      const anioFiltro = document.getElementById("filtro-anio").value;
+      const fDesde = document.getElementById("filtro-desde").value;
+      const fHasta = document.getElementById("filtro-hasta").value;
+
+      // Filtros multiselección
+      const clientesSel = obtenerSeleccionados("select-filtro-cliente");
+      const planesSel = obtenerSeleccionados("select-filtro-plan");
+      const operadoresSel = obtenerSeleccionados("select-filtro-operador");
+      const cementeriosSel = obtenerSeleccionados("select-filtro-cementerio");
+      const estadosSel = obtenerSeleccionados("select-filtro-estado");
+
+      const filtrados = listaTotalTrabajos.filter(t => {
+        
+        // 1. Búsqueda Global de texto
+        if (qGlobal) {
+          const matchCli = t.cliente.toLowerCase().includes(qGlobal);
+          const matchEmail = t.clienteEmail.toLowerCase().includes(qGlobal);
+          const matchDif = t.difunto.toLowerCase().includes(qGlobal);
+          const matchCem = t.cementerio.toLowerCase().includes(qGlobal);
+          const matchNum = t.numeroOrden.toLowerCase().includes(qGlobal);
+          const matchOp = t.operadorAsignado.toLowerCase().includes(qGlobal);
+
+          if (!matchCli && !matchEmail && !matchDif && !matchCem && !matchNum && !matchOp) {
+            return false;
+          }
+        }
+
+        // 2. Filtro Año
+        if (anioFiltro) {
+          if (!t.fechaObj || isNaN(t.fechaObj.getTime()) || String(t.fechaObj.getFullYear()) !== anioFiltro) {
+            return false;
+          }
+        }
+
+        // 3. Filtro Mes
+        if (mesFiltro !== "") {
+          if (!t.fechaObj || isNaN(t.fechaObj.getTime()) || String(t.fechaObj.getMonth()) !== mesFiltro) {
+            return false;
+          }
+        }
+
+        // 4. Período de tiempo (Desde y Hasta)
+        if (fDesde && t.fechaObj) {
+          const fechaIso = t.fechaObj.toISOString().split("T")[0];
+          if (fechaIso < fDesde) return false;
+        }
+        if (fHasta && t.fechaObj) {
+          const fechaIso = t.fechaObj.toISOString().split("T")[0];
+          if (fechaIso > fHasta) return false;
+        }
+
+        // 5. Filtros Desplegables de Columnas (Multiselección)
+        if (clientesSel.length > 0 && !clientesSel.includes(t.cliente.toLowerCase())) {
+          return false;
+        }
+
+        if (planesSel.length > 0 && !planesSel.includes(t.plan.toLowerCase())) {
+          return false;
+        }
+
+        if (operadoresSel.length > 0 && !operadoresSel.includes(t.operadorAsignado.toLowerCase())) {
+          return false;
+        }
+
+        if (cementeriosSel.length > 0 && !cementeriosSel.includes(t.cementerio.toLowerCase())) {
+          return false;
+        }
+
+        if (estadosSel.length > 0 && !estadosSel.includes(t.estado)) {
+          return false;
+        }
+
+        return true;
+      });
+
+      renderizarTabla(filtrados);
+    }
+
+    function renderizarTabla(items) {
+      const cuerpo = document.getElementById("tabla-cuerpo");
+      if (items.length === 0) {
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400">No se encontraron trabajos según los filtros seleccionados.</td></tr>`;
+        return;
+      }
+
+      cuerpo.innerHTML = items.map((t, idx) => {
+        const montoFmt = t.montoPagado > 0 ? `$${t.montoPagado.toLocaleString('es-CL')}` : "-";
+        
+        return `
+          <tr class="hover:bg-slate-50 transition cursor-pointer border-b border-slate-100" onclick="window.abrirModalInforme(${idx})">
+            <td class="p-3">
+              <span class="font-bold text-brand block">${t.cliente}</span>
+              <span class="text-[10px] text-slate-400 block">${t.clienteEmail}</span>
+              <span class="text-[10px] text-brandMuted font-semibold">Difunto: ${t.difunto}</span>
+            </td>
+            <td class="p-3 font-semibold text-slate-800">${t.plan}</td>
+            <td class="p-3 text-slate-600">${t.operadorAsignado}</td>
+            <td class="p-3 text-slate-600">${formatearFecha(t.contratacion)}</td>
+            <td class="p-3 text-slate-600">${formatearFecha(t.termino)}</td>
+            <td class="p-3 text-right font-bold text-slate-800">${montoFmt}</td>
+            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">${t.realizadas}</span></td>
+            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">${t.pendientes}</span></td>
+            <td class="p-3 text-slate-600">${formatearFecha(t.ultimaVisita)}</td>
+            <td class="p-3 font-semibold text-brand">${formatearFecha(t.proximaVisita)}</td>
+            <td class="p-3 text-slate-600">
+              <span class="font-medium block">${t.cementerio}</span>
+              <span class="text-[10px] text-slate-400">Sec: ${t.sector} | #${t.numeroSepultura}</span>
+            </td>
+            <td class="p-3 text-center" onclick="event.stopPropagation()">
+              <button onclick="window.abrirModalInforme(${idx})" class="p-1.5 rounded-lg border border-slate-200 text-brand hover:bg-emerald-50 transition cursor-pointer" title="Ver Informe Detallado">
+                <span class="material-symbols-outlined text-base">assignment</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // Eventos para filtros en tiempo real
+    document.getElementById("filtro-texto-global")?.addEventListener("input", aplicarFiltros);
+    document.getElementById("filtro-mes")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filtro-anio")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filtro-desde")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("filtro-hasta")?.addEventListener("change", aplicarFiltros);
+
+    document.getElementById("select-filtro-cliente")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("select-filtro-plan")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("select-filtro-operador")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("select-filtro-cementerio")?.addEventListener("change", aplicarFiltros);
+    document.getElementById("select-filtro-estado")?.addEventListener("change", aplicarFiltros);
+
+    document.getElementById("btn-limpiar")?.addEventListener("click", () => {
+      document.getElementById("filtro-texto-global").value = "";
+      document.getElementById("filtro-mes").value = "";
+      document.getElementById("filtro-anio").value = "";
+      document.getElementById("filtro-desde").value = "";
+      document.getElementById("filtro-hasta").value = "";
+
+      const deseleccionar = (id) => {
+        const sel = document.getElementById(id);
+        if (sel) Array.from(sel.options).forEach(opt => opt.selected = false);
+      };
+
+      deseleccionar("select-filtro-cliente");
+      deseleccionar("select-filtro-plan");
+      deseleccionar("select-filtro-operador");
+      deseleccionar("select-filtro-cementerio");
+      deseleccionar("select-filtro-estado");
+
+      aplicarFiltros();
+    });
+
+    requireStaffAccess(async () => {
+      await cargarTodosLosTrabajos();
+    });
+  </script>
+</body>
+</html>
