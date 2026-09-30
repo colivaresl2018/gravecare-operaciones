@@ -66,39 +66,39 @@
         <span class="text-white font-extrabold text-lg tracking-tight">GraveCare Ops</span>
       </div>
 
-      <!-- Menú de Módulos Operativos y Administrativos -->
+      <!-- Menú de Módulos con nombres reales validados -->
       <nav class="space-y-1.5" id="nav-modulos">
         <button onclick="cambiarSeccion('mis-trabajos')" id="btn-mis-trabajos" class="nav-btn active">
           <span class="material-symbols-outlined text-lg">assignment_ind</span>
           <span>Mis Trabajos</span>
         </button>
 
-        <button onclick="cambiarSeccion('asignar')" id="btn-asignar" class="nav-btn">
+        <button onclick="cambiarSeccion('ordenes')" id="btn-ordenes" class="nav-btn">
           <span class="material-symbols-outlined text-lg">rule</span>
           <span>Asignar Órdenes</span>
         </button>
 
-        <button onclick="cambiarSeccion('revision')" id="btn-revision" class="nav-btn">
+        <button onclick="cambiarSeccion('informe-revision')" id="btn-informe-revision" class="nav-btn">
           <span class="material-symbols-outlined text-lg">rate_review</span>
           <span>Revisión Informes</span>
         </button>
 
-        <button onclick="cambiarSeccion('todos-trabajos')" id="btn-todos-trabajos" class="nav-btn">
+        <button onclick="cambiarSeccion('todos-los-trabajos')" id="btn-todos-los-trabajos" class="nav-btn">
           <span class="material-symbols-outlined text-lg">folder_open</span>
           <span>Todos los Trabajos</span>
         </button>
 
-        <button onclick="cambiarSeccion('gantt')" id="btn-gantt" class="nav-btn">
+        <button onclick="cambiarSeccion('planificacion')" id="btn-planificacion" class="nav-btn">
           <span class="material-symbols-outlined text-lg">calendar_month</span>
           <span>Planificación & Gantt</span>
         </button>
 
-        <button onclick="cambiarSeccion('finanzas')" id="btn-finanzas" class="nav-btn">
+        <button onclick="cambiarSeccion('gastos-ingresos')" id="btn-gastos-ingresos" class="nav-btn">
           <span class="material-symbols-outlined text-lg">receipt_long</span>
           <span>Gastos e Ingresos</span>
         </button>
 
-        <button onclick="cambiarSeccion('staff')" id="btn-staff" class="nav-btn">
+        <button onclick="cambiarSeccion('admin-usuarios')" id="btn-admin-usuarios" class="nav-btn">
           <span class="material-symbols-outlined text-lg">manage_accounts</span>
           <span>Privilegios Staff</span>
         </button>
@@ -129,7 +129,7 @@
           ADMINISTRADOR
         </span>
         <span class="text-xs font-bold text-slate-700" id="txt-nombre-usuario">Christian Olivares</span>
-        <button id="btn-logout" class="px-3 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1">
+        <button id="btn-logout" class="px-3 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
           <span class="material-symbols-outlined text-sm">logout</span> Salir
         </button>
       </div>
@@ -145,18 +145,30 @@
   <script type="module">
     import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
 
+    // Mapeo ajustado a los nombres físicos de archivos en la carpeta public
     const mapaRutas = {
       "mis-trabajos": { url: "mis-trabajos.html", titulo: "Mis Trabajos", icono: "assignment_ind" },
-      "asignar": { url: "asignar-ordenes.html", titulo: "Asignación de Órdenes", icono: "rule" },
-      "revision": { url: "informes-revision.html", titulo: "Revisión y Auditoría de Informes", icono: "rate_review" },
-      "todos-trabajos": { url: "todos-trabajos.html", titulo: "Todos los Trabajos en Terreno", icono: "folder_open" },
-      "gantt": { url: "planificacion.html", titulo: "Planificación & Carta Gantt", icono: "calendar_month" },
-      "finanzas": { url: "gastos-ingresos.html", titulo: "Gestión de Gastos e Ingresos", icono: "receipt_long" },
-      "staff": { url: "staff.html", titulo: "Administración y Privilegios Staff", icono: "manage_accounts" }
+      "ordenes": { url: "ordenes.html", titulo: "Asignación de Órdenes", icono: "rule" },
+      "informe-revision": { url: "informe-revision.html", titulo: "Revisión Informes", icono: "rate_review" },
+      "todos-los-trabajos": { url: "todos-los-trabajos.html", titulo: "Todos los Trabajos en Terreno", icono: "folder_open" },
+      "planificacion": { url: "planificacion.html", titulo: "Planificación & Carta Gantt", icono: "calendar_month" },
+      "gastos-ingresos": { url: "gastos-ingresos.html", titulo: "Gestión de Gastos e Ingresos", icono: "receipt_long" },
+      "admin-usuarios": { url: "admin-usuarios.html", titulo: "Administración y Privilegios Staff", icono: "manage_accounts" }
+    };
+
+    // Alias para compatibilidad con hashes anteriores (#asignar, #revision, etc.)
+    const aliasMap = {
+      "asignar": "ordenes",
+      "revision": "informe-revision",
+      "todos-trabajos": "todos-los-trabajos",
+      "gantt": "planificacion",
+      "finanzas": "gastos-ingresos",
+      "staff": "admin-usuarios"
     };
 
     window.cambiarSeccion = function(key) {
-      const config = mapaRutas[key] || mapaRutas["mis-trabajos"];
+      const realKey = aliasMap[key] || key;
+      const config = mapaRutas[realKey] || mapaRutas["mis-trabajos"];
       const iframe = document.getElementById("iframe-modulo");
       const txtTitulo = document.getElementById("txt-seccion-titulo");
       const txtIcono = document.getElementById("txt-seccion-icono");
@@ -166,17 +178,16 @@
       if (txtIcono) txtIcono.textContent = config.icono;
 
       document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("active"));
-      const btnActivo = document.getElementById(`btn-${key}`);
+      const btnActivo = document.getElementById(`btn-${realKey}`);
       if (btnActivo) btnActivo.classList.add("active");
 
-      window.location.hash = key;
+      window.location.hash = realKey;
     };
 
-    // Lectura de Hash inicial (#mis-trabajos, #asignar, etc.)
-    const hashInicial = window.location.hash.replace("#", "") || "mis-trabajos";
-    if (mapaRutas[hashInicial]) {
-      cambiarSeccion(hashInicial);
-    }
+    // Carga inicial según el hash
+    const hashRaw = window.location.hash.replace("#", "") || "mis-trabajos";
+    const hashInicial = aliasMap[hashRaw] || hashRaw;
+    cambiarSeccion(hashInicial);
 
     requireStaffAccess((user, staffProfile) => {
       wireLogoutButton("btn-logout");
@@ -188,10 +199,9 @@
       document.getElementById("badge-rol-header").textContent = rol;
       document.getElementById("txt-rol-badge").textContent = `Rol: ${rol}`;
 
-      // Si el rol es operador estricto, ocultar módulos exclusivos de administrador
       if (rol === "OPERADOR") {
-        const ocultables = ["btn-asignar", "btn-revision", "btn-finanzas", "btn-staff"];
-        ocultables.forEach(id => {
+        const ocultar = ["btn-ordenes", "btn-informe-revision", "btn-gastos-ingresos", "btn-admin-usuarios"];
+        ocultar.forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = "none";
         });
