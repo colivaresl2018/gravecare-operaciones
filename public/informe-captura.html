@@ -367,16 +367,43 @@
     registrarEventoFoto("general", "file-general", "prev-general", "badge-general", "4. Vista General");
 
     async function inicializarOrden() {
+	ordenActual = { id: "general_" + Date.now(), numeroOrden: "S/N" };
+	const headerEl = document.getElementById("txt-orden-header");
+	if (headerEl) headerEl.textContent = "Orden General de Terreno";
+	return;
+
+async function inicializarOrden() {
       obtenerUbicacionActual();
       const params = new URLSearchParams(window.location.search);
       let ordenId = params.get("ordenId") || params.get("id");
 
+      // 1. Guardar o recuperar ID si existe
       if (ordenId) {
         localStorage.setItem("gravecare_orden_activa", ordenId);
       } else {
         ordenId = localStorage.getItem("gravecare_orden_activa");
       }
 
+      // 2. Si no viene ID, buscar automáticamente la primera orden activa en Firestore
+      if (!ordenId) {
+        try {
+          const { collection, query, where, getDocs, limit } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
+          const q = query(
+            collection(db, "ordenes"),
+            where("estado", "in", ["asignada", "en proceso", "activa", "iniciada"]),
+            limit(1)
+          );
+          const snapOrdenes = await getDocs(q);
+          if (!snapOrdenes.empty) {
+            ordenId = snapOrdenes.docs[0].id;
+            localStorage.setItem("gravecare_orden_activa", ordenId);
+          }
+        } catch (eBusqueda) {
+          console.warn("No se pudo autoseleccionar orden:", eBusqueda);
+        }
+      }
+
+      // 3. Si definitivamente no hay ninguna orden registrada en la base de datos
       if (!ordenId) {
         ordenActual = { id: "general_" + Date.now(), numeroOrden: "S/N" };
         const headerEl = document.getElementById("txt-orden-header");
@@ -384,6 +411,7 @@
         return;
       }
 
+      // 4. Leer la orden desde Firestore y mostrar los datos
       try {
         const snap = await getDoc(doc(db, "ordenes", ordenId));
         if (snap.exists()) {
@@ -392,10 +420,16 @@
           ordenActual = { id: ordenId, numeroOrden: ordenId };
         }
 
-        const num = ordenActual.numeroOrden || ordenActual.id;
-        const dif = ordenActual.difunto?.nombre || ordenActual.difunto?.nombreCompleto || ordenActual.nombreDifunto || "Visita Técnica";
+        const num = ordenActual.numeroOrden || ordenActual.id || ordenId;
+        const dif = ordenActual.difunto?.nombreCompleto || ordenActual.difunto?.nombre || ordenActual.nombreDifunto || 	ordenActual.enMemoriaDe || "Visita Técnica";
+        const cli = ordenActual.titular?.nombres || ordenActual.clienteNombre || ordenActual.nombreTitular || ordenActual.cliente || "";
+        const ubi = ordenActual.ubicacionSepultura || {};
+        const cem = ubi.cementerio || ordenActual.cementerio || "";
+
         const headerEl = document.getElementById("txt-orden-header");
-        if (headerEl) headerEl.textContent = `Orden #${num} — ${dif}`;
+        if (headerEl) {
+          headerEl.innerHTML = `Orden <strong>#${num}</strong> — <strong>${dif}</strong> ${cem ? `(${cem})` : ''} ${cli ? `• Cliente: 	${cli}` : ''}`;
+        }
       } catch (err) {
         ordenActual = { id: ordenId, numeroOrden: ordenId };
         const headerEl = document.getElementById("txt-orden-header");
