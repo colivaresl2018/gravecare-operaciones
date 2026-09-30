@@ -1,41 +1,45 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import * as fbConf from "./js/firebaseConfig.js";
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  updateDoc 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-// Si ya tienes un firebaseConfig.js global puedes importarlo, o definirlo aquí:
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "gravecare-ops.firebaseapp.com",
-  projectId: "gravecare-ops",
-  storageBucket: "gravecare-ops.appspot.com",
-  messagingSenderId: "TU_MESSAGING_SENDER_ID",
-  appId: "TU_APP_ID"
-};
+// Resolver app, firestore y storage de manera compatible y segura
+const app = getApps().length > 0 ? getApp() : (fbConf.default?.app || null);
+const db = fbConf.db || (app ? getFirestore(app) : getFirestore());
+const storage = fbConf.storage || (app ? getStorage(app) : getStorage());
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const storage = getStorage(app);
-
-// Helper para convertir archivo local a base64 para previsualización inmediata en el DOM del PDF
 function archivoABase64(file) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!file) return resolve('');
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = (err) => reject(err);
+    reader.onerror = () => resolve('');
     reader.readAsDataURL(file);
   });
 }
 
-// Helper para subir archivo a Firebase Storage
 async function subirFotoStorage(file, ruta) {
   if (!file) return '';
-  const storageRef = ref(storage, ruta);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  return await getDownloadURL(storageRef);
+  try {
+    const storageRef = ref(storage, ruta);
+    await uploadBytes(storageRef, file, { contentType: file.type });
+    return await getDownloadURL(storageRef);
+  } catch (err) {
+    console.warn(`No se pudo subir foto a ${ruta}:`, err);
+    return '';
+  }
 }
 
-// Proceso del Formulario
 const form = document.getElementById('formCaptura');
 const btnGuardar = document.getElementById('btnGuardar');
 const btnTexto = document.getElementById('btnTexto');
@@ -44,7 +48,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   btnGuardar.disabled = true;
-  btnTexto.textContent = "Procesando evidencias...";
+  btnTexto.textContent = "1/4 Subiendo imágenes...";
 
   const ordenId = document.getElementById('ordenId').value.trim();
   const timestamp = Date.now();
@@ -59,19 +63,17 @@ form.addEventListener('submit', async (e) => {
   const notas = document.getElementById('notas').value.trim() || 'Sin observaciones.';
   const fechaStr = new Date().toLocaleDateString('es-CL');
 
-  // Obtener labores seleccionadas manualmente
   const checkboxes = document.querySelectorAll('input[name="labores"]:checked');
   const labores = Array.from(checkboxes).map(cb => cb.value);
 
-  // Archivos de fotos
   const fAntes = document.getElementById('archivoAntes').files[0];
   const fDespues = document.getElementById('archivoDespues').files[0];
   const fFlores = document.getElementById('archivoFlores').files[0];
   const fPanoramica = document.getElementById('archivoPanoramica').files[0];
 
   try {
-    // 1. Subir imágenes crudas a Storage para histórico
-    btnTexto.textContent = "Subiendo fotografías a Storage...";
+    // 1. Subir fotos a Storage
+    console.log("Subiendo imágenes a Storage...");
     const [urlAntes, urlDespues, urlFlores, urlPanoramica] = await Promise.all([
       subirFotoStorage(fAntes, `evidencias/${ordenId}/${informeId}_antes.jpg`),
       subirFotoStorage(fDespues, `evidencias/${ordenId}/${informeId}_despues.jpg`),
@@ -79,8 +81,9 @@ form.addEventListener('submit', async (e) => {
       subirFotoStorage(fPanoramica, `evidencias/${ordenId}/${informeId}_panoramica.jpg`)
     ]);
 
-    // 2. Cargar datos en la plantilla visual del PDF
-    btnTexto.textContent = "Compilando documento PDF...";
+    btnTexto.textContent = "2/4 Renderizando informe...";
+
+    // 2. Llenar plantilla visible
     document.getElementById('pdf-orden-id').textContent = ordenId;
     document.getElementById('pdf-informe-id').textContent = informeId;
     document.getElementById('pdf-fecha').textContent = fechaStr;
@@ -99,10 +102,10 @@ form.addEventListener('submit', async (e) => {
         listaLabores.appendChild(li);
       });
     } else {
-      listaLabores.innerHTML = '<li>Visita técnica preventiva (sin labores adicionales marcadas).</li>';
+      listaLabores.innerHTML = '<li>Visita técnica preventiva (sin labores adicionales).</li>';
     }
 
-    // Convertir a Base64 local para que html2canvas no sufra por CORS durante el render
+    // Convertir imágenes a base64 para evitar errores de render local
     const [b64Antes, b64Despues, b64Flores, b64Pano] = await Promise.all([
       archivoABase64(fAntes),
       archivoABase64(fDespues),
@@ -110,35 +113,46 @@ form.addEventListener('submit', async (e) => {
       archivoABase64(fPanoramica)
     ]);
 
-    document.getElementById('pdf-foto-antes').src = b64Antes;
-    document.getElementById('pdf-foto-despues').src = b64Despues;
-    document.getElementById('pdf-foto-flores').src = b64Flores;
-    document.getElementById('pdf-foto-panoramica').src = b64Pano;
+    document.getElementById('pdf-foto-antes').src = b64Antes || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text y="50" font-size="12" fill="gray">Sin foto</text></svg>';
+    document.getElementById('pdf-foto-despues').src = b64Despues || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text y="50" font-size="12" fill="gray">Sin foto</text></svg>';
+    document.getElementById('pdf-foto-flores').src = b64Flores || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text y="50" font-size="12" fill="gray">Sin foto</text></svg>';
+    document.getElementById('pdf-foto-panoramica').src = b64Pano || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text y="50" font-size="12" fill="gray">Sin foto</text></svg>';
 
-    // 3. Generar PDF como Blob usando html2pdf.js
+    // 3. Compilación a Blob PDF
+    btnTexto.textContent = "3/4 Generando PDF binario...";
     const elemento = document.getElementById('plantilla-informe-pdf');
+    
+    // Configuración robusta para html2pdf
     const opcionesPdf = {
       margin: 10,
       filename: `${informeId}.pdf`,
       image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
+    console.log("Iniciando compilación PDF...");
     const pdfBlob = await window.html2pdf().set(opcionesPdf).from(elemento).outputPdf('blob');
+    console.log("PDF generado con éxito. Tamaño:", pdfBlob.size, "bytes");
 
-    // 4. Subir el archivo PDF a Firebase Storage
-    btnTexto.textContent = "Almacenando PDF en Firebase Storage...";
+    if (!pdfBlob || pdfBlob.size === 0) {
+      throw new Error("El archivo PDF generado está vacío.");
+    }
+
+    // 4. Subida a Storage
+    btnTexto.textContent = "4/4 Subiendo PDF a Storage...";
     const storagePdfRef = ref(storage, `informes_pdf/${ordenId}/${informeId}.pdf`);
+    
+    console.log("Subiendo PDF a Storage en ruta:", storagePdfRef.fullPath);
     await uploadBytes(storagePdfRef, pdfBlob, {
       contentType: 'application/pdf',
       customMetadata: { ordenId: ordenId, informeId: informeId }
     });
 
     const urlDescargaPdf = await getDownloadURL(storagePdfRef);
+    console.log("URL generada de Storage:", urlDescargaPdf);
 
-    // 5. Guardar en Firestore (Colección "informes" y actualizar "ordenes")
-    btnTexto.textContent = "Sincronizando Firestore...";
+    // 5. Guardar metadatos en Firestore
     const payloadInforme = {
       informeId: informeId,
       ordenId: ordenId,
@@ -163,25 +177,27 @@ form.addEventListener('submit', async (e) => {
 
     await setDoc(doc(db, "informes", informeId), payloadInforme);
 
-    // Actualizar puntero en la orden correspondiente
-    await updateDoc(doc(db, "ordenes", ordenId), {
-      ultimoInformeId: informeId,
-      ultimoInformePdfUrl: urlDescargaPdf,
-      fechaUltimaVisita: fechaStr,
-      estado: "Completada"
-    }).catch(err => {
-      console.warn("Orden aún no existe en colección 'ordenes', continuando...", err);
-    });
+    // Actualizar orden
+    try {
+      await updateDoc(doc(db, "ordenes", ordenId), {
+        ultimoInformeId: informeId,
+        ultimoInformePdfUrl: urlDescargaPdf,
+        fechaUltimaVisita: fechaStr,
+        estado: "completada"
+      });
+    } catch (eOrd) {
+      console.warn("No se pudo actualizar la orden directamente (quizás el ID difiere):", eOrd);
+    }
 
-    // 6. Mostrar mensaje de éxito y enlace
-    btnTexto.textContent = "¡Visita Registrada!";
+    // 6. Éxito
+    btnTexto.textContent = "¡Visita e Informe Guardados!";
     document.getElementById('resultadoFinal').classList.remove('hidden');
     const linkPdf = document.getElementById('linkPdfDirecto');
     linkPdf.href = urlDescargaPdf;
 
   } catch (error) {
-    console.error("Error al registrar visita y compilar informe:", error);
-    alert(`Ocurrió un error: ${error.message}`);
+    console.error("Error crítico en el proceso:", error);
+    alert(`Error al procesar o subir el informe: ${error.message}\nRevisa la consola (F12) para más detalles.`);
     btnGuardar.disabled = false;
     btnTexto.textContent = "Reintentar Guardar";
   }
