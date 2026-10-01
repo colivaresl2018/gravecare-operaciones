@@ -25,6 +25,7 @@
   </script>
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
+    #mapa-google { width: 100% !important; height: 320px !important; min-height: 320px !important; }
   </style>
 </head>
 <body class="p-4 md:p-8 max-w-6xl mx-auto text-slate-800">
@@ -63,12 +64,12 @@
           <span id="txt-conteo-mapa" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">0 puntos</span>
         </div>
 
-        <div id="mapa-placeholder" class="h-64 rounded-xl bg-slate-50 border border-dashed border-slate-300 flex flex-col items-center justify-center p-4 text-center">
+        <div id="mapa-placeholder" class="h-80 rounded-xl bg-slate-50 border border-dashed border-slate-300 flex flex-col items-center justify-center p-4 text-center">
           <span class="material-symbols-outlined text-3xl text-slate-400 mb-1">location_searching</span>
           <p class="text-xs text-slate-500">Cargando mapa interactivo...</p>
         </div>
 
-        <div id="mapa-google" class="hidden h-64 w-full rounded-xl overflow-hidden border border-slate-200"></div>
+        <div id="mapa-google" class="hidden rounded-xl overflow-hidden border border-slate-200"></div>
 
         <div class="pt-2">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Cementerios de tus órdenes:</span>
@@ -249,14 +250,15 @@
           });
         });
 
-        trabajosParaMapa = trabajosPendientes.map(t => {
-          const lat = t.coordenadas?.lat || t.ubicacionSepultura?.coordenadas?.lat || t.lat || -33.44154;
-          const lng = t.coordenadas?.lng || t.ubicacionSepultura?.coordenadas?.lng || t.lng || -70.65623;
+        // Coordenadas con valores por defecto si no vienen registradas
+        trabajosParaMapa = trabajosPendientes.map((t, index) => {
+          const lat = t.coordenadas?.lat || t.ubicacionSepultura?.coordenadas?.lat || t.lat || (-33.44154 - (index * 0.015));
+          const lng = t.coordenadas?.lng || t.ubicacionSepultura?.coordenadas?.lng || t.lng || (-70.65623 - (index * 0.01));
           return { ...t, mapLat: Number(lat), mapLng: Number(lng) };
         });
 
         document.getElementById("txt-conteo-mapa").textContent = `${trabajosParaMapa.length} en mapa`;
-        renderMarcadores();
+        iniciarOActualizarMapa();
 
       } catch (errCarga) {
         console.error("Error al consultar órdenes:", errCarga);
@@ -264,28 +266,28 @@
       }
     }
 
-    function iniciarGoogleMaps() {
+    function iniciarOActualizarMapa() {
       if (typeof google === 'undefined' || !google.maps) {
-        setTimeout(iniciarGoogleMaps, 300);
+        setTimeout(iniciarOActualizarMapa, 300);
         return;
       }
-      try {
-        const placeholder = document.getElementById("mapa-placeholder");
-        const mapEl = document.getElementById("mapa-google");
-        
+
+      const placeholder = document.getElementById("mapa-placeholder");
+      const mapEl = document.getElementById("mapa-google");
+
+      if (!mapInstance && mapEl) {
+        placeholder.classList.add("hidden");
+        mapEl.classList.remove("hidden");
+
         mapInstance = new google.maps.Map(mapEl, {
           center: { lat: -33.4489, lng: -70.6693 },
           zoom: 11,
           streetViewControl: false,
           mapTypeControl: false
         });
-
-        if (placeholder) placeholder.classList.add("hidden");
-        if (mapEl) mapEl.classList.remove("hidden");
-        renderMarcadores();
-      } catch (e) {
-        console.warn("Google Maps init error:", e);
       }
+
+      renderMarcadores();
     }
 
     function renderMarcadores() {
@@ -316,12 +318,17 @@
 
       mapInstance.fitBounds(bounds);
       if (trabajosParaMapa.length === 1) mapInstance.setZoom(14);
+      
+      // Forzar que el mapa calcule su tamaño si está dentro de un iframe
+      setTimeout(() => {
+        google.maps.event.trigger(mapInstance, 'resize');
+      }, 400);
     }
 
     const mapsScript = document.createElement("script");
-    mapsScript.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0&loading=async";
+    mapsScript.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0";
     mapsScript.async = true;
-    mapsScript.onload = () => iniciarGoogleMaps();
+    mapsScript.onload = () => iniciarOActualizarMapa();
     document.head.appendChild(mapsScript);
 
     requireStaffAccess((user, staffProfile) => {

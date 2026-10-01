@@ -405,11 +405,10 @@
     window.eliminarSepultura = eliminarSepultura;
 
     // Validación obligatoria con identificador de página para aplicar la matriz de permisos
-    requireStaffAccess(() => {
-      inicializarMapa();
-      cargarSepulturas();
-    }, 'mapa.html');
-  </script>
+	requireStaffAccess((user, staffProfile) => {
+ 	 inicializarMapa();
+ 	 cargarSepulturas();
+	});
 
 </body>
 </html>

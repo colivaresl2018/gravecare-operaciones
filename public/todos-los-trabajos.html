@@ -48,10 +48,8 @@
       </div>
     </header>
 
-    <!-- Panel de Filtros Combinados y Desplegables -->
+    <!-- Filtros -->
     <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
-      
-      <!-- Fila 1: Búsqueda Global y Rango de Fechas -->
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
         <div class="md:col-span-5">
           <label class="block font-bold text-slate-700 mb-1">
@@ -104,46 +102,26 @@
         </div>
       </div>
 
-      <!-- Fila 2: Filtros Desplegables Multiselección -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
         <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="font-bold text-slate-700">Cliente / Titular:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
-          </div>
+          <label class="font-bold text-slate-700 block mb-1">Cliente / Titular:</label>
           <select id="select-filtro-cliente" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
-
         <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="font-bold text-slate-700">Plan de Servicio:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
-          </div>
+          <label class="font-bold text-slate-700 block mb-1">Plan de Servicio:</label>
           <select id="select-filtro-plan" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
-
         <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="font-bold text-slate-700">Operador Asignado:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
-          </div>
+          <label class="font-bold text-slate-700 block mb-1">Operador Asignado:</label>
           <select id="select-filtro-operador" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
-
         <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="font-bold text-slate-700">Cementerio:</label>
-            <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
-          </div>
+          <label class="font-bold text-slate-700 block mb-1">Cementerio:</label>
           <select id="select-filtro-cementerio" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
         </div>
-
         <div class="flex flex-col justify-between">
           <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="font-bold text-slate-700">Estado Orden:</label>
-              <span class="text-[10px] text-slate-400">(Ctrl + clic)</span>
-            </div>
+            <label class="font-bold text-slate-700 block mb-1">Estado Orden:</label>
             <select id="select-filtro-estado" multiple class="w-full h-16 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
               <option value="iniciada">Iniciada / Creada</option>
               <option value="asignada">Asignada</option>
@@ -160,7 +138,7 @@
       </div>
     </section>
 
-    <!-- Tabla Maestra de Trabajos -->
+    <!-- Tabla Maestra -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
@@ -191,7 +169,7 @@
 
   </div>
 
-  <!-- Modal Detalle de Informe y Evidencia -->
+  <!-- Modal Detalle Informe -->
   <div id="modal-informe" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-5">
       <div class="flex justify-between items-start border-b border-slate-200 pb-3">
@@ -267,16 +245,13 @@
     const db = getFirestore(app);
 
     let listaTotalTrabajos = [];
-    let trabajoSeleccionado = null;
 
     function formatearFecha(f) {
       if (!f) return "-";
       let d = null;
-      if (typeof f?.toDate === "function") {
-        d = f.toDate();
-      } else if (f instanceof Date) {
-        d = f;
-      } else if (typeof f === "string") {
+      if (typeof f?.toDate === "function") d = f.toDate();
+      else if (f instanceof Date) d = f;
+      else if (typeof f === "string") {
         if (/^\d{4}-\d{2}-\d{2}$/.test(f)) {
           const [anio, mes, dia] = f.split('-').map(Number);
           d = new Date(anio, mes - 1, dia);
@@ -312,26 +287,17 @@
 
     function extraerNombreDifunto(obj) {
       if (!obj) return "Ser Querido";
-      if (typeof obj === "string" && obj.trim()) {
-        const str = obj.trim();
-        const palabras = str.split(/\s+/);
-        if (palabras.length >= 4 && palabras.slice(0, 2).join(" ") === palabras.slice(2, 4).join(" ")) {
-          return palabras.slice(0, 2).join(" ");
-        }
-        return str;
-      }
+      if (typeof obj === "string" && obj.trim()) return obj.trim();
       if (typeof obj === "object") {
-        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return extraerNombreDifunto(obj.nombreCompleto);
+        if (obj.nombreCompleto && obj.nombreCompleto.trim()) return obj.nombreCompleto.trim();
         const nom = (obj.nombre || obj.nombres || "").trim();
         const apePat = (obj.apellidoPaterno || obj.apellido || "").trim();
-        const apeMat = (obj.apellidoMaterno || "").trim();
-        const combo = `${nom} ${apePat} ${apeMat}`.trim();
+        const combo = `${nom} ${apePat}`.trim();
         if (combo) return combo;
       }
       return "Ser Querido";
     }
 
-    // Carga de datos
     async function cargarTodosLosTrabajos() {
       const cuerpo = document.getElementById("tabla-cuerpo");
       const badge = document.getElementById("badge-total");
@@ -350,22 +316,18 @@
         const mapaInformesPorOrden = new Map();
         informesRaw.forEach(inf => {
           const ordKey = inf.ordenId || inf.numeroOrden || inf.id.replace("informe_", "");
-          if (!mapaInformesPorOrden.has(ordKey)) {
-            mapaInformesPorOrden.set(ordKey, []);
-          }
+          if (!mapaInformesPorOrden.has(ordKey)) mapaInformesPorOrden.set(ordKey, []);
           mapaInformesPorOrden.get(ordKey).push(inf);
           mapaInformesPorOrden.set(inf.id, [inf]);
         });
 
         listaTotalTrabajos = ordenesRaw.map(ord => {
           const infsAsociados = mapaInformesPorOrden.get(ord.id) || mapaInformesPorOrden.get(ord.numeroOrden) || [];
-          
           infsAsociados.sort((a, b) => {
             const fa = extraerFechaDate(a.fechaCaptura || a.fechaCreacion || a.fechaVisita) || 0;
             const fb = extraerFechaDate(b.fechaCaptura || b.fechaCreacion || b.fechaVisita) || 0;
             return fb - fa;
           });
-
           const ultimoInforme = infsAsociados[0] || null;
 
           const titularObj = ord.titular || {};
@@ -375,7 +337,7 @@
           const difuntoNombre = extraerNombreDifunto(ord.difunto || ord.nombreDifunto || ord.enMemoriaDe);
           const plan = ord.servicio?.planNombre || ord.planNombre || ord.plan || "Plan Específico";
           const operador = ord.operadorAsignadoNombre || ord.operador || ultimoInforme?.operadorNombre || "Sin Asignar";
-          
+
           const ubi = ord.ubicacionSepultura || {};
           const cementerio = ubi.cementerio || ord.cementerio || ultimoInforme?.cementerio || "No especificado";
           const sector = ubi.sector || ord.sector || ultimoInforme?.sector || "-";
@@ -390,7 +352,6 @@
           const monto = Number(ord.montoTotal || ord.precioNumerico || ord.valores?.total || 0);
           const realizadas = ord.serviciosRealizados ?? (infsAsociados.length > 0 ? infsAsociados.length : (estado === "completada" ? 1 : 0));
           const pendientes = Math.max(0, (ord.visitas || 1) - realizadas);
-
           const pdfUrl = ord.ultimoInformePdfUrl || ultimoInforme?.pdfUrl || "";
 
           return {
@@ -413,8 +374,7 @@
             lote: lote,
             estado: estado,
             ultimoInforme: ultimoInforme,
-            pdfUrl: pdfUrl,
-            rawOrden: ord
+            pdfUrl: pdfUrl
           };
         });
 
@@ -555,7 +515,6 @@
     }
 
     function abrirModalTrabajo(trabajo) {
-      trabajoSeleccionado = trabajo;
       const inf = trabajo.ultimoInforme;
 
       document.getElementById("modal-orden-id").textContent = trabajo.ordenId;
@@ -600,7 +559,6 @@
 
     function cerrarModalInforme() {
       document.getElementById("modal-informe").classList.add("hidden");
-      trabajoSeleccionado = null;
     }
 
     document.getElementById("btn-recargar")?.addEventListener("click", cargarTodosLosTrabajos);
@@ -612,16 +570,8 @@
     });
 
     const triggers = [
-      "filtro-texto-global", 
-      "filtro-mes", 
-      "filtro-anio", 
-      "filtro-desde", 
-      "filtro-hasta",
-      "select-filtro-cliente",
-      "select-filtro-plan",
-      "select-filtro-operador",
-      "select-filtro-cementerio",
-      "select-filtro-estado"
+      "filtro-texto-global", "filtro-mes", "filtro-anio", "filtro-desde", "filtro-hasta",
+      "select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"
     ];
 
     triggers.forEach(id => {
