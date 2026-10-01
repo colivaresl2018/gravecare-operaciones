@@ -1,4 +1,229 @@
-<script type="module">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todos los Trabajos | GraveCare Ops</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: "#002d1a",
+            brandLight: "#1a432f",
+            brandMuted: "#4e6451"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
+    .thumb-mini { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
+    select[multiple] { scrollbar-width: thin; }
+  </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+  <div class="max-w-[98%] mx-auto space-y-6">
+
+    <!-- Encabezado Principal -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div>
+        <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Gestión Global de Contratos</span>
+        <h1 class="text-2xl sm:text-3xl font-black text-brand">Todos los Trabajos</h1>
+        <p class="text-xs text-slate-500 mt-1">Listado consolidado de servicios contratados, avances de visitas y evidencias técnicas</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="badge-total" class="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">Cargando contratos...</span>
+        <button id="btn-recargar" class="p-2 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-600 transition cursor-pointer" title="Recargar base de datos">
+          <span class="material-symbols-outlined text-lg">refresh</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Filtros -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <div class="md:col-span-5">
+          <label class="block font-bold text-slate-700 mb-1">
+            Búsqueda General (Cliente, Titular, Difunto, Cementerio o N° Orden):
+          </label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-base">search</span>
+            <input type="text" id="filtro-texto-global" placeholder="Ej: Domingo Santa María, Meléndez, Cordillera, ORD-..." class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-brand focus:border-brand">
+          </div>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">Mes Contratación:</label>
+          <select id="filtro-mes" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+            <option value="">Todos los Meses</option>
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-bold text-slate-700 mb-1">Año Contratación:</label>
+          <select id="filtro-anio" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+            <option value="">Todos los Años</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-3 grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Desde:</label>
+            <input type="date" id="filtro-desde" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Hasta:</label>
+            <input type="date" id="filtro-hasta" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Cliente / Titular:</label>
+          <select id="select-filtro-cliente" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Plan de Servicio:</label>
+          <select id="select-filtro-plan" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Operador Asignado:</label>
+          <select id="select-filtro-operador" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Cementerio:</label>
+          <select id="select-filtro-cementerio" multiple class="w-full h-24 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand"></select>
+        </div>
+        <div class="flex flex-col justify-between">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Estado Orden:</label>
+            <select id="select-filtro-estado" multiple class="w-full h-16 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
+              <option value="iniciada">Iniciada / Creada</option>
+              <option value="asignada">Asignada</option>
+              <option value="en proceso">En Proceso</option>
+              <option value="en_revision">En Revisión</option>
+              <option value="completada">Completada</option>
+              <option value="activa">Suscripción Activa</option>
+            </select>
+          </div>
+          <button id="btn-limpiar" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition mt-2 flex items-center justify-center gap-1 cursor-pointer">
+            <span class="material-symbols-outlined text-sm">filter_alt_off</span> Limpiar Filtros
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabla Maestra -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+              <th class="p-3">Cliente / Titular</th>
+              <th class="p-3">Plan</th>
+              <th class="p-3">Operador Asignado</th>
+              <th class="p-3">Contratación</th>
+              <th class="p-3">Término</th>
+              <th class="p-3 text-right">Monto Pagado</th>
+              <th class="p-3 text-center">Realizadas</th>
+              <th class="p-3 text-center">Pendientes</th>
+              <th class="p-3">Última Visita</th>
+              <th class="p-3">Próxima Visita</th>
+              <th class="p-3">Cementerio</th>
+              <th class="p-3 text-center">Informe</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-cuerpo" class="divide-y divide-slate-100 text-slate-700">
+            <tr>
+              <td colspan="12" class="p-8 text-center text-slate-400 font-medium">Cargando contratos y órdenes...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Detalle Informe -->
+  <div id="modal-informe" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 space-y-5">
+      <div class="flex justify-between items-start border-b border-slate-200 pb-3">
+        <div>
+          <span id="modal-orden-id" class="text-xs font-extrabold text-brandMuted uppercase tracking-wider">ORD-XXXX</span>
+          <h2 id="modal-difunto" class="text-xl font-black text-brand">Nombre Difunto</h2>
+          <p id="modal-subtitulo" class="text-xs text-slate-500">Detalle técnico de mantención</p>
+        </div>
+        <button id="btn-cerrar-modal" class="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <span class="material-symbols-outlined text-2xl">close</span>
+        </button>
+      </div>
+
+      <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-2">
+        <p><strong>Cliente Titular:</strong> <span id="modal-cliente">-</span></p>
+        <p><strong>Operador a Cargo:</strong> <span id="modal-operador">-</span></p>
+        <p><strong>Ubicación Registrada:</strong> <span id="modal-ubicacion">-</span></p>
+        <p><strong>Observaciones Técnicas:</strong> <span id="modal-observaciones" class="italic text-slate-600">Sin notas técnicas.</span></p>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Evidencia Fotográfica en Terreno</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-[11px]">
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">1. Antes</span>
+            <div id="box-foto-antes"></div>
+          </div>
+          <div>
+            <span class="font-bold text-brand block mb-1">2. Después</span>
+            <div id="box-foto-despues"></div>
+          </div>
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">3. Flores</span>
+            <div id="box-foto-flores"></div>
+          </div>
+          <div>
+            <span class="font-bold text-slate-500 block mb-1">4. Vista Panorámica</span>
+            <div id="box-foto-general"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
+        <button id="btn-modal-ver-oficial" class="px-4 py-2 bg-brand text-white font-bold text-xs rounded-lg hover:bg-brandLight transition flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-sm">visibility</span> Ver Informe Oficial
+        </button>
+        <button id="btn-modal-imprimir" class="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-sm">print</span> Imprimir Ficha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
     import { requireStaffAccess } from "./js/portal-common.js";
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
@@ -16,7 +241,6 @@
       appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
     };
 
-    // Inicialización explícita asegurando que 'db' siempre sea un FirebaseFirestore válido
     const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -77,8 +301,13 @@
     window.cargarTodosLosTrabajos = async function() {
       const cuerpo = document.getElementById("tabla-cuerpo");
       const badge = document.getElementById("badge-total");
-      cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando registros en Firebase...</td></tr>`;
-      badge.textContent = "Sincronizando...";
+      
+      if (cuerpo) {
+        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando registros en Firebase...</td></tr>`;
+      }
+      if (badge) {
+        badge.textContent = "Sincronizando...";
+      }
 
       try {
         const [snapOrdenes, snapInformes] = await Promise.all([
@@ -156,12 +385,18 @@
 
         poblarOpcionesFiltros(listaTotalTrabajos);
         renderizarTabla(listaTotalTrabajos);
-        badge.textContent = `${listaTotalTrabajos.length} trabajos registrados`;
+        if (badge) {
+          badge.textContent = `${listaTotalTrabajos.length} trabajos registrados`;
+        }
 
       } catch (err) {
         console.error("Error al cargar todos los trabajos:", err);
-        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-red-600 font-semibold">Error al sincronizar con Firestore: ${err.message}</td></tr>`;
-        badge.textContent = "Error al conectar";
+        if (cuerpo) {
+          cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-red-600 font-semibold">Error al sincronizar con Firestore: ${err.message}</td></tr>`;
+        }
+        if (badge) {
+          badge.textContent = "Error al conectar";
+        }
       }
     };
 
@@ -188,13 +423,24 @@
     }
 
     function aplicarFiltros() {
-      const q = document.getElementById("filtro-texto-global").value.toLowerCase().trim();
-      const mesFiltro = document.getElementById("filtro-mes").value;
-      const anioFiltro = document.getElementById("filtro-anio").value;
-      const desdeFiltro = document.getElementById("filtro-desde").value;
-      const hastaFiltro = document.getElementById("filtro-hasta").value;
+      const elTexto = document.getElementById("filtro-texto-global");
+      const elMes = document.getElementById("filtro-mes");
+      const elAnio = document.getElementById("filtro-anio");
+      const elDesde = document.getElementById("filtro-desde");
+      const elHasta = document.getElementById("filtro-hasta");
+      const elBadge = document.getElementById("badge-total");
 
-      const getSeleccionados = id => Array.from(document.getElementById(id).selectedOptions).map(o => o.value.toLowerCase());
+      const q = elTexto ? elTexto.value.toLowerCase().trim() : "";
+      const mesFiltro = elMes ? elMes.value : "";
+      const anioFiltro = elAnio ? elAnio.value : "";
+      const desdeFiltro = elDesde ? elDesde.value : "";
+      const hastaFiltro = elHasta ? elHasta.value : "";
+
+      const getSeleccionados = id => {
+        const elem = document.getElementById(id);
+        return elem ? Array.from(elem.selectedOptions).map(o => o.value.toLowerCase()) : [];
+      };
+
       const clientesSel = getSeleccionados("select-filtro-cliente");
       const planesSel = getSeleccionados("select-filtro-plan");
       const operadoresSel = getSeleccionados("select-filtro-operador");
@@ -234,11 +480,14 @@
       });
 
       renderizarTabla(filtrados);
-      document.getElementById("badge-total").textContent = `${filtrados.length} de ${listaTotalTrabajos.length} trabajos`;
+      if (elBadge) {
+        elBadge.textContent = `${filtrados.length} de ${listaTotalTrabajos.length} trabajos`;
+      }
     }
 
     function renderizarTabla(datos) {
       const cuerpo = document.getElementById("tabla-cuerpo");
+      if (!cuerpo) return;
       cuerpo.innerHTML = "";
 
       if (datos.length === 0) {
@@ -303,6 +552,7 @@
 
       const cargarFotoBox = (idBox, url, titulo) => {
         const box = document.getElementById(idBox);
+        if (!box) return;
         if (url) {
           box.innerHTML = `<a href="${url}" target="_blank" title="Abrir imagen"><img src="${url}" class="thumb-mini hover:opacity-90 transition cursor-pointer" alt="${titulo}"></a>`;
         } else {
@@ -318,60 +568,83 @@
       cargarFotoBox("box-foto-general", extraerFotoUrl(fotos.general || fotos.panoramica), "Panorámica");
 
       const btnOficial = document.getElementById("btn-modal-ver-oficial");
-      btnOficial.onclick = () => {
-        if (trabajo.pdfUrl && trabajo.pdfUrl.startsWith("https://")) {
-          window.open(trabajo.pdfUrl, "_blank");
-        } else if (inf?.pdfUrl && inf.pdfUrl.startsWith("https://")) {
-          window.open(inf.pdfUrl, "_blank");
-        } else {
-          const infIdParam = inf?.id ? `&informeId=${inf.id}` : "";
-          const urlFallback = `https://gravecare.cl/informe.html?ordenId=${trabajo.ordenId}${infIdParam}`;
-          window.open(urlFallback, "_blank");
-        }
-      };
+      if (btnOficial) {
+        btnOficial.onclick = () => {
+          if (trabajo.pdfUrl && trabajo.pdfUrl.startsWith("https://")) {
+            window.open(trabajo.pdfUrl, "_blank");
+          } else if (inf?.pdfUrl && inf.pdfUrl.startsWith("https://")) {
+            window.open(inf.pdfUrl, "_blank");
+          } else {
+            const infIdParam = inf?.id ? `&informeId=${inf.id}` : "";
+            const urlFallback = `https://gravecare.cl/informe.html?ordenId=${trabajo.ordenId}${infIdParam}`;
+            window.open(urlFallback, "_blank");
+          }
+        };
+      }
 
-      document.getElementById("modal-informe").classList.remove("hidden");
+      const modal = document.getElementById("modal-informe");
+      if (modal) modal.classList.remove("hidden");
     }
 
     function cerrarModalInforme() {
-      document.getElementById("modal-informe").classList.add("hidden");
+      const modal = document.getElementById("modal-informe");
+      if (modal) modal.classList.add("hidden");
     }
 
-    document.getElementById("btn-recargar")?.addEventListener("click", window.cargarTodosLosTrabajos);
-    document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModalInforme);
-    document.getElementById("btn-modal-imprimir")?.addEventListener("click", () => window.print());
+    // Inicializar eventos de filtros
+    function iniciarEventos() {
+      document.getElementById("btn-recargar")?.addEventListener("click", window.cargarTodosLosTrabajos);
+      document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModalInforme);
+      document.getElementById("btn-modal-imprimir")?.addEventListener("click", () => window.print());
 
-    document.getElementById("modal-informe")?.addEventListener("click", (e) => {
-      if (e.target.id === "modal-informe") cerrarModalInforme();
-    });
+      document.getElementById("modal-informe")?.addEventListener("click", (e) => {
+        if (e.target.id === "modal-informe") cerrarModalInforme();
+      });
 
-    const triggers = [
-      "filtro-texto-global", "filtro-mes", "filtro-anio", "filtro-desde", "filtro-hasta",
-      "select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"
-    ];
+      const triggers = [
+        "filtro-texto-global", "filtro-mes", "filtro-anio", "filtro-desde", "filtro-hasta",
+        "select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"
+      ];
 
-    triggers.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener("input", aplicarFiltros);
-        el.addEventListener("change", aplicarFiltros);
+      triggers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener("input", aplicarFiltros);
+          el.addEventListener("change", aplicarFiltros);
+        }
+      });
+
+      document.getElementById("btn-limpiar")?.addEventListener("click", () => {
+        const elTexto = document.getElementById("filtro-texto-global");
+        const elMes = document.getElementById("filtro-mes");
+        const elAnio = document.getElementById("filtro-anio");
+        const elDesde = document.getElementById("filtro-desde");
+        const elHasta = document.getElementById("filtro-hasta");
+        if (elTexto) elTexto.value = "";
+        if (elMes) elMes.value = "";
+        if (elAnio) elAnio.value = "";
+        if (elDesde) elDesde.value = "";
+        if (elHasta) elHasta.value = "";
+        ["select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"].forEach(id => {
+          const s = document.getElementById(id);
+          if (s) Array.from(s.options).forEach(opt => opt.selected = false);
+        });
+        aplicarFiltros();
+      });
+    }
+
+    // Asegurar carga tras validar staff y DOM
+    requireStaffAccess(async () => {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", async () => {
+          iniciarEventos();
+          await window.cargarTodosLosTrabajos();
+        });
+      } else {
+        iniciarEventos();
+        await window.cargarTodosLosTrabajos();
       }
     });
-
-    document.getElementById("btn-limpiar")?.addEventListener("click", () => {
-      document.getElementById("filtro-texto-global").value = "";
-      document.getElementById("filtro-mes").value = "";
-      document.getElementById("filtro-anio").value = "";
-      document.getElementById("filtro-desde").value = "";
-      document.getElementById("filtro-hasta").value = "";
-      ["select-filtro-cliente", "select-filtro-plan", "select-filtro-operador", "select-filtro-cementerio", "select-filtro-estado"].forEach(id => {
-        const s = document.getElementById(id);
-        if (s) Array.from(s.options).forEach(opt => opt.selected = false);
-      });
-      aplicarFiltros();
-    });
-
-    requireStaffAccess(async () => {
-      await window.cargarTodosLosTrabajos();
-    });
   </script>
+</body>
+</html>
