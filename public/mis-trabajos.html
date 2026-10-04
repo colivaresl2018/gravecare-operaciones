@@ -1,339 +1,106 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Mis Trabajos | Portal de Operaciones GraveCare</title>
-  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: "#002d1a",
-            brandLight: "#1a432f",
-            brandMuted: "#4e6451"
-          },
-          fontFamily: {
-            sans: ["Plus Jakarta Sans", "sans-serif"]
-          }
-        }
-      }
-    };
-  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mis Trabajos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
-    #mapa-google { width: 100% !important; height: 320px !important; min-height: 320px !important; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      padding: 24px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .card-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .card-desc {
+      font-size: 0.88rem;
+      color: #64748b;
+      margin-top: 4px;
+      margin-bottom: 20px;
+    }
+    .search-box {
+      margin-bottom: 20px;
+    }
+    .search-input {
+      width: 100%;
+      max-width: 380px;
+      padding: 9px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-input:focus { border-color: #002d1a; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    th {
+      background: #f8fafc;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.9rem;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
   </style>
 </head>
-<body class="p-4 md:p-8 max-w-6xl mx-auto text-slate-800">
+<body>
 
-  <header class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4 gap-4">
-    <div>
-      <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Operaciones en Terreno</span>
-      <h1 class="text-2xl font-black text-brand">Mis Trabajos Asignados</h1>
-      <p class="text-xs text-slate-500 mt-0.5">Órdenes de servicio activas y visitas técnicas agendadas.</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <button onclick="window.location.reload()" class="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm" title="Refrescar lista">
-        <span class="material-symbols-outlined text-base">refresh</span> Actualizar
-      </button>
-    </div>
-  </header>
+  <div class="card">
+    <h2 class="card-title">Mis Servicios y Asignaciones</h2>
+    <p class="card-desc">Listado de órdenes y mantenimientos asignados a tu perfil.</p>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-    <!-- Columna Izquierda: Tarjetas de Órdenes -->
-    <div class="lg:col-span-7 space-y-4">
-      <div id="lista-trabajos" class="space-y-4">
-        <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-sm">
-          <span class="material-symbols-outlined text-3xl text-brand animate-spin mb-2">progress_activity</span>
-          <p class="font-medium">Cargando tus órdenes de trabajo...</p>
-        </div>
-      </div>
+    <div class="search-box">
+      <input type="text" class="search-input" id="filtroTexto" placeholder="Buscar por cliente, difunto o sepultura...">
     </div>
 
-    <!-- Columna Derecha: Mapa de Terreno -->
-    <div class="lg:col-span-5 sticky top-6 space-y-4">
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-          <h2 class="text-sm font-bold text-brand uppercase tracking-wider flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-base text-brandLight">map</span> Mapa de Rutas en Terreno
-          </h2>
-          <span id="txt-conteo-mapa" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">0 puntos</span>
-        </div>
-
-        <div id="mapa-placeholder" class="h-80 rounded-xl bg-slate-50 border border-dashed border-slate-300 flex flex-col items-center justify-center p-4 text-center">
-          <span class="material-symbols-outlined text-3xl text-slate-400 mb-1">location_searching</span>
-          <p class="text-xs text-slate-500">Cargando mapa interactivo...</p>
-        </div>
-
-        <div id="mapa-google" class="hidden rounded-xl overflow-hidden border border-slate-200"></div>
-
-        <div class="pt-2">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Cementerios de tus órdenes:</span>
-          <ul id="lista-cementerios-sin-mapa" class="text-xs text-slate-600 space-y-1">
-            <li class="italic text-slate-400">Sin órdenes cargadas.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>N° Orden</th>
+          <th>Cliente / Difunto</th>
+          <th>Cementerio</th>
+          <th>Servicio</th>
+          <th>Estado</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="tablaTrabajosBody">
+        <tr>
+          <td colspan="6" class="empty-state">No tienes trabajos asignados para el periodo seleccionado.</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <script type="module">
-    import { requireStaffAccess } from "./js/portal-common.js";
-    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {
-      getFirestore, collection, getDocs, doc, updateDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
-      authDomain: "gravecare-2e8d2.firebaseapp.com",
-      projectId: "gravecare-2e8d2",
-      storageBucket: "gravecare-2e8d2.appspot.com",
-      messagingSenderId: "160012946248",
-      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
-    };
-
-    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    let mapInstance = null;
-    let markersActuales = [];
-    let trabajosParaMapa = [];
-
-    function badgeEstado(estado) {
-      const normalizado = (estado || "pendiente").toLowerCase().trim();
-      if (normalizado === "asignada") {
-        return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Asignada</span>`;
-      }
-      if (normalizado === "en proceso") {
-        return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">En Proceso</span>`;
-      }
-      if (normalizado === "en revision") {
-        return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">En Revisión</span>`;
-      }
-      return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">${estado || 'Pendiente'}</span>`;
-    }
-
-    function textoSepultura(ubi, t) {
-      const u = ubi || t.ubicacionSepultura || {};
-      const cem = u.cementerio || t.cementerio || "Cementerio";
-      const sec = u.sector || t.sector || "S/S";
-      const sep = u.numeroSepultura || u.numero || t.lote || "S/N";
-      return `${cem} • Sec. ${sec}, Sep. #${sep}`;
-    }
-
-    async function cargarMisTrabajos(uid, staffProfile) {
-      const cont = document.getElementById("lista-trabajos");
-
-      try {
-        const snap = await getDocs(collection(db, "ordenes"));
-        const todas = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
-
-        const emailOp = (staffProfile?.email || "").toLowerCase().trim();
-        const nomOp = (staffProfile?.nombres || staffProfile?.nombreCompleto || "").toLowerCase().trim();
-
-        let misOrdenes = todas.filter(t => {
-          const idAsignado = String(t.operadorAsignadoId || t.operadorId || t.operadorUid || "");
-          const nomAsignado = String(t.operadorAsignadoNombre || t.operadorNombre || t.operador || "").toLowerCase();
-          const emailAsignado = String(t.operadorAsignadoEmail || t.operadorEmail || "").toLowerCase();
-
-          return (idAsignado && idAsignado === uid) ||
-                 (nomOp && nomAsignado.includes(nomOp)) ||
-                 (emailOp && emailAsignado === emailOp);
-        });
-
-        if (misOrdenes.length === 0) {
-          misOrdenes = todas;
-        }
-
-        const trabajosPendientes = misOrdenes.filter(t => {
-          const est = (t.estado || "").toLowerCase().trim();
-          const estInf = (t.estadoInforme || "").toLowerCase().trim();
-          return est !== "completada" && est !== "completado" && est !== "terminada" && estInf !== "aprobado";
-        });
-
-        trabajosPendientes.sort((a, b) => {
-          const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : 0);
-          const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : 0);
-          return tb - ta;
-        });
-
-        if (trabajosPendientes.length === 0) {
-          cont.innerHTML = `
-            <div class="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 shadow-sm">
-              <span class="material-symbols-outlined text-4xl text-emerald-600 mb-2">task_alt</span>
-              <h3 class="font-bold text-slate-800 text-base">¡Al día! No tienes labores pendientes</h3>
-              <p class="text-xs text-slate-500 mt-1">Todas tus órdenes asignadas están concluidas.</p>
-            </div>
-          `;
-          document.getElementById("lista-cementerios-sin-mapa").innerHTML = '<li class="italic text-slate-400">Sin órdenes pendientes.</li>';
-          document.getElementById("txt-conteo-mapa").textContent = "0 puntos";
-          return;
-        }
-
-        cont.innerHTML = trabajosPendientes.map((t) => {
-          const difuntoNombre = t.difunto?.nombreCompleto || t.difunto?.nombre || t.nombreDifunto || t.enMemoriaDe || "Visita Técnica";
-          const titularNombre = t.titular?.nombres || t.clienteNombre || t.nombreTitular || t.cliente || "Cliente";
-          const numeroOrden = t.numeroOrden || t.ordenId || t._docId;
-          const plan = t.planNombre || t.servicio?.planNombre || t.plan || "Preservación Memorial";
-          const estadoActual = t.estado || "asignada";
-
-          const coords = t.coordenadas || t.ubicacionSepultura?.coordenadas || null;
-          const mapsHref = (coords && coords.lat) 
-            ? `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`
-            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(textoSepultura(t.ubicacionSepultura, t))}`;
-
-          return `
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition space-y-4">
-              <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-                <div>
-                  <span class="text-[11px] font-extrabold text-brandMuted uppercase tracking-wider block">Orden #${numeroOrden}</span>
-                  <h3 class="text-base font-extrabold text-brand mt-0.5">${difuntoNombre}</h3>
-                  <p class="text-xs font-semibold text-slate-600 mt-0.5 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm text-slate-400">location_on</span>
-                    ${textoSepultura(t.ubicacionSepultura, t)}
-                  </p>
-                </div>
-                <div>${badgeEstado(estadoActual)}</div>
-              </div>
-
-              <div class="text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
-                <span><strong>Plan:</strong> ${plan}</span>
-                <span><strong>Titular:</strong> ${titularNombre}</span>
-              </div>
-
-              <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                  <span class="text-xs font-bold text-slate-500">Mi Avance:</span>
-                  <select data-trabajo-id="${t._docId}" class="select-estado-trabajo text-xs font-semibold rounded-lg border-slate-300 py-1.5 px-3 focus:border-brand focus:ring-brand">
-                    <option value="asignada" ${estadoActual === 'asignada' ? 'selected' : ''}>Asignada</option>
-                    <option value="en proceso" ${estadoActual === 'en proceso' ? 'selected' : ''}>En Proceso</option>
-                    <option value="en revision" ${estadoActual === 'en revision' ? 'selected' : ''}>En Revisión</option>
-                  </select>
-                  <a href="${mapsHref}" target="_blank" class="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-brand hover:bg-slate-50" title="Ver en Google Maps">
-                    <span class="material-symbols-outlined text-base">directions</span>
-                  </a>
-                </div>
-
-                <a href="informe-captura.html?ordenId=${t._docId}" onclick="localStorage.setItem('gravecare_orden_activa', '${t._docId}')" class="w-full sm:w-auto px-4 py-2 bg-brand hover:bg-brandLight text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
-                  <span class="material-symbols-outlined text-base">photo_camera</span> Capturar Informe en Terreno
-                </a>
-              </div>
-            </div>
-          `;
-        }).join("");
-
-        const cementerios = [...new Set(
-          trabajosPendientes.map((t) => t.ubicacionSepultura?.cementerio || t.cementerio).filter(Boolean)
-        )];
-        document.getElementById("lista-cementerios-sin-mapa").innerHTML =
-          cementerios.length
-            ? cementerios.map((c) => `<li class="flex items-center gap-1"><span class="text-emerald-700 font-bold">•</span> ${c}</li>`).join("")
-            : '<li class="italic text-slate-400">Sin cementerios especificados.</li>';
-
-        cont.querySelectorAll(".select-estado-trabajo").forEach(sel => {
-          sel.addEventListener("change", async (e) => {
-            const docId = e.target.getAttribute("data-trabajo-id");
-            try {
-              await updateDoc(doc(db, "ordenes", docId), {
-                estado: e.target.value,
-                updatedAt: serverTimestamp()
-              });
-              await cargarMisTrabajos(uid, staffProfile);
-            } catch (err) {
-              console.error("Error al actualizar avance:", err);
-            }
-          });
-        });
-
-        // Coordenadas con valores por defecto si no vienen registradas
-        trabajosParaMapa = trabajosPendientes.map((t, index) => {
-          const lat = t.coordenadas?.lat || t.ubicacionSepultura?.coordenadas?.lat || t.lat || (-33.44154 - (index * 0.015));
-          const lng = t.coordenadas?.lng || t.ubicacionSepultura?.coordenadas?.lng || t.lng || (-70.65623 - (index * 0.01));
-          return { ...t, mapLat: Number(lat), mapLng: Number(lng) };
-        });
-
-        document.getElementById("txt-conteo-mapa").textContent = `${trabajosParaMapa.length} en mapa`;
-        iniciarOActualizarMapa();
-
-      } catch (errCarga) {
-        console.error("Error al consultar órdenes:", errCarga);
-        cont.innerHTML = `<div class="p-6 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs"><strong>Error al conectar con la base de datos:</strong> ${errCarga.message || errCarga}</div>`;
-      }
-    }
-
-    function iniciarOActualizarMapa() {
-      if (typeof google === 'undefined' || !google.maps) {
-        setTimeout(iniciarOActualizarMapa, 300);
-        return;
-      }
-
-      const placeholder = document.getElementById("mapa-placeholder");
-      const mapEl = document.getElementById("mapa-google");
-
-      if (!mapInstance && mapEl) {
-        placeholder.classList.add("hidden");
-        mapEl.classList.remove("hidden");
-
-        mapInstance = new google.maps.Map(mapEl, {
-          center: { lat: -33.4489, lng: -70.6693 },
-          zoom: 11,
-          streetViewControl: false,
-          mapTypeControl: false
-        });
-      }
-
-      renderMarcadores();
-    }
-
-    function renderMarcadores() {
-      if (!mapInstance || !window.google || !google.maps) return;
-
-      markersActuales.forEach((m) => m.setMap(null));
-      markersActuales = [];
-
-      if (!trabajosParaMapa || trabajosParaMapa.length === 0) return;
-
-      const bounds = new google.maps.LatLngBounds();
-      trabajosParaMapa.forEach((t) => {
-        const nombre = t.difunto?.nombreCompleto || t.difunto?.nombre || t.nombreDifunto || "Sepultura";
-
-        const marker = new google.maps.Marker({
-          position: { lat: t.mapLat, lng: t.mapLng },
-          map: mapInstance,
-          title: `${nombre}`
-        });
-
-        const info = new google.maps.InfoWindow({
-          content: `<div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;padding:4px;"><strong>${nombre}</strong><br><span style="color:#64748b;">${textoSepultura(t.ubicacionSepultura, t)}</span></div>`
-        });
-        marker.addListener("click", () => info.open(mapInstance, marker));
-        markersActuales.push(marker);
-        bounds.extend(marker.getPosition());
-      });
-
-      mapInstance.fitBounds(bounds);
-      if (trabajosParaMapa.length === 1) mapInstance.setZoom(14);
-      
-      // Forzar que el mapa calcule su tamaño si está dentro de un iframe
-      setTimeout(() => {
-        google.maps.event.trigger(mapInstance, 'resize');
-      }, 400);
-    }
-
-    const mapsScript = document.createElement("script");
-    mapsScript.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0";
-    mapsScript.async = true;
-    mapsScript.onload = () => iniciarOActualizarMapa();
-    document.head.appendChild(mapsScript);
-
-    requireStaffAccess((user, staffProfile) => {
-      cargarMisTrabajos(user.uid, staffProfile);
-    });
-  </script>
 </body>
 </html>

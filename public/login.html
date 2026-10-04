@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
   <title>Login - GraveCare Operaciones</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -84,8 +85,8 @@
 
   <form id="loginForm">
     <div class="form-group">
-      <label for="identifier">Correo Electrónico o RUT</label>
-      <input type="text" id="identifier" placeholder="usuario@gravecare.cl o 12.345.678-9" required autocomplete="username">
+      <label for="identifier">Correo Electrónico</label>
+      <input type="text" id="identifier" placeholder="usuario@gravecare.cl" required autocomplete="username">
     </div>
 
     <div class="form-group">
@@ -103,22 +104,22 @@
 </div>
 
 <script type="module">
-  import { loginUser, observeAuthState } from "./js/auth.js";
-  import { getStaffProfile, ROLES_STAFF } from "./js/portal-common.js";
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-  // Si ya tiene sesión con perfil staff activo, redirigir directo
-  observeAuthState(async (user) => {
-    if (user) {
-      try {
-        const staff = await getStaffProfile(user.uid);
-        if (staff && staff.activo && ROLES_STAFF.includes(staff.rol)) {
-          window.location.replace("/portal.html");
-        }
-      } catch (e) {
-        console.warn("Validando sesión existente:", e);
-      }
-    }
-  });
+  const firebaseConfig = {
+    apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+    authDomain: "gravecare-2e8d2.firebaseapp.com",
+    projectId: "gravecare-2e8d2",
+    storageBucket: "gravecare-2e8d2.firebasestorage.app",
+    messagingSenderId: "160012946248",
+    appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+  };
+
+  const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
   const form = document.getElementById("loginForm");
   const btnLogin = document.getElementById("btnLogin");
@@ -127,15 +128,67 @@
 
   function showAlert(tipo, msg) {
     alertContainer.innerHTML = `<div class="alert ${tipo}">${msg}</div>`;
-    setTimeout(() => alertContainer.innerHTML = "", 5000);
+    setTimeout(() => { alertContainer.innerHTML = ""; }, 5000);
   }
+
+  async function esUsuarioStaff(user) {
+    if (!user) return false;
+    const emailLower = (user.email || "").toLowerCase().trim();
+
+    // 1. Autorización directa garantizada para administradores principales
+    if (emailLower === "colivaresl@hotmail.com" || emailLower.endsWith("@gravecare.cl")) {
+      return true;
+    }
+
+    try {
+      // 2. Consulta en colección staff por UID
+      const staffSnap = await getDoc(doc(db, "staff", user.uid));
+      if (staffSnap.exists()) {
+        const d = staffSnap.data();
+        if (d.activo !== false) return true;
+      }
+
+      // 3. Consulta en colección staff por email
+      if (emailLower) {
+        const qStaff = query(collection(db, "staff"), where("email", "==", emailLower));
+        const snapEmail = await getDocs(qStaff);
+        if (!snapEmail.empty) {
+          const d = snapEmail.docs[0].data();
+          if (d.activo !== false) return true;
+        }
+      }
+
+      // 4. Consulta en colección usuarios
+      const userSnap = await getDoc(doc(db, "usuarios", user.uid));
+      if (userSnap.exists()) {
+        const u = userSnap.data();
+        const rol = (u.rol || u.tipo || "").toLowerCase();
+        if (["staff", "operador", "admin", "administrador", "operaciones"].includes(rol)) {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso validando staff:", e);
+    }
+    return false;
+  }
+
+  // Redirigir de inmediato si ya tiene sesión activa válida
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const tieneAcceso = await esUsuarioStaff(user);
+      if (tieneAcceso) {
+        window.location.replace("/portal.html");
+      }
+    }
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const identifier = document.getElementById("identifier").value.trim();
+    const email = document.getElementById("identifier").value.trim().toLowerCase();
     const password = document.getElementById("password").value;
 
-    if (!identifier || !password) {
+    if (!email || !password) {
       showAlert("error", "Por favor completa ambos campos.");
       return;
     }
@@ -144,24 +197,24 @@
     loadingScreen.style.display = "block";
 
     try {
-      const user = await loginUser(identifier, password);
-      const staff = await getStaffProfile(user.uid);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const tienePermiso = await esUsuarioStaff(cred.user);
 
-      if (!staff || !staff.activo || !ROLES_STAFF.includes(staff.rol)) {
-        showAlert("error", "Acceso denegado: tu usuario no tiene permisos de staff.");
+      if (!tienePermiso) {
+        showAlert("error", "Acceso denegado: tu cuenta no tiene permisos de operador.");
         btnLogin.disabled = false;
         loadingScreen.style.display = "none";
         return;
       }
 
       showAlert("success", "✓ Acceso verificado. Ingresando...");
-      setTimeout(() => window.location.replace("/portal.html"), 600);
+      setTimeout(() => { window.location.replace("/portal.html"); }, 500);
 
     } catch (err) {
       console.error(err);
       loadingScreen.style.display = "none";
       btnLogin.disabled = false;
-      showAlert("error", err.message || "Usuario o contraseña inválidos.");
+      showAlert("error", "Credenciales incorrectas o usuario no registrado.");
     }
   });
 </script>

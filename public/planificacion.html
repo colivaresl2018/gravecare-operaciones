@@ -9,7 +9,30 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
-    .gantt-col { min-width: 145px; }
+    .gantt-col { min-width: 130px; }
+    .gantt-col-day { min-width: 80px; }
+    
+    /* Efecto tarjeta seleccionada */
+    .tarjeta-activa {
+      outline: 2px solid #002d1a !important;
+      box-shadow: 0 0 10px rgba(0, 45, 26, 0.4) !important;
+      background-color: #fef08a !important;
+      animation: pulso 1.5s infinite;
+    }
+    @keyframes pulso {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+
+    /* Resaltar celdas disponibles para recibir la tarea */
+    .fila-modo-destino td[data-col-key] {
+      cursor: pointer;
+    }
+    .fila-modo-destino td[data-col-key]:hover {
+      background-color: #dcfce7 !important;
+      outline: 2px dashed #16a34a;
+      outline-offset: -2px;
+    }
   </style>
 </head>
 <body class="p-4 md:p-8">
@@ -23,21 +46,32 @@
         </a>
         <h1 class="text-2xl font-bold text-[#002d1a]">Control & Planificación Operativa</h1>
       </div>
-      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, estados de cuenta, asignación de operadores y carta Gantt a 6 meses móviles.</p>
+      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, estados de cuenta, asignación de operadores y carta Gantt.</p>
     </div>
 
     <!-- Switch de Vistas -->
     <div class="flex items-center bg-slate-200/80 p-1 rounded-xl">
-      <button id="btn-vista-gantt" onclick="cambiarVista('gantt')" class="px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
-        <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_view_month</span> Carta Gantt (6 Meses)
+      <button id="btn-vista-gantt" class="px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_view_month</span> Carta Gantt
       </button>
-      <button id="btn-vista-tabla" onclick="cambiarVista('tabla')" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+      <button id="btn-vista-tabla" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
         <span class="material-symbols-outlined text-sm align-middle mr-1">table_chart</span> Tabla de Clientes
       </button>
     </div>
   </header>
 
-  <!-- Filtros -->
+  <!-- Barra de Notificación de Selección Interactiva -->
+  <div id="barra-aviso-movimiento" class="hidden mb-4 p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between shadow-sm">
+    <div class="flex items-center gap-2 text-xs font-bold text-emerald-900">
+      <span class="material-symbols-outlined text-emerald-600 animate-spin">touch_app</span>
+      <span id="texto-aviso-movimiento">Tarea seleccionada: Haz clic en el casillero del nuevo día para reprogramar.</span>
+    </div>
+    <button type="button" id="btn-cancelar-movimiento" class="px-2.5 py-1 text-xs font-bold bg-white text-emerald-800 border border-emerald-300 rounded-lg hover:bg-emerald-100 transition">
+      Cancelar
+    </button>
+  </div>
+
+  <!-- Filtros y Escala Temporal -->
   <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
     <div class="flex flex-wrap gap-3 items-center flex-1">
       <div class="w-full sm:w-64">
@@ -53,16 +87,26 @@
           <option value="">Todos los Operadores</option>
         </select>
       </div>
+
+      <div id="selector-escala-container" class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
+        <span class="text-[11px] font-semibold text-slate-500 px-1">Escala:</span>
+        <button type="button" id="escala-dia" class="px-2.5 py-1 rounded bg-[#002d1a] text-white font-bold transition">Día</button>
+        <button type="button" id="escala-semana" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Semana</button>
+        <button type="button" id="escala-mes" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Mes</button>
+        <button type="button" id="escala-anio" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Año</button>
+      </div>
     </div>
-    <div class="text-xs font-semibold text-slate-500" id="contador-planes">Cargando contratos...</div>
+    <div class="text-xs font-semibold text-slate-600" id="contador-planes">Cargando contratos...</div>
   </section>
 
   <!-- VISTA 1: CARTA GANTT -->
   <section id="contenedor-gantt" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+    <div class="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center bg-slate-50 gap-2">
       <div>
         <h2 class="text-sm font-bold text-[#002d1a]">Línea de Tiempo y Proyección Operativa</h2>
-        <p class="text-[11px] text-slate-500">Planificación de intervenciones y mantenimiento preventivo por sepultura con operador asignado.</p>
+        <p class="text-[11px] text-slate-500">
+          👉 <strong>1 Clic</strong> en la tarjeta amarilla para seleccionarla y luego <strong>1 clic</strong> en el día de destino. (O doble clic para editar detalles).
+        </p>
       </div>
       <div class="flex items-center gap-3 text-xs">
         <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Realizada</span>
@@ -75,11 +119,11 @@
       <table class="w-full text-left border-collapse text-xs">
         <thead>
           <tr id="cabecera-gantt" class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-            <th class="py-3 px-4 sticky left-0 bg-slate-100 z-10 w-72 border-r border-slate-200">Cliente, Sepultura & Operador</th>
+            <th class="py-3 px-4 sticky left-0 bg-slate-100 z-10 w-80 border-r border-slate-200">Cliente, Sepultura & Operador</th>
           </tr>
         </thead>
         <tbody id="cuerpo-gantt" class="divide-y divide-slate-100">
-          <tr><td colspan="7" class="py-8 text-center text-slate-400">Cargando cronograma...</td></tr>
+          <tr><td colspan="15" class="py-8 text-center text-slate-400">Cargando cronograma...</td></tr>
         </tbody>
       </table>
     </div>
@@ -100,7 +144,7 @@
             <th class="py-3.5 px-2 text-center">Realizadas</th>
             <th class="py-3.5 px-2 text-center">Pendientes</th>
             <th class="py-3.5 px-3">Última Visita</th>
-            <th class="py-3.5 px-3">Próxima Visita</th>
+            <th class="py-3.5 px-3 text-center bg-amber-50/80 text-amber-900 border-x border-amber-200">Fecha Programada</th>
             <th class="py-3.5 px-3">Cementerio</th>
           </tr>
         </thead>
@@ -110,6 +154,45 @@
       </table>
     </div>
   </section>
+
+  <!-- MODAL DE EDICIÓN (SOLO POR DOBLE CLIC) -->
+  <div id="modal-reprogramar" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-[#002d1a] flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-amber-500">event</span> Detalles de Programación
+        </h3>
+        <button type="button" id="btn-cerrar-modal" class="text-slate-400 hover:text-slate-600">
+          <span class="material-symbols-outlined text-lg">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs mb-5">
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">Cliente:</span>
+          <div id="modal-cliente" class="font-bold text-slate-800 text-sm">...</div>
+          <div id="modal-difunto" class="text-slate-600 font-medium">...</div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Fecha Programada:</label>
+          <input type="date" id="modal-input-fecha" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#002d1a] bg-slate-50">
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Operador Asignado:</label>
+          <select id="modal-select-operador" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-[#002d1a] bg-slate-50">
+            <option value="Sin asignar">Sin asignar</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="button" id="btn-cancelar-modal" class="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition text-xs">Cancelar</button>
+        <button type="button" id="btn-guardar-modal" class="flex-1 py-2 rounded-lg bg-[#002d1a] text-white font-bold hover:bg-[#003d24] transition text-xs">Guardar</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module">
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -137,28 +220,78 @@
 
     let datosConsolidados = [];
     let listaOperadores = [];
-    const mesesMoviles = [];
+    let escalaActual = "dia";
+    let columnasGantt = [];
+    
+    // Estado del modo selección/traslado
+    let ordenSeleccionadaId = null;
+    let ordenEditandoId = null;
 
-    function inicializarMesesMoviles() {
+    function generarColumnasGantt() {
       const hoy = new Date();
-      mesesMoviles.length = 0;
-      for (let i = 0; i < 6; i++) {
-        const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
-        const anio = d.getFullYear();
-        const mesIndex = d.getMonth();
-        const key = `${anio}-${String(mesIndex + 1).padStart(2, '0')}`;
-        const nombre = d.toLocaleDateString("es-CL", { month: "short", year: "numeric" });
-        mesesMoviles.push({ key, label: nombre.toUpperCase() });
+      columnasGantt = [];
+
+      if (escalaActual === "dia") {
+        for (let i = 0; i < 14; i++) {
+          const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
+          const key = d.toISOString().split("T")[0];
+          const diaLetra = ["D", "L", "M", "M", "J", "V", "S"][d.getDay()];
+          const label = `${diaLetra} ${d.getDate()} ${d.toLocaleDateString("es-CL", { month: "short" }).toUpperCase()}`;
+          columnasGantt.push({ key, label, type: "dia" });
+        }
+      } else if (escalaActual === "semana") {
+        for (let i = 0; i < 8; i++) {
+          const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + (i * 7));
+          const inicioSem = new Date(d);
+          const finSem = new Date(d);
+          finSem.setDate(finSem.getDate() + 6);
+          const key = d.toISOString().split("T")[0];
+          const label = `Sem ${i + 1} (${d.getDate()}/${d.getMonth() + 1})`;
+          columnasGantt.push({ key, inicio: inicioSem, fin: finSem, label, type: "semana" });
+        }
+      } else if (escalaActual === "mes") {
+        for (let i = 0; i < 6; i++) {
+          const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const label = d.toLocaleDateString("es-CL", { month: "short", year: "numeric" }).toUpperCase();
+          columnasGantt.push({ key, label, type: "mes" });
+        }
+      } else if (escalaActual === "anio") {
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const label = d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" }).toUpperCase();
+          columnasGantt.push({ key, label, type: "anio" });
+        }
       }
     }
 
-    function extraerNombre(obj, fallback = "Cliente") {
+    function cambiarEscalaGantt(escala) {
+      escalaActual = escala;
+      deseleccionarTarea();
+      ['dia', 'semana', 'mes', 'anio'].forEach(e => {
+        const btn = document.getElementById("escala-" + e);
+        if (btn) {
+          if (e === escala) {
+            btn.className = "px-2.5 py-1 rounded bg-[#002d1a] text-white font-bold transition";
+          } else {
+            btn.className = "px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition";
+          }
+        }
+      });
+      generarColumnasGantt();
+      renderizarTodo();
+    }
+
+    function extraerTexto(obj, fallback = "Sin información") {
       if (!obj) return fallback;
-      if (typeof obj === "string") return obj.trim();
+      if (typeof obj === "string") return obj.trim() || fallback;
       if (typeof obj === "object") {
-        if (obj.nombreCompleto) return obj.nombreCompleto.trim();
+        if (obj.nombreCompleto) return String(obj.nombreCompleto).trim();
         const combo = `${obj.nombres || obj.nombre || ''} ${obj.apellidoPaterno || obj.apellido || ''}`.trim();
         if (combo) return combo;
+        if (obj.nombre) return String(obj.nombre).trim();
+        if (obj.email) return String(obj.email).trim();
       }
       return fallback;
     }
@@ -169,9 +302,24 @@
 
     function formatearFecha(f) {
       if (!f) return "-";
-      const d = f.toDate ? f.toDate() : new Date(f);
-      if (isNaN(d.getTime())) return "-";
-      return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+      try {
+        const d = (f && f.toDate) ? f.toDate() : new Date(f);
+        if (isNaN(d.getTime())) return "-";
+        return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+      } catch (e) {
+        return "-";
+      }
+    }
+
+    function convertirAFechaInput(f) {
+      if (!f) return "";
+      try {
+        const d = (f && f.toDate) ? f.toDate() : new Date(f);
+        if (isNaN(d.getTime())) return "";
+        return d.toISOString().split("T")[0];
+      } catch (e) {
+        return "";
+      }
     }
 
     async function cargarOperadores() {
@@ -180,37 +328,15 @@
         const snapUsers = await getDocs(collection(db, "staff"));
         snapUsers.forEach(d => {
           const s = d.data();
-          listaOperadores.push({
-            id: d.id,
-            nombre: s.nombre || s.email || "Operador " + d.id.substring(0, 4)
-          });
+          if (s.activo !== false) {
+            listaOperadores.push({
+              id: d.id,
+              nombre: s.nombre || s.email || "Operador " + d.id.substring(0, 4)
+            });
+          }
         });
       } catch (e) {
-        console.warn("Aviso al cargar operadores desde staff:", e);
-      }
-
-      if (listaOperadores.length === 0) {
-        try {
-          const snapUsuarios = await getDocs(collection(db, "usuarios"));
-          snapUsuarios.forEach(d => {
-            const u = d.data();
-            if (u.rol === "operador" || u.rol === "supervisor" || u.tipoUsuario === "staff") {
-              listaOperadores.push({
-                id: d.id,
-                nombre: u.nombre || u.email || "Operador"
-              });
-            }
-          });
-        } catch (e) {
-          console.warn("Aviso al cargar operadores desde usuarios:", e);
-        }
-      }
-
-      if (listaOperadores.length === 0) {
-        listaOperadores = [
-          { id: "op1", nombre: "Staff Operativo 1" },
-          { id: "op2", nombre: "Staff Operativo 2" }
-        ];
+        console.warn("Aviso consultando staff:", e);
       }
 
       const selOp = document.getElementById("filtro-operador");
@@ -218,10 +344,16 @@
         selOp.innerHTML = '<option value="">Todos los Operadores</option>' + 
           listaOperadores.map(o => `<option value="${o.nombre}">${o.nombre}</option>`).join("");
       }
+
+      const modalOp = document.getElementById("modal-select-operador");
+      if (modalOp) {
+        modalOp.innerHTML = '<option value="Sin asignar">Sin asignar</option>' + 
+          listaOperadores.map(o => `<option value="${o.nombre}">${o.nombre}</option>`).join("");
+      }
     }
 
     async function cargarDatos() {
-      inicializarMesesMoviles();
+      generarColumnasGantt();
       await cargarOperadores();
 
       try {
@@ -232,14 +364,15 @@
           snapInformes.forEach(docSnap => {
             const inf = docSnap.data();
             const ordId = inf.ordenId;
-            const estado = (inf.estado || "").toLowerCase().trim();
-            if (ordId && (["aprobado", "aprobada", "completada", "completado", "terminado"].includes(estado) || inf.fotos?.despues)) {
+            if (ordId) {
               if (!visitasPorOrden.has(ordId)) visitasPorOrden.set(ordId, []);
-              visitasPorOrden.get(ordId).push(inf.fechaCaptura || inf.fechaAprobacion || new Date().toISOString());
+              let fCap = inf.fechaCaptura || inf.fechaAprobacion || inf.fecha;
+              if (fCap && fCap.toDate) fCap = fCap.toDate().toISOString();
+              visitasPorOrden.get(ordId).push(fCap || new Date().toISOString());
             }
           });
         } catch (errInf) {
-          console.warn("Aviso al consultar informes:", errInf);
+          console.warn("Informes omitidos:", errInf);
         }
 
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
@@ -249,35 +382,35 @@
         snapOrdenes.forEach(docSnap => {
           const ord = docSnap.data();
           const ordId = docSnap.id;
-          const estado = (ord.estado || "").toLowerCase().trim();
 
-          const esValida = ["pagada", "completada", "en_revision", "aprobado", "aprobada", "activa"].includes(estado) || ord.boletaEmitida;
-          if (!esValida) return;
-
-          const plan = ord.planNombre || ord.servicio || "Plan Mensual";
-          const titular = ord.titular ? extraerNombre(ord.titular, "Titular Web") : (ord.nombreTitular || ord.email || "Cliente");
-          const difunto = extraerNombre(ord.difunto, "Ser Querido");
+          const plan = ord.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Mantenimiento";
+          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Cliente General");
+          const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Sepultura Registrada");
           const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo";
           cementeriosSet.add(cementerio);
 
-          const operadorAsignado = ord.operadorAsignadoNombre || ord.operadorNombre || "Sin asignar";
+          const operadorAsignado = ord.operadorAsignadoNombre || ord.operadorNombre || ord.operador || "Sin asignar";
 
-          let fInicio = ord.fechaCreacion || ord.createdAt;
+          let fInicio = ord.fechaCreacion || ord.createdAt || ord.fechaInicio || ord.fecha;
           if (fInicio?.toDate) fInicio = fInicio.toDate().toISOString();
+          if (!fInicio) fInicio = new Date().toISOString();
 
           let totalVisitasPlan = 1;
           let mesesDuracion = 1;
-          const planL = plan.toLowerCase();
-          if (planL.includes("anual")) { totalVisitasPlan = 12; mesesDuracion = 12; }
-          else if (planL.includes("semestral")) { totalVisitasPlan = 6; mesesDuracion = 6; }
-          else if (planL.includes("trimestral")) { totalVisitasPlan = 3; mesesDuracion = 3; }
-          else if (planL.includes("mensual")) { totalVisitasPlan = 12; mesesDuracion = 12; }
+          const planL = String(plan).toLowerCase();
+          if (planL.includes("12") || planL.includes("anual") || planL.includes("mensual")) { totalVisitasPlan = 12; mesesDuracion = 12; }
+          else if (planL.includes("6") || planL.includes("semestral")) { totalVisitasPlan = 6; mesesDuracion = 6; }
+          else if (planL.includes("4")) { totalVisitasPlan = 4; mesesDuracion = 4; }
+          else if (planL.includes("3") || planL.includes("trimestral")) { totalVisitasPlan = 3; mesesDuracion = 3; }
 
           let fTermino = ord.fechaTermino;
-          if (!fTermino && fInicio) {
-            const d = new Date(fInicio);
-            d.setMonth(d.getMonth() + mesesDuracion);
-            fTermino = d.toISOString();
+          if (fTermino?.toDate) fTermino = fTermino.toDate().toISOString();
+          if (!fTermino) {
+            try {
+              const d = new Date(fInicio);
+              d.setMonth(d.getMonth() + mesesDuracion);
+              fTermino = d.toISOString();
+            } catch (e) {}
           }
 
           const visitasHechas = visitasPorOrden.get(ordId) || [];
@@ -287,23 +420,22 @@
           visitasHechas.sort((a, b) => new Date(b) - new Date(a));
           const ultimaVisita = visitasHechas[0] || null;
 
-          let proximaVisita = ord.proximaVisita || null;
-          if (!proximaVisita && cantPendientes > 0) {
-            const base = ultimaVisita ? new Date(ultimaVisita) : (fInicio ? new Date(fInicio) : new Date());
-            base.setDate(base.getDate() + 30);
-            proximaVisita = base.toISOString();
+          let proximaVisita = ord.fechaProgramada || ord.proximaVisita;
+          if (proximaVisita?.toDate) proximaVisita = proximaVisita.toDate().toISOString();
+          if (!proximaVisita) {
+            proximaVisita = new Date().toISOString();
           }
 
           lista.push({
             id: ordId,
-            numeroOrden: ord.numeroOrden || ordId.substring(0, 8),
+            numeroOrden: ord.numeroOrden || ord.nOrden || ordId.substring(0, 8),
             titular,
             difunto,
             plan,
             operadorAsignado,
             fInicio,
             fTermino,
-            montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || 0,
+            montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || ord.total || 0,
             cantRealizadas,
             cantPendientes,
             ultimaVisita,
@@ -324,16 +456,14 @@
         renderizarTodo();
 
       } catch (err) {
-        console.error("Error al cargar planificación:", err);
-        const cont = document.getElementById("cuerpo-gantt");
-        if (cont) cont.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-red-500">Error al cargar registros: ${err.message}</td></tr>`;
+        console.error("Error cargando planificación:", err);
       }
     }
 
     function renderizarTodo() {
-      const q = document.getElementById("filtro-busqueda").value.toLowerCase().trim();
-      const c = document.getElementById("filtro-cementerio").value;
-      const op = document.getElementById("filtro-operador").value;
+      const q = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
+      const c = document.getElementById("filtro-cementerio")?.value || "";
+      const op = document.getElementById("filtro-operador")?.value || "";
 
       const filtrados = datosConsolidados.filter(item => {
         if (q && !item.titular.toLowerCase().includes(q) && !item.difunto.toLowerCase().includes(q) && !item.numeroOrden.toLowerCase().includes(q)) return false;
@@ -342,71 +472,129 @@
         return true;
       });
 
-      document.getElementById("contador-planes").textContent = `Mostrando ${filtrados.length} servicio(s) activo(s)`;
+      const contador = document.getElementById("contador-planes");
+      if (contador) contador.textContent = `Mostrando ${filtrados.length} de ${datosConsolidados.length} servicio(s)`;
 
       renderizarGantt(filtrados);
       renderizarTabla(filtrados);
     }
 
-    window.asignarOperadorEnOrden = async function(ordenId, selectElem) {
-      const nuevoOperador = selectElem.value;
-      selectElem.disabled = true;
+    function deseleccionarTarea() {
+      ordenSeleccionadaId = null;
+      document.getElementById("barra-aviso-movimiento").classList.add("hidden");
+      document.querySelectorAll(".fila-modo-destino").forEach(f => f.classList.remove("fila-modo-destino"));
+      document.querySelectorAll(".tarjeta-activa").forEach(t => t.classList.remove("tarjeta-activa"));
+    }
 
+    document.getElementById("btn-cancelar-movimiento").addEventListener("click", deseleccionarTarea);
+
+    // Mover de forma instantánea al nuevo casillero por clic
+    async function moverTareaACasillero(ordenId, colKey, colType) {
+      const item = datosConsolidados.find(d => d.id === ordenId);
+      if (!item) return;
+
+      let nuevaFechaISO = "";
+      if (colType === "dia" || colType === "semana") {
+        nuevaFechaISO = new Date(colKey + "T10:00:00").toISOString();
+      } else {
+        nuevaFechaISO = new Date(colKey + "-10T10:00:00").toISOString();
+      }
+
+      // Actualizar inmediatamente en la pantalla
+      item.proximaVisita = nuevaFechaISO;
+      deseleccionarTarea();
+      renderizarTodo();
+
+      // Guardar en Firestore
       try {
         await updateDoc(doc(db, "ordenes", ordenId), {
-          operadorAsignadoNombre: nuevoOperador
+          fechaProgramada: nuevaFechaISO,
+          proximaVisita: nuevaFechaISO
         });
-
-        const item = datosConsolidados.find(d => d.id === ordenId);
-        if (item) item.operadorAsignado = nuevoOperador;
-
-        renderizarTodo();
-        alert(`✓ Operador asignado exitosamente: ${nuevoOperador}`);
       } catch (err) {
-        console.error("Error al asignar operador:", err);
-        alert("No se pudo actualizar el operador: " + err.message);
-      } finally {
-        selectElem.disabled = false;
+        console.error("Error al actualizar fecha:", err);
+        alert("Error al guardar en base de datos: " + err.message);
+        await cargarDatos();
       }
-    };
+    }
 
     function renderizarGantt(lista) {
       const thead = document.getElementById("cabecera-gantt");
-      thead.innerHTML = '<th class="py-3 px-4 sticky left-0 bg-slate-100 z-10 w-80 border-r border-slate-200">Cliente, Sepultura & Operador</th>' +
-        mesesMoviles.map(m => `<th class="py-3 px-3 text-center gantt-col border-r border-slate-200">${m.label}</th>`).join("");
+      const colClass = escalaActual === 'dia' ? 'gantt-col-day' : 'gantt-col';
+      
+      if (thead) {
+        thead.innerHTML = '<th class="py-3 px-4 sticky left-0 bg-slate-100 z-10 w-80 border-r border-slate-200">Cliente, Sepultura & Operador</th>' +
+          columnasGantt.map(col => `<th class="py-3 px-1 text-center ${colClass} border-r border-slate-200 text-[11px] font-bold text-slate-700">${col.label}</th>`).join("");
+      }
 
       const tbody = document.getElementById("cuerpo-gantt");
+      if (!tbody) return;
+
       if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-400">No hay servicios para los filtros seleccionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" class="py-8 text-center text-slate-400">No hay contratos para mostrar.</td></tr>';
         return;
       }
 
       tbody.innerHTML = lista.map(item => {
-        const celdasMeses = mesesMoviles.map(mes => {
-          const visitasEnMes = item.visitasHechas.filter(f => String(f).startsWith(mes.key));
-          const proximaEnMes = item.proximaVisita && String(item.proximaVisita).startsWith(mes.key);
+        const esFilaSeleccionada = (ordenSeleccionadaId === item.id);
+        const claseFila = esFilaSeleccionada ? "fila-modo-destino" : "";
 
-          let contenido = '<span class="text-slate-300 text-xs">—</span>';
+        const celdas = columnasGantt.map(col => {
+          let tieneRealizada = false;
+          let tieneProgramada = false;
 
-          if (visitasEnMes.length > 0) {
+          const fProgStr = item.proximaVisita ? item.proximaVisita.split("T")[0] : "";
+
+          if (col.type === "dia") {
+            tieneRealizada = item.visitasHechas.some(f => String(f).startsWith(col.key));
+            tieneProgramada = fProgStr === col.key;
+          } else if (col.type === "semana") {
+            const fProgDate = new Date(item.proximaVisita);
+            tieneProgramada = fProgDate >= col.inicio && fProgDate <= col.fin;
+            tieneRealizada = item.visitasHechas.some(f => {
+              const d = new Date(f);
+              return d >= col.inicio && d <= col.fin;
+            });
+          } else {
+            tieneRealizada = item.visitasHechas.some(f => String(f).startsWith(col.key));
+            tieneProgramada = String(item.proximaVisita).startsWith(col.key);
+          }
+
+          let contenido = '<span class="text-slate-300 text-xs pointer-events-none">—</span>';
+
+          if (tieneRealizada) {
             contenido = `
-              <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1">
+              <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm pointer-events-none">
                 <span class="material-symbols-outlined text-[13px] text-emerald-600">check_circle</span>
                 <span>Realizada</span>
               </div>`;
-          } else if (proximaEnMes) {
+          } else if (tieneProgramada) {
+            const activa = esFilaSeleccionada ? "tarjeta-activa" : "";
             contenido = `
-              <div class="bg-amber-50 border border-amber-300 text-amber-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm">
-                <span class="material-symbols-outlined text-[13px] text-amber-600">pending</span>
-                <span>Por Realizar</span>
+              <div 
+                data-action="tarjeta-amarilla" 
+                data-orden-id="${item.id}"
+                class="${activa} bg-amber-50 border border-amber-300 text-amber-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer hover:bg-amber-100 transition"
+                title="1 Clic: seleccionar para mover. Doble clic: ver detalles."
+              >
+                <span class="material-symbols-outlined text-[13px] text-amber-600 pointer-events-none">touch_app</span>
+                <span class="pointer-events-none">Por Realizar</span>
               </div>`;
           }
 
-          return `<td class="py-3 px-2 text-center border-r border-slate-100 align-middle">${contenido}</td>`;
+          return `
+            <td 
+              class="py-2.5 px-1 text-center border-r border-slate-100 align-middle transition-colors"
+              data-row-orden-id="${item.id}"
+              data-col-key="${col.key}"
+              data-col-type="${col.type}"
+            >
+              ${contenido}
+            </td>`;
         }).join("");
 
         return `
-          <tr class="hover:bg-slate-50/80 transition">
+          <tr class="hover:bg-slate-50/80 transition ${claseFila}">
             <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200">
               <div class="font-bold text-slate-800">${item.titular}</div>
               <div class="text-[11px] text-[#002d1a] font-semibold">Difunto: ${item.difunto}</div>
@@ -416,13 +604,111 @@
                 <strong>Operador:</strong> ${item.operadorAsignado}
               </div>
             </td>
-            ${celdasMeses}
+            ${celdas}
           </tr>`;
       }).join("");
     }
 
+    // GESTIÓN DE EVENTOS DE CLIC EN LA CARTA GANTT
+    const cuerpoGantt = document.getElementById("cuerpo-gantt");
+
+    // 1. Clic simple: Seleccionar o Mover
+    cuerpoGantt.addEventListener("click", async (e) => {
+      const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
+      
+      // Si hizo clic en la tarjeta amarilla
+      if (tarjeta) {
+        const oId = tarjeta.dataset.ordenId;
+        if (ordenSeleccionadaId === oId) {
+          deseleccionarTarea();
+        } else {
+          ordenSeleccionadaId = oId;
+          const item = datosConsolidados.find(d => d.id === oId);
+          document.getElementById("texto-aviso-movimiento").textContent = `Moviendo servicio de ${item.titular}: Haz clic en cualquier casillero de su fila para asignarlo.`;
+          document.getElementById("barra-aviso-movimiento").classList.remove("hidden");
+          renderizarTodo();
+        }
+        return;
+      }
+
+      // Si ya teníamos una tarjeta seleccionada y hace clic en un casillero
+      if (ordenSeleccionadaId) {
+        const celda = e.target.closest("td[data-col-key]");
+        if (celda && celda.dataset.rowOrdenId === ordenSeleccionadaId) {
+          await moverTareaACasillero(ordenSeleccionadaId, celda.dataset.colKey, celda.dataset.colType);
+        }
+      }
+    });
+
+    // 2. Doble Clic: Abrir ventana de detalles
+    cuerpoGantt.addEventListener("dblclick", (e) => {
+      const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
+      if (tarjeta) {
+        const oId = tarjeta.dataset.ordenId;
+        const item = datosConsolidados.find(d => d.id === oId);
+        if (!item) return;
+
+        deseleccionarTarea();
+        ordenEditandoId = oId;
+        document.getElementById("modal-cliente").textContent = item.titular;
+        document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} (${item.plan})`;
+        document.getElementById("modal-input-fecha").value = convertirAFechaInput(item.proximaVisita);
+        document.getElementById("modal-select-operador").value = item.operadorAsignado || "Sin asignar";
+        document.getElementById("modal-reprogramar").classList.remove("hidden");
+      }
+    });
+
+    // Control del Modal de Doble Clic
+    function cerrarModal() {
+      document.getElementById("modal-reprogramar").classList.add("hidden");
+      ordenEditandoId = null;
+    }
+
+    document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModal);
+    document.getElementById("btn-cancelar-modal").addEventListener("click", cerrarModal);
+
+    document.getElementById("btn-guardar-modal").addEventListener("click", async () => {
+      if (!ordenEditandoId) return;
+      const fVal = document.getElementById("modal-input-fecha").value;
+      const opVal = document.getElementById("modal-select-operador").value;
+
+      if (!fVal) {
+        alert("Por favor selecciona una fecha válida.");
+        return;
+      }
+
+      const btn = document.getElementById("btn-guardar-modal");
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+
+      try {
+        const isoFecha = new Date(fVal + "T10:00:00").toISOString();
+        await updateDoc(doc(db, "ordenes", ordenEditandoId), {
+          fechaProgramada: isoFecha,
+          proximaVisita: isoFecha,
+          operadorAsignadoNombre: opVal
+        });
+
+        const item = datosConsolidados.find(d => d.id === ordenEditandoId);
+        if (item) {
+          item.proximaVisita = isoFecha;
+          item.operadorAsignado = opVal;
+        }
+
+        renderizarTodo();
+        cerrarModal();
+      } catch (err) {
+        alert("Error al reprogramar: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Guardar";
+      }
+    });
+
     function renderizarTabla(lista) {
       const tbody = document.getElementById("cuerpo-tabla");
+      if (!tbody) return;
+
       if (lista.length === 0) {
         tbody.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-slate-400">No se encontraron clientes registrados.</td></tr>';
         return;
@@ -433,6 +719,8 @@
           `<option value="${op.nombre}" ${item.operadorAsignado === op.nombre ? 'selected' : ''}>${op.nombre}</option>`
         ).join("");
 
+        const fechaProgInput = convertirAFechaInput(item.proximaVisita);
+
         return `
         <tr class="hover:bg-slate-50 transition text-slate-700">
           <td class="py-3 px-3">
@@ -442,7 +730,7 @@
           </td>
           <td class="py-3 px-3 font-semibold text-slate-800">${item.plan}</td>
           <td class="py-3 px-3">
-            <select onchange="asignarOperadorEnOrden('${item.id}', this)" class="px-2 py-1 text-xs border border-slate-300 rounded focus:border-[#002d1a] bg-white font-medium">
+            <select data-action="asignar-op" data-orden-id="${item.id}" class="px-2 py-1 text-xs border border-slate-300 rounded focus:border-[#002d1a] bg-white font-medium">
               <option value="Sin asignar">Sin asignar</option>
               ${opcionesOperadores}
             </select>
@@ -453,41 +741,96 @@
           <td class="py-3 px-2 text-center font-bold text-emerald-700 bg-emerald-50/50">${item.cantRealizadas}</td>
           <td class="py-3 px-2 text-center font-bold text-amber-700 bg-amber-50/50">${item.cantPendientes}</td>
           <td class="py-3 px-3 font-mono text-[11px]">${formatearFecha(item.ultimaVisita)}</td>
-          <td class="py-3 px-3 font-mono text-[11px] font-semibold text-amber-900">${formatearFecha(item.proximaVisita)}</td>
+          <td class="py-3 px-3 text-center bg-amber-50/40 border-x border-amber-100">
+            <input 
+              type="date" 
+              value="${fechaProgInput}" 
+              data-action="cambiar-fecha"
+              data-orden-id="${item.id}"
+              class="px-2 py-1 text-xs border border-amber-300 rounded bg-white text-slate-800 font-medium focus:outline-none focus:border-[#002d1a] shadow-sm cursor-pointer"
+            >
+          </td>
           <td class="py-3 px-3 text-slate-600">${item.cementerio}</td>
         </tr>`;
       }).join("");
     }
 
-    window.cambiarVista = function(vista) {
+    document.getElementById("cuerpo-tabla").addEventListener("change", async (e) => {
+      const target = e.target;
+      const ordenId = target.dataset.ordenId;
+      if (!ordenId) return;
+
+      if (target.dataset.action === "asignar-op") {
+        const nuevoOp = target.value;
+        target.disabled = true;
+        try {
+          await updateDoc(doc(db, "ordenes", ordenId), { operadorAsignadoNombre: nuevoOp });
+          const item = datosConsolidados.find(d => d.id === ordenId);
+          if (item) item.operadorAsignado = nuevoOp;
+          renderizarTodo();
+        } catch (err) {
+          alert("Error: " + err.message);
+        } finally {
+          target.disabled = false;
+        }
+      } else if (target.dataset.action === "cambiar-fecha") {
+        const val = target.value;
+        if (!val) return;
+        target.disabled = true;
+        try {
+          const iso = new Date(val + "T10:00:00").toISOString();
+          await updateDoc(doc(db, "ordenes", ordenId), { fechaProgramada: iso, proximaVisita: iso });
+          const item = datosConsolidados.find(d => d.id === ordenId);
+          if (item) item.proximaVisita = iso;
+          renderizarTodo();
+        } catch (err) {
+          alert("Error: " + err.message);
+        } finally {
+          target.disabled = false;
+        }
+      }
+    });
+
+    function cambiarVista(vista) {
       const g = document.getElementById("contenedor-gantt");
       const t = document.getElementById("contenedor-tabla");
       const btnG = document.getElementById("btn-vista-gantt");
       const btnT = document.getElementById("btn-vista-tabla");
+      const escalaCont = document.getElementById("selector-escala-container");
 
       if (vista === "gantt") {
         g.classList.remove("hidden");
         t.classList.add("hidden");
         btnG.className = "px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition";
         btnT.className = "px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition";
+        if (escalaCont) escalaCont.style.display = "flex";
       } else {
         g.classList.add("hidden");
         t.classList.remove("hidden");
         btnT.className = "px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition";
         btnG.className = "px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition";
+        if (escalaCont) escalaCont.style.display = "none";
       }
-    };
+    }
 
-    document.getElementById("filtro-busqueda").addEventListener("input", renderizarTodo);
-    document.getElementById("filtro-cementerio").addEventListener("change", renderizarTodo);
-    document.getElementById("filtro-operador").addEventListener("change", renderizarTodo);
+    document.getElementById("btn-vista-gantt").addEventListener("click", () => cambiarVista("gantt"));
+    document.getElementById("btn-vista-tabla").addEventListener("click", () => cambiarVista("tabla"));
 
-    // Validación de sesión usando Auth nativo
+    ['dia', 'semana', 'mes', 'anio'].forEach(e => {
+      document.getElementById("escala-" + e)?.addEventListener("click", () => cambiarEscalaGantt(e));
+    });
+
+    document.getElementById("filtro-busqueda")?.addEventListener("input", renderizarTodo);
+    document.getElementById("filtro-cementerio")?.addEventListener("change", renderizarTodo);
+    document.getElementById("filtro-operador")?.addEventListener("change", renderizarTodo);
+
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.href = "login.html";
+        window.location.replace("/login.html");
         return;
       }
       await cargarDatos();
     });
   </script>
+</body>
+</html>
