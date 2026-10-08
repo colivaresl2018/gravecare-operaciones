@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>Acceso Operaciones | GraveCare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Plus Jakarta Sans', sans-serif; 
+      background: linear-gradient(135deg, #002d1a 0%, #1a472a 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+      width: 100%;
+      max-width: 400px;
+      padding: 36px 32px;
+      text-align: center;
+    }
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: #e8f5e9;
+      color: #002d1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 24px;
+    }
+    h1 { font-size: 1.4rem; color: #002d1a; font-weight: 700; margin-bottom: 4px; }
+    p.sub { color: #64748b; font-size: 0.85rem; margin-bottom: 24px; }
+    .form-group { text-align: left; margin-bottom: 16px; }
+    label { font-size: 0.75rem; font-weight: 700; color: #334155; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    input:focus { border-color: #002d1a; box-shadow: 0 0 0 3px rgba(0, 45, 26, 0.12); }
+    button {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      background: #002d1a;
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1a432f; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .alert {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo-icon">
+    <i class="fa-solid fa-leaf"></i>
+  </div>
+  <h1>Portal de Operaciones</h1>
+  <p class="sub">Acceso exclusivo para personal de terreno y administración</p>
+
+  <div id="alertBox"></div>
+
+  <form id="formOpsLogin">
+    <div class="form-group">
+      <label>Correo Corporativo</label>
+      <input type="email" id="opsEmail" placeholder="operador@gravecare.cl" required autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="opsPass" placeholder="••••••••" required autocomplete="current-password">
+    </div>
+    <button type="submit" id="btnSubmit">Ingresar a Operaciones →</button>
+  </form>
+</div>
+
+<script type="module">
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+  import { initializeFirestore } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+    authDomain: "gravecare-2e8d2.firebaseapp.com",
+    projectId: "gravecare-2e8d2",
+    storageBucket: "gravecare-2e8d2.firebasestorage.app",
+    messagingSenderId: "160012946248",
+    appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+  };
+
+  const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // Inicialización estable sin caídas por QUIC/HTTP3
+  initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false
+  });
+
+  const form = document.getElementById("formOpsLogin");
+  const btn = document.getElementById("btnSubmit");
+  const alertBox = document.getElementById("alertBox");
+
+  function showError(msg) {
+    alertBox.innerHTML = `<div class="alert alert-error">${msg}</div>`;
+  }
+
+  // Redirección limpia gestionada únicamente por el observador de sesión
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      window.location.replace("portal.html");
+    }
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertBox.innerHTML = "";
+    const email = document.getElementById("opsEmail").value.trim().toLowerCase();
+    const pass = document.getElementById("opsPass").value;
+
+    btn.disabled = true;
+    btn.textContent = "Verificando...";
+
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged se encarga de redirigir de forma segura
+    } catch (err) {
+      console.error("Error al iniciar sesión en operaciones:", err);
+      showError("Credenciales inválidas. Verifica tu correo y contraseña.");
+      btn.disabled = false;
+      btn.textContent = "Ingresar a Operaciones →";
+    }
+  });
+</script>
+
+</body>
+</html>

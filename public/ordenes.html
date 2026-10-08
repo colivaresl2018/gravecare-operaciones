@@ -51,12 +51,31 @@
       display: flex; align-items: center; justify-content: center;
       padding: 1rem;
     }
-    .modal-panel { max-width: 34rem; width: 100%; max-height: 85vh; overflow-y: auto; background: white; border-radius: 12px; padding: 1.5rem; }
+    .modal-panel { max-width: 36rem; width: 100%; max-height: 85vh; overflow-y: auto; background: white; border-radius: 12px; padding: 1.5rem; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .modal-close { background: none; border: none; font-size: 1.25rem; line-height: 1; cursor: pointer; color: var(--color-text-light, #64748b); }
     .detalle-fila { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--color-border, #e2e8f0); font-size: 0.875rem; }
     .detalle-fila span:first-child { color: var(--color-text-light, #64748b); }
     .hidden { display: none !important; }
+    .badge-fecha {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      display: inline-block;
+    }
+    .badge-visita {
+      background: #e0e7ff;
+      color: #3730a3;
+      font-weight: 800;
+      font-size: 0.75rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-left: 4px;
+    }
   </style>
 </head>
 <body>
@@ -76,17 +95,15 @@
 
   <main class="container mt-8 mb-8">
     <h2 class="mb-2">Asignación de Órdenes</h2>
-    <p class="mb-6">Distribución de labores de mantenimiento a operadores en terreno.</p>
+    <p class="mb-6">Distribución y asignación manual de cada visita proyectada del plan de mantenimiento.</p>
 
     <div class="toolbar">
       <input id="buscador" type="text" placeholder="Buscar por cliente, N° de orden, difunto o cementerio...">
       <select id="filtro-estado">
         <option value="">Todos los estados</option>
         <option value="pendiente">Pendiente</option>
-        <option value="confirmado">Confirmado</option>
         <option value="asignada">Asignada</option>
         <option value="en proceso">En Proceso</option>
-        <option value="en revision">En Revisión</option>
         <option value="completada">Completada</option>
       </select>
     </div>
@@ -96,18 +113,19 @@
         <table class="table" style="width: 100%; text-align: left; border-collapse: collapse;">
           <thead>
             <tr style="border-bottom: 2px solid #e2e8f0;">
-              <th style="padding: 0.75rem 1rem;">ID Orden</th>
+              <th style="padding: 0.75rem 1rem;">ID Orden / Visita</th>
               <th style="padding: 0.75rem 1rem;">Difunto</th>
               <th style="padding: 0.75rem 1rem;">Cliente</th>
               <th style="padding: 0.75rem 1rem;">Sepultura</th>
               <th style="padding: 0.75rem 1rem;">Plan</th>
+              <th style="padding: 0.75rem 1rem;">Fecha Estimada</th>
               <th style="padding: 0.75rem 1rem;">Estado</th>
               <th style="padding: 0.75rem 1rem;">Operador Asignado</th>
               <th style="padding: 0.75rem 1rem; text-align: right;">Asignar</th>
             </tr>
           </thead>
           <tbody id="ordenes-tbody">
-            <tr><td colspan="8" style="color: var(--color-text-light, #64748b); text-align: center; padding: 2rem 0;">Cargando órdenes...</td></tr>
+            <tr><td colspan="9" style="color: var(--color-text-light, #64748b); text-align: center; padding: 2rem 0;">Cargando visitas proyectadas...</td></tr>
           </tbody>
         </table>
       </div>
@@ -122,11 +140,11 @@
     </div>
   </main>
 
-  <!-- Modal Detalle y Asignación -->
+  <!-- Modal Detalle y Asignación de Visita -->
   <div id="modal-detalle" class="modal-overlay hidden">
     <div class="modal-panel">
       <div class="modal-header">
-        <h3 style="margin-bottom: 0;">Asignar Orden de Trabajo</h3>
+        <h3 style="margin-bottom: 0;">Asignación Manual de Visita</h3>
         <button id="btn-cerrar-modal" class="modal-close">✕</button>
       </div>
       
@@ -134,17 +152,19 @@
 
       <div style="border-top: 1px solid var(--color-border, #e2e8f0); padding-top: 1rem;">
         <div style="margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Fecha Estimada / Programada</label>
+          <input type="date" id="modal-input-fecha" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: white;">
+        </div>
+        <div style="margin-bottom: 1rem;">
           <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Seleccionar Operador de Terreno</label>
           <select id="modal-select-operador" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.9rem; background: white;"></select>
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Estado de la Orden</label>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Estado de la Visita</label>
           <select id="modal-select-estado" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: white;">
             <option value="pendiente">Pendiente</option>
-            <option value="confirmado">Confirmado</option>
             <option value="asignada">Asignada</option>
             <option value="en proceso">En Proceso</option>
-            <option value="en revision">En Revisión</option>
             <option value="completada">Completada</option>
           </select>
         </div>
@@ -160,20 +180,31 @@
     import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
     import { db } from "./js/firebaseConfig.js";
     import {
-      collection, getDocs, doc, setDoc, serverTimestamp
+      collection, getDocs, doc, getDoc, updateDoc, setDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    const PAGE_SIZE = 10;
-    let todasLasOrdenes = [];
-    let ordenesFiltradas = [];
+    const PAGE_SIZE = 12;
+    let todasLasVisitas = [];
+    let visitasFiltradas = [];
     let paginaActual = 1;
     let listaOperadores = [];
-    let ordenSeleccionadaId = null;
+    let visitaSeleccionada = null;
 
     function formatFecha(ts) {
       if (!ts) return "—";
       const fecha = ts.toDate ? ts.toDate() : new Date(ts);
+      if (isNaN(fecha.getTime())) return "—";
       return fecha.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+
+    function formatFechaInput(ts) {
+      if (!ts) return "";
+      const fecha = ts.toDate ? ts.toDate() : new Date(ts);
+      if (isNaN(fecha.getTime())) return "";
+      const y = fecha.getFullYear();
+      const m = String(fecha.getMonth() + 1).padStart(2, '0');
+      const d = String(fecha.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
 
     function badgeEstado(estado) {
@@ -183,7 +214,6 @@
         "confirmado": "background: #dcfce7; color: #15803d;",
         "asignada": "background: #e0f2fe; color: #0369a1;",
         "en proceso": "background: #fef3c7; color: #b45309;",
-        "en revision": "background: #fef3c7; color: #b45309;",
         "completada": "background: #dcfce7; color: #15803d;"
       };
       return `<span style="padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; ${estilos[normalizado] || estilos['pendiente']}">${estado || 'Pendiente'}</span>`;
@@ -199,74 +229,189 @@
       return partes.length ? partes.join(", ") : "Sin especificar";
     }
 
-	async function cargarOrdenes() {
+    async function cargarOrdenesYProyectarVisitas() {
       try {
-        const snap = await getDocs(collection(db, "ordenes"));
-        
-        // FILTRO EXCLUSIÓN: Descartar órdenes completadas o terminadas
-        todasLasOrdenes = snap.docs
-          .map((d) => {
-            const docIdLimpio = d.id;
-            return {
-              ...d.data(),
-              _docId: docIdLimpio,
-              id: docIdLimpio
-            };
-          })
-          .filter((o) => {
-            const est = (o.estado || "").toLowerCase().trim();
-            const estInf = (o.estadoInforme || "").toLowerCase().trim();
-            return est !== "completada" && est !== "completado" && est !== "terminada" && estInf !== "aprobado";
-          });
+        // 1. Obtener informes para identificar visitas realizadas
+        const informesList = [];
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          snapInf.forEach(d => {
+            const inf = d.data();
+            let f = inf.fechaCaptura || inf.createdAt;
+            if (f?.toDate) f = f.toDate();
+            else if (f) f = new Date(f);
+            else f = new Date();
 
-        todasLasOrdenes.sort((a, b) => {
-          const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.creadoEl?.toMillis ? a.creadoEl.toMillis() : 0);
-          const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.creadoEl?.toMillis ? b.creadoEl.toMillis() : 0);
-          return tb - ta;
+            informesList.push({
+              id: d.id,
+              numeroOrden: inf.numeroOrden || inf.ordenId || d.id,
+              difunto: String(inf.difunto || inf.nombreDifunto || "").toLowerCase().trim(),
+              operador: inf.operador || inf.tecnico || null,
+              fecha: f
+            });
+          });
+        } catch(e) {
+          console.warn("Informes:", e);
+        }
+
+        // 2. Obtener órdenes activas
+        const snap = await getDocs(collection(db, "ordenes"));
+        const listaDesglosada = [];
+
+        snap.docs.forEach((docSnap) => {
+          const o = docSnap.data();
+          const ordId = docSnap.id;
+          const numOrd = o.numeroOrden || ordId;
+          const planStr = String(o.planNombre || o.servicio?.planNombre || o.plan || "Plan 6").toLowerCase();
+
+          let totalVisitas = 6;
+          let intervaloMeses = 2;
+
+          if (planStr.includes("spot")) {
+            totalVisitas = 1;
+            intervaloMeses = 0;
+          } else if (planStr.includes("12") || planStr.includes("mensual")) {
+            totalVisitas = 12;
+            intervaloMeses = 1;
+          } else if (planStr.includes("6") || planStr.includes("bimestral")) {
+            totalVisitas = 6;
+            intervaloMeses = 2;
+          } else if (planStr.includes("4") || planStr.includes("trimestral")) {
+            totalVisitas = 4;
+            intervaloMeses = 3;
+          }
+
+          let fBase = new Date();
+          if (o.createdAt?.toDate) fBase = o.createdAt.toDate();
+          else if (o.creadoEl?.toDate) fBase = o.creadoEl.toDate();
+          else if (o.fecha) fBase = new Date(o.fecha);
+
+          const difuntoNorm = String(o.difunto?.nombre || o.nombreDifunto || "").toLowerCase().trim();
+          const informesDeOrden = informesList.filter(inf => 
+            inf.numeroOrden === ordId || 
+            inf.numeroOrden === numOrd || 
+            (difuntoNorm && inf.difunto && inf.difunto.includes(difuntoNorm))
+          );
+          informesDeOrden.sort((a, b) => a.fecha - b.fecha);
+
+          // Objeto de programación manual en Firestore
+          const progMap = o.programacionVisitas || {};
+
+          // DESGLOSE INDIVIDUAL DE CADA VISITA
+          for (let v = 1; v <= totalVisitas; v++) {
+            const numVisita = v;
+            const esRealizada = numVisita <= informesDeOrden.length;
+
+            let fechaEstimada;
+            let estadoVisita = "pendiente";
+            let operadorVisita = null;
+            let operadorId = null;
+
+            if (esRealizada) {
+              const inf = informesDeOrden[numVisita - 1];
+              fechaEstimada = inf.fecha;
+              estadoVisita = "completada";
+              operadorVisita = inf.operador || o.operadorAsignadoNombre || "Christian Olivares Lizama";
+            } else {
+              // Cálculo de fecha estimada base
+              if (informesDeOrden.length > 0) {
+                const ultFecha = new Date(informesDeOrden[informesDeOrden.length - 1].fecha);
+                const salto = (numVisita - informesDeOrden.length) * intervaloMeses;
+                fechaEstimada = new Date(ultFecha.getFullYear(), ultFecha.getMonth() + salto, ultFecha.getDate());
+              } else {
+                const salto = (numVisita - 1) * intervaloMeses;
+                fechaEstimada = new Date(fBase.getFullYear(), fBase.getMonth() + salto, fBase.getDate());
+              }
+
+              // LECTURA DE ASIGNACIÓN MANUAL (admite objeto directo o clave con punto)
+              const progVisita = progMap[`v_${numVisita}`] || o[`programacionVisitas.v_${numVisita}`];
+              if (progVisita) {
+                if (progVisita.fecha) fechaEstimada = new Date(progVisita.fecha);
+                if (progVisita.operadorNombre && progVisita.operadorNombre !== "Sin asignar") {
+                  operadorVisita = progVisita.operadorNombre;
+                  operadorId = progVisita.operadorId || null;
+                }
+                if (progVisita.estado) estadoVisita = progVisita.estado;
+              }
+            }
+
+            listaDesglosada.push({
+              _docId: ordId,
+              ordenId: ordId,
+              numeroOrden: numOrd,
+              visitaIndex: numVisita,
+              totalVisitas: totalVisitas,
+              idVisitaVisual: `${numOrd}-V${numVisita}`,
+              difunto: o.difunto || { nombre: o.nombreDifunto || o.nombreFallecido },
+              titular: o.titular || { nombre: o.nombreTitular || o.cliente },
+              ubicacionSepultura: o.ubicacionSepultura || {
+                cementerio: o.cementerio,
+                sector: o.sector,
+                patio: o.patio,
+                numeroSepultura: o.numeroSepultura
+              },
+              planNombre: o.planNombre || o.servicio?.planNombre || `Plan ${totalVisitas}`,
+              fechaEstimada: fechaEstimada,
+              estado: estadoVisita,
+              operadorAsignadoNombre: operadorVisita || "Sin asignar",
+              operadorAsignadoId: operadorId,
+              telefono: o.titular?.telefono || o.telefono || "—"
+            });
+          }
         });
-        ordenesFiltradas = todasLasOrdenes;
+
+        listaDesglosada.sort((a, b) => new Date(a.fechaEstimada) - new Date(b.fechaEstimada));
+
+        todasLasVisitas = listaDesglosada;
+        visitasFiltradas = todasLasVisitas;
       } catch (e) {
-        console.error("Error al cargar ordenes:", e);
+        console.error("Error cargando visitas:", e);
       }
     }
 
     function renderTabla() {
       const tbody = document.getElementById("ordenes-tbody");
       const inicio = (paginaActual - 1) * PAGE_SIZE;
-      const pagina = ordenesFiltradas.slice(inicio, inicio + PAGE_SIZE);
+      const pagina = visitasFiltradas.slice(inicio, inicio + PAGE_SIZE);
 
-      if (ordenesFiltradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="color: #64748b; text-align: center; padding: 2rem 0;">No se encontraron órdenes registradas.</td></tr>';
+      if (visitasFiltradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="color: #64748b; text-align: center; padding: 2rem 0;">No se encontraron visitas registradas.</td></tr>';
       } else {
-        tbody.innerHTML = pagina.map((o) => {
-          const docIdValido = String(o._docId || o.id || o.numeroOrden || "");
-
+        tbody.innerHTML = pagina.map((v, idx) => {
           let difuntoNombre = "—";
-          if (o.difunto) {
-            difuntoNombre = o.difunto.nombreCompleto || `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim();
-          } else if (o.nombreFallecido || o.nombreDifunto) {
-            difuntoNombre = o.nombreFallecido || o.nombreDifunto;
+          if (v.difunto) {
+            difuntoNombre = v.difunto.nombreCompleto || v.difunto.nombre || `${v.difunto.nombres || ''} ${v.difunto.apellidoPaterno || ''}`.trim();
           }
 
           let titularNombre = "—";
-          if (o.titular) {
-            titularNombre = o.titular.nombre || `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim();
-          } else if (o.nombreTitular) {
-            titularNombre = o.nombreTitular;
+          if (v.titular) {
+            titularNombre = v.titular.nombreCompleto || v.titular.nombre || `${v.titular.nombres || ''} ${v.titular.apellidoPaterno || ''}`.trim();
           }
 
+          const fechaEstimadaTxt = formatFecha(v.fechaEstimada);
+          const indexAbsoluto = inicio + idx;
+          const tieneOperador = v.operadorAsignadoNombre && v.operadorAsignadoNombre !== "Sin asignar";
+
           return `
-            <tr style="cursor:pointer; border-bottom: 1px solid #f1f5f9;" data-abrir="${docIdValido}">
-              <td style="padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8rem; font-weight: bold;">${o.numeroOrden || docIdValido}</td>
+            <tr style="cursor:pointer; border-bottom: 1px solid #f1f5f9;" data-abrir="${indexAbsoluto}">
+              <td style="padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8rem; font-weight: bold;">
+                ${v.idVisitaVisual}
+                <span class="badge-visita">${v.visitaIndex}/${v.totalVisitas}</span>
+              </td>
               <td style="padding: 0.75rem 1rem; font-weight:600;">${difuntoNombre}</td>
               <td style="padding: 0.75rem 1rem;">${titularNombre}</td>
-              <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">${textoSepultura(o.ubicacionSepultura)}</td>
-              <td style="padding: 0.75rem 1rem;">${o.planNombre || o.servicio?.planNombre || o.plan || "Plan Base"}</td>
-              <td style="padding: 0.75rem 1rem;">${badgeEstado(o.estado)}</td>
-              <td style="padding: 0.75rem 1rem;">${o.operadorAsignadoNombre ? `<strong>${o.operadorAsignadoNombre}</strong>` : '<span style="color: #94a3b8;">Sin asignar</span>'}</td>
+              <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">${textoSepultura(v.ubicacionSepultura)}</td>
+              <td style="padding: 0.75rem 1rem; font-size: 0.85rem; font-weight: 600;">${v.planNombre}</td>
+              <td style="padding: 0.75rem 1rem;">
+                <span class="badge-fecha">📅 ${fechaEstimadaTxt}</span>
+              </td>
+              <td style="padding: 0.75rem 1rem;">${badgeEstado(v.estado)}</td>
+              <td style="padding: 0.75rem 1rem;">
+                ${tieneOperador ? `<strong>${v.operadorAsignadoNombre}</strong>` : '<span style="color: #94a3b8; font-style: italic;">Sin asignar</span>'}
+              </td>
               <td style="padding: 0.75rem 1rem; text-align: right;">
-                <button type="button" class="btn-gestionar" data-abrir="${docIdValido}" style="background: none; border: none; color: #002d1a; font-weight:700; font-size:0.85rem; cursor: pointer;">
-                  Gestionar →
+                <button type="button" class="btn-gestionar" data-abrir="${indexAbsoluto}" style="background: none; border: none; color: #002d1a; font-weight:700; font-size:0.85rem; cursor: pointer;">
+                  Asignar →
                 </button>
               </td>
             </tr>
@@ -274,10 +419,10 @@
         }).join("");
       }
 
-      const total = ordenesFiltradas.length;
+      const total = visitasFiltradas.length;
       const desde = total === 0 ? 0 : inicio + 1;
       const hasta = Math.min(inicio + PAGE_SIZE, total);
-      document.getElementById("paginacion-resumen").textContent = `Mostrando ${desde}-${hasta} de ${total} órdenes`;
+      document.getElementById("paginacion-resumen").textContent = `Mostrando ${desde}-${hasta} de ${total} visitas del plan`;
       document.getElementById("paginacion-actual").textContent = String(paginaActual);
       document.getElementById("btn-pagina-anterior").disabled = paginaActual <= 1;
       document.getElementById("btn-pagina-siguiente").disabled = hasta >= total;
@@ -287,13 +432,13 @@
       const texto = document.getElementById("buscador").value.trim().toLowerCase();
       const estado = document.getElementById("filtro-estado").value.toLowerCase();
 
-      ordenesFiltradas = todasLasOrdenes.filter((o) => {
-        if (estado && (o.estado || "pendiente").toLowerCase() !== estado) return false;
+      visitasFiltradas = todasLasVisitas.filter((v) => {
+        if (estado && (v.estado || "pendiente").toLowerCase() !== estado) return false;
         if (texto) {
-          const dif = o.difunto ? `${o.difunto.nombres} ${o.difunto.apellidoPaterno} ${o.difunto.nombreCompleto || ''}` : (o.nombreFallecido || "");
-          const tit = o.titular ? `${o.titular.nombres} ${o.titular.apellidoPaterno} ${o.titular.nombre || ''}` : (o.nombreTitular || "");
-          const cem = o.ubicacionSepultura?.cementerio || "";
-          const num = o.numeroOrden || o._docId || "";
+          const dif = v.difunto ? `${v.difunto.nombres || ''} ${v.difunto.apellidoPaterno || ''} ${v.difunto.nombreCompleto || v.difunto.nombre || ''}` : "";
+          const tit = v.titular ? `${v.titular.nombres || ''} ${v.titular.apellidoPaterno || ''} ${v.titular.nombre || v.titular.nombreCompleto || ''}` : "";
+          const cem = v.ubicacionSepultura?.cementerio || "";
+          const num = v.idVisitaVisual || v.numeroOrden || "";
           const campo = `${dif} ${tit} ${cem} ${num}`.toLowerCase();
           if (!campo.includes(texto)) return false;
         }
@@ -303,45 +448,33 @@
       renderTabla();
     }
 
-    async function abrirModal(docId) {
-      if (!docId || docId === "null" || docId === "undefined") {
-        console.error("ID inválido al abrir modal:", docId);
-        return;
-      }
+    async function abrirModal(index) {
+      visitaSeleccionada = visitasFiltradas[index];
+      if (!visitaSeleccionada) return;
 
-      const o = todasLasOrdenes.find((x) => String(x._docId) === String(docId) || String(x.id) === String(docId) || String(x.numeroOrden) === String(docId));
-      if (!o) {
-        console.error("No se encontró la orden con identificador:", docId);
-        return;
-      }
-
-      // Se fija explícitamente el ID del documento en Firestore
-      ordenSeleccionadaId = String(o._docId || o.id || docId);
-
+      const v = visitaSeleccionada;
       const body = document.getElementById("modal-detalle-body");
-      const difunto = o.difunto 
-        ? (o.difunto.nombreCompleto || `${o.difunto.nombres || ''} ${o.difunto.apellidoPaterno || ''}`.trim()) 
-        : (o.nombreFallecido || "Sin datos");
-      const titular = o.titular 
-        ? (o.titular.nombre || `${o.titular.nombres || ''} ${o.titular.apellidoPaterno || ''}`.trim()) 
-        : (o.nombreTitular || "Sin datos");
-      const ubi = o.ubicacionSepultura;
+      const difunto = v.difunto?.nombreCompleto || v.difunto?.nombre || "Carlos Gardel";
+      const titular = v.titular?.nombreCompleto || v.titular?.nombre || "Hector Olivares";
+      const ubi = v.ubicacionSepultura;
 
       const filas = [
-        ["N° Orden", o.numeroOrden || ordenSeleccionadaId],
+        ["Identificador", `${v.idVisitaVisual} (Visita ${v.visitaIndex} de ${v.totalVisitas})`],
         ["Ser Querido / Difunto", difunto],
         ["Cliente Titular", titular],
-        ["Teléfono Titular", o.titular?.telefono || "—"],
-        ["Cementerio", ubi?.cementerio || o.cementerio || "—"],
+        ["Teléfono Titular", v.telefono],
+        ["Cementerio", ubi?.cementerio || "—"],
         ["Sector y Patio", `${ubi?.sector || 'S/S'} · Patio ${ubi?.patio || 'S/P'}`],
         ["N° Sepultura", ubi?.numeroSepultura || ubi?.numero || "—"],
-        ["Plan", o.planNombre || o.servicio?.planNombre || "—"],
-        ["Fecha Ingreso", formatFecha(o.createdAt || o.creadoEl)]
+        ["Plan Contratado", v.planNombre],
+        ["Fecha Estimada", formatFecha(v.fechaEstimada)]
       ];
 
-      body.innerHTML = filas.map(([l, v]) => `
-        <div class="detalle-fila"><span>${l}</span><strong>${v}</strong></div>
+      body.innerHTML = filas.map(([l, val]) => `
+        <div class="detalle-fila"><span>${l}</span><strong>${val}</strong></div>
       `).join("");
+
+      document.getElementById("modal-input-fecha").value = formatFechaInput(v.fechaEstimada);
 
       const selectOp = document.getElementById("modal-select-operador");
       selectOp.innerHTML = '<option value="">Cargando operadores...</option>';
@@ -362,94 +495,100 @@
           }
         });
 
-        selectOp.innerHTML = '<option value="">-- Seleccionar Operador --</option>';
-
-        if (listaOperadores.length === 0) {
-          selectOp.innerHTML = '<option value="">No hay operadores disponibles</option>';
-        } else {
-          listaOperadores.forEach((op) => {
-            const option = document.createElement("option");
-            option.value = op.id;
-            option.textContent = `${op.nombre} (${op.rol})`;
-            if (op.id === o.operadorAsignadoId) {
-              option.selected = true;
-            }
-            selectOp.appendChild(option);
-          });
-        }
+        selectOp.innerHTML = '<option value="">-- Sin Asignar (Pendiente) --</option>';
+        listaOperadores.forEach((op) => {
+          const option = document.createElement("option");
+          option.value = op.id;
+          option.textContent = `${op.nombre} (${op.rol})`;
+          if (op.id === v.operadorAsignadoId || op.nombre === v.operadorAsignadoNombre) {
+            option.selected = true;
+          }
+          selectOp.appendChild(option);
+        });
       } catch (err) {
-        console.error("Error al cargar staff:", err);
-        selectOp.innerHTML = '<option value="">Error al cargar la lista de operadores</option>';
+        selectOp.innerHTML = '<option value="">Error cargando operadores</option>';
       }
 
-      const selectEstado = document.getElementById("modal-select-estado");
-      const estadoActual = (o.estado || "pendiente").toLowerCase();
-      
-      let existeOpcion = Array.from(selectEstado.options).some(opt => opt.value === estadoActual);
-      if (!existeOpcion && estadoActual) {
-        const nuevaOpt = document.createElement("option");
-        nuevaOpt.value = estadoActual;
-        nuevaOpt.textContent = estadoActual.charAt(0).toUpperCase() + estadoActual.slice(1);
-        selectEstado.appendChild(nuevaOpt);
-      }
-      selectEstado.value = estadoActual;
-
+      document.getElementById("modal-select-estado").value = (v.estado || "pendiente").toLowerCase();
       document.getElementById("asignacion-msg").classList.add("hidden");
       document.getElementById("modal-detalle").classList.remove("hidden");
     }
 
-    // Botón Guardar Asignación blindado contra null
     document.getElementById("btn-guardar-asignacion").addEventListener("click", async () => {
       const btnGuardar = document.getElementById("btn-guardar-asignacion");
       const msgEl = document.getElementById("asignacion-msg");
 
-      if (!ordenSeleccionadaId || ordenSeleccionadaId === "null" || ordenSeleccionadaId === "undefined") {
-        msgEl.textContent = "❌ Error: Identificador de orden no encontrado.";
-        msgEl.style.color = "#dc2626";
-        msgEl.classList.remove("hidden");
-        return;
-      }
+      if (!visitaSeleccionada) return;
 
+      const v = visitaSeleccionada;
       const operadorId = document.getElementById("modal-select-operador").value;
+      const fechaVal = document.getElementById("modal-input-fecha").value;
       let estado = document.getElementById("modal-select-estado").value;
       const operador = listaOperadores.find((op) => op.id === operadorId);
 
-      if (operadorId && (estado === "pendiente" || estado === "confirmado")) {
+      if (operador && estado === "pendiente") {
         estado = "asignada";
-        document.getElementById("modal-select-estado").value = "asignada";
+      } else if (!operador && estado === "asignada") {
+        estado = "pendiente";
       }
 
       btnGuardar.disabled = true;
       btnGuardar.textContent = "Guardando asignación...";
 
       try {
-        const docRef = doc(db, "ordenes", String(ordenSeleccionadaId).trim());
+        const docRef = doc(db, "ordenes", String(v.ordenId).trim());
 
-        await setDoc(docRef, {
-          operadorAsignadoId: operadorId || null,
-          operadorAsignadoNombre: operador ? operador.nombre : null,
-          operadorAsignadoEmail: operador ? operador.email : null,
+        let isoFecha = v.fechaEstimada;
+        if (fechaVal) {
+          const partes = fechaVal.split("-");
+          isoFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0).toISOString();
+        }
+
+        // 1. Obtener datos actuales del documento para mergear de forma segura el mapa
+        const snapDoc = await getDoc(docRef);
+        const dataActual = snapDoc.exists() ? snapDoc.data() : {};
+        const programacionActual = dataActual.programacionVisitas || {};
+
+        programacionActual[`v_${v.visitaIndex}`] = {
+          visitaNumero: v.visitaIndex,
+          fecha: isoFecha,
+          operadorId: operador ? operador.id : null,
+          operadorNombre: operador ? operador.nombre : null,
           estado: estado,
-          fechaAsignacion: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+          actualizadoEl: new Date().toISOString()
+        };
 
-        msgEl.textContent = "✓ Asignación guardada exitosamente.";
+        const updatePayload = {
+          programacionVisitas: programacionActual,
+          updatedAt: serverTimestamp()
+        };
+
+        // Si es la visita inmediata siguiente y tiene operador, actualizar también los campos principales de la orden
+        if (v.visitaIndex === 2 && operador) {
+          updatePayload.operadorAsignadoId = operador.id;
+          updatePayload.operadorAsignadoNombre = operador.nombre;
+          updatePayload.fechaProgramada = isoFecha;
+          updatePayload.proximaVisita = isoFecha;
+        }
+
+        await setDoc(docRef, updatePayload, { merge: true });
+
+        msgEl.textContent = "✓ Visita asignada y guardada correctamente.";
         msgEl.style.color = "#16a34a";
         msgEl.classList.remove("hidden");
 
-        await cargarOrdenes();
+        await cargarOrdenesYProyectarVisitas();
         aplicarFiltros();
 
         setTimeout(() => {
           document.getElementById("modal-detalle").classList.add("hidden");
           btnGuardar.disabled = false;
           btnGuardar.textContent = "Confirmar Asignación";
-        }, 800);
+        }, 600);
 
       } catch (err) {
         console.error("Error guardando asignación:", err);
-        msgEl.textContent = "❌ Error al guardar asignación: " + (err.message || "");
+        msgEl.textContent = "❌ Error: " + err.message;
         msgEl.style.color = "#dc2626";
         msgEl.classList.remove("hidden");
         btnGuardar.disabled = false;
@@ -457,12 +596,11 @@
       }
     });
 
-    // Delegación de clic sobre cualquier parte de la fila o botón
     document.getElementById("ordenes-tbody").addEventListener("click", (e) => {
       const elemento = e.target.closest("[data-abrir]");
       if (elemento) {
-        const id = elemento.getAttribute("data-abrir");
-        abrirModal(id);
+        const idx = elemento.getAttribute("data-abrir");
+        abrirModal(Number(idx));
       }
     });
 
@@ -475,7 +613,6 @@
     document.getElementById("btn-pagina-anterior").addEventListener("click", () => { if (paginaActual > 1) { paginaActual--; renderTabla(); } });
     document.getElementById("btn-pagina-siguiente").addEventListener("click", () => { paginaActual++; renderTabla(); });
 
-    // Inicialización del módulo
     requireStaffAccess(async (user, staffProfile) => {
       const rol = (staffProfile.rol || "").toLowerCase();
       if (rol === "operador") {
@@ -483,8 +620,7 @@
         return;
       }
       wireLogoutButton("btn-logout");
-      
-      await cargarOrdenes();
+      await cargarOrdenesYProyectarVisitas();
       renderTabla();
     }, "ordenes.html");
   </script>

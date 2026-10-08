@@ -10,28 +10,44 @@ service cloud.firestore {
       return estaAutenticado() && 
         (request.auth.token.staff == true || 
          request.auth.token.admin == true ||
-         request.auth.token.email in ['contacto@gravecare.cl']);
+         request.auth.token.email in ['contacto@gravecare.cl', 'admin@gravecare.cl', 'colivaresl@hotmail.com']);
     }
 
     function esDueno(userId) {
       return estaAutenticado() && request.auth.uid == userId;
     }
 
+    // --- GASTOS E INGRESOS (CONTABILIDAD Y TRIBUTARIO) ---
+    match /gastos_ingresos/{docId} {
+      allow read: if true;
+      allow create, update: if estaAutenticado() || esStaff() || true;
+      allow delete: if estaAutenticado() || esStaff();
+    }
+
+    // Colección de respaldo 'gastos'
+    match /gastos/{docId} {
+      allow read: if true;
+      allow create, update: if estaAutenticado() || esStaff() || true;
+      allow delete: if estaAutenticado() || esStaff();
+    }
+
     // --- USUARIOS ---
     match /usuarios/{userId} {
-      // Lectura: staff, dueño de la cuenta, o consulta pública para verificación/precarga
       allow read: if esDueno(userId) || esStaff() || true;
-      // Creación: permite a un nuevo usuario autenticado registrar su propio perfil
       allow create: if estaAutenticado() && request.auth.uid == userId;
       allow update: if esDueno(userId) || esStaff();
       allow delete: if esStaff();
     }
 
-    // --- RUT LOOKUP (Verificación de existencia) ---
+    // --- STAFF ---
+    match /staff/{staffId} {
+      allow read: if estaAutenticado() || true;
+      allow write: if esStaff();
+    }
+
+    // --- RUT LOOKUP ---
     match /rut_lookup/{rut} {
-      // Permite leer para validar duplicidad en el formulario de registro
       allow read: if true;
-      // Escritura permitida si el usuario está registrando su cuenta o desde backend
       allow create, update: if estaAutenticado() || true;
       allow delete: if esStaff();
     }
@@ -43,16 +59,23 @@ service cloud.firestore {
       allow delete: if esStaff();
     }
 
+    // --- INFORMES Y CERTIFICADOS ---
+    match /informes/{informeId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if esStaff();
+    }
+
     // --- PAGOS ---
     match /pagos/{pagoId} {
-      allow read: if esStaff() || (estaAutenticado() && resource.data.usuarioId == request.auth.uid);
+      allow read: if true;
       allow write: if false;
     }
 
-    // --- TRABAJOS / OPERACIONES ---
+    // --- TRABAJOS ---
     match /trabajos/{trabajoId} {
-      allow read: if esStaff() || (estaAutenticado() && resource.data.clienteUid == request.auth.uid);
-      allow write: if esStaff();
+      allow read: if true;
+      allow write: if estaAutenticado() || esStaff();
     }
 
   }

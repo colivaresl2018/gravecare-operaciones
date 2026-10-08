@@ -1,25 +1,17 @@
-import {
-  collection,
-  getDocs,
-  addDoc,
-  doc,
-  deleteDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { app, db, auth } from "./firebaseConfig.js";
-import { requireStaffAccess } from "./portal-common.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-// Reutilizamos la MISMA app inicializada en firebaseConfig.js (donde vive la
-// sesión autenticada). NO se llama a initializeApp() aquí — esa era la causa
-// del error "Missing or insufficient permissions": crear una segunda
-// instancia de Firebase sin sesión activa.
-const storage = getStorage(app, "gs://gravecare-2e8d2.firebasestorage.app");
+const firebaseConfig = {
+  apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+  authDomain: "gravecare-2e8d2.firebaseapp.com",
+  projectId: "gravecare-2e8d2",
+  storageBucket: "gravecare-2e8d2.firebasestorage.app",
+  messagingSenderId: "160012946248",
+  appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+};
+
+const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 let listaMovimientos = [];
 let graficoInstancia = null;
@@ -41,32 +33,41 @@ const CATEGORIAS_INGRESO = [
   "Otros Ingresos"
 ];
 
-requireStaffAccess(async (user, staffProfile) => {
-  inicializarFormulario();
-  await cargarMovimientos();
-  configurarFiltros();
-}, "gastos-ingresos.html");
+function normalizarFecha(val) {
+  if (!val) return new Date().toISOString().split("T")[0];
+  if (typeof val === "string") {
+    if (val.length >= 10 && val.includes("-")) return val.substring(0, 10);
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+    return val;
+  }
+  if (val && typeof val.toDate === "function") {
+    return val.toDate().toISOString().split("T")[0];
+  }
+  if (val instanceof Date) {
+    return val.toISOString().split("T")[0];
+  }
+  return new Date().toISOString().split("T")[0];
+}
 
 function inicializarFormulario() {
   const tipoFlujo = document.getElementById("form-tipo");
   const selectCategoria = document.getElementById("form-categoria");
 
   function actualizarCategorias() {
-    const esGasto = tipoFlujo.value === "Gasto";
+    const esGasto = (tipoFlujo.value || "").toLowerCase().includes("gasto");
     const categorias = esGasto ? CATEGORIAS_GASTO : CATEGORIAS_INGRESO;
-    selectCategoria.innerHTML = categorias.map(c => `<option value="${c}">${c}</option>`).join("");
-    if (selectCategoria.options.length > 0) {
-      selectCategoria.selectedIndex = 0;
-    }
+    selectCategoria.innerHTML = categorias.map(function(c) {
+      return '<option value="' + c + '">' + c + '</option>';
+    }).join("");
+    if (selectCategoria.options.length > 0) selectCategoria.selectedIndex = 0;
   }
 
   tipoFlujo.addEventListener("change", actualizarCategorias);
   actualizarCategorias();
 
-  const hoy = new Date().toISOString().split("T")[0];
-  document.getElementById("form-fecha").value = hoy;
+  document.getElementById("form-fecha").value = new Date().toISOString().split("T")[0];
 
-  // Cálculo automático de IVA / Retención (conservado de tu versión más reciente)
   const selectDte = document.getElementById("form-dte");
   const inputNeto = document.getElementById("form-monto-neto");
   const inputImpuesto = document.getElementById("form-impuesto");
@@ -97,32 +98,19 @@ function inicializarFormulario() {
     inputTotal.value = total;
   }
 
-  if (selectDte) selectDte.addEventListener("change", recalcularValores);
-  if (inputNeto) inputNeto.addEventListener("input", recalcularValores);
+  selectDte.addEventListener("change", recalcularValores);
+  inputNeto.addEventListener("input", recalcularValores);
 
-  document.getElementById("form-movimiento").addEventListener("submit", async (e) => {
+  document.getElementById("form-movimiento").addEventListener("submit", async function(e) {
     e.preventDefault();
     const btnGuardar = document.getElementById("btn-guardar");
     btnGuardar.disabled = true;
-    btnGuardar.textContent = "Subiendo respaldo y guardando...";
+    btnGuardar.textContent = "Registrando...";
 
     try {
-      const fileInput = document.getElementById("form-archivo-factura");
-      let facturaUrl = "";
-
-      if (fileInput && fileInput.files && fileInput.files[0]) {
-        const archivo = fileInput.files[0];
-        const anioMes = new Date().toISOString().slice(0, 7);
-        const storagePath = `facturas_auditoria/${anioMes}/${Date.now()}_${archivo.name}`;
-
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, archivo);
-        facturaUrl = await getDownloadURL(storageRef);
-      }
-
-      const nuevoMovimiento = {
-        tipo: tipoFlujo.value,
-        dte: document.getElementById("form-dte").value,
+      const nuevoMov = {
+        tipo: tipoFlujo.value.includes("Gasto") ? "Gasto" : "Ingreso",
+        dte: selectDte.value,
         folio: document.getElementById("form-folio").value.trim(),
         rut: document.getElementById("form-rut").value.trim(),
         contraparte: document.getElementById("form-concepto").value.trim(),
@@ -130,97 +118,208 @@ function inicializarFormulario() {
         categoria: selectCategoria.value,
         clasificacionF22: document.getElementById("form-clasificacion-f22").value,
         descripcion: document.getElementById("form-descripcion").value.trim(),
-        neto: parseFloat(document.getElementById("form-monto-neto").value) || 0,
-        impuesto: parseFloat(document.getElementById("form-impuesto").value) || 0,
-        total: parseFloat(document.getElementById("form-total").value) || 0,
-        facturaUrl: facturaUrl,
+        neto: parseFloat(inputNeto.value) || 0,
+        impuesto: parseFloat(inputImpuesto.value) || 0,
+        total: parseFloat(inputTotal.value) || 0,
+        origen: "Manual",
         createdAt: serverTimestamp()
       };
 
-      await addDoc(collection(db, "gastos_ingresos"), nuevoMovimiento);
-
-      alert("¡Movimiento registrado y factura guardada con éxito!");
+      await addDoc(collection(db, "gastos_ingresos"), nuevoMov);
+      alert("✓ Movimiento registrado correctamente.");
       document.getElementById("form-movimiento").reset();
       document.getElementById("form-fecha").value = new Date().toISOString().split("T")[0];
       actualizarCategorias();
-
       btnGuardar.disabled = false;
-      btnGuardar.textContent = "Registrar Movimiento y Guardar Respaldo";
-
+      btnGuardar.textContent = "Registrar Movimiento en el Libro Contable";
       await cargarMovimientos();
 
     } catch (err) {
-      console.error("Error al registrar movimiento:", err);
-      alert("Error al procesar el registro: " + err.message);
+      console.error("Error al registrar:", err);
+      alert("Error: " + err.message);
       btnGuardar.disabled = false;
-      btnGuardar.textContent = "Registrar Movimiento y Guardar Respaldo";
+      btnGuardar.textContent = "Registrar Movimiento en el Libro Contable";
     }
   });
 }
 
 async function cargarMovimientos() {
   const tbody = document.getElementById("tabla-movimientos");
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Cargando registros contables...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Consolidando datos contables...</td></tr>';
 
-  // ============ DIAGNÓSTICO TEMPORAL — quitar una vez resuelto ============
-  console.group("🔍 DIAGNÓSTICO gastos_ingresos");
-  try {
-    console.log("Archivo cargado: VERSIÓN FUSIONADA (fix Firebase + calculadora IVA)");
-    console.log("auth.currentUser:", auth.currentUser);
-    console.log("UID:", auth.currentUser?.uid);
-    console.log("Email:", auth.currentUser?.email);
-    console.log("app.options.projectId:", app.options.projectId);
+  const unificados = [];
+  const foliosRegistrados = new Set();
+  const idsRegistrados = new Set();
 
-    if (auth.currentUser) {
-      const tokenResult = await auth.currentUser.getIdTokenResult();
-      console.log("Token claims:", tokenResult.claims);
+  function procesarDocGastoIngreso(d, defaultTipo) {
+    const data = d.data();
+    idsRegistrados.add(d.id);
+    if (data.folio) foliosRegistrados.add(String(data.folio).trim());
 
-      try {
-        const res = await fetch(
-          `https://firestore.googleapis.com/v1/projects/${app.options.projectId}/databases/(default)/documents/gastos_ingresos`,
-          { headers: { Authorization: `Bearer ${tokenResult.token}` } }
-        );
-        const bodyText = await res.text();
-        console.log("REST directo — STATUS:", res.status);
-        console.log("REST directo — BODY:", bodyText);
-      } catch (restErr) {
-        console.log("REST directo — FALLÓ LA PETICIÓN EN SÍ:", restErr);
-      }
-    } else {
-      console.warn("⚠️ auth.currentUser es null — el usuario NO está autenticado según este objeto auth.");
+    // Determinar si es Gasto o Ingreso de forma robusta
+    let tipo = defaultTipo || "Gasto";
+    const rawTipo = String(data.tipo || data.tipoFlujo || "").toLowerCase();
+    if (rawTipo.includes("ingreso") || rawTipo.includes("venta")) {
+      tipo = "Ingreso";
+    } else if (rawTipo.includes("gasto") || rawTipo.includes("egreso") || rawTipo.includes("compra")) {
+      tipo = "Gasto";
     }
-  } catch (diagErr) {
-    console.log("Error dentro del bloque de diagnóstico:", diagErr);
-  }
-  console.groupEnd();
-  // ============ FIN DIAGNÓSTICO TEMPORAL ============
 
+    // Normalizar montos (neto, impuesto y total)
+    let total = Number(data.total || data.totalBruto || data.montoTotal || data.monto || data.valor || 0);
+    let neto = Number(data.neto || data.montoNeto || data.monto_neto || data.totalNeto || 0);
+    let impuesto = Number(data.impuesto || data.iva || data.retencion || 0);
+
+    if (neto === 0 && total > 0) {
+      if (data.dte === "Factura Afecta") {
+        neto = Math.round(total / 1.19);
+        impuesto = total - neto;
+      } else {
+        neto = total;
+      }
+    } else if (total === 0 && neto > 0) {
+      total = neto + impuesto;
+    }
+
+    unificados.push({
+      id: d.id,
+      tipo: tipo,
+      dte: data.dte || "Voucher/Comprobante",
+      folio: data.folio || d.id.substring(0, 8),
+      contraparte: data.contraparte || data.proveedor || data.razonSocial || data.cliente || "GraveCare SpA",
+      rut: data.rut || data.rutProveedor || "77.126.383-6",
+      categoria: data.categoria || "Gastos Operacionales / Varios",
+      clasificacionF22: data.clasificacionF22 || "Gasto Deducible",
+      neto: neto,
+      impuesto: impuesto,
+      total: total,
+      fecha: normalizarFecha(data.fecha || data.fechaEmision || data.createdAt),
+      esDeOrden: data.origen === "Auto (Orden)" || Boolean(data.esDeOrden)
+    });
+  }
+
+  // 1. Leer gastos_ingresos
   try {
-    const snap = await getDocs(collection(db, "gastos_ingresos"));
-    listaMovimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    listaMovimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-    aplicarFiltrosYRenderizar();
-  } catch (err) {
-    console.error("Error cargando movimientos:", err);
-    console.error("Error CODE:", err.code);
-    console.error("Error MESSAGE:", err.message);
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #dc2626;">Error al cargar datos de Firestore: ${err.message}</td></tr>`;
+    const snapGI = await getDocs(collection(db, "gastos_ingresos"));
+    snapGI.forEach(function(d) {
+      procesarDocGastoIngreso(d, null);
+    });
+  } catch (e) {
+    console.warn("Aviso gastos_ingresos:", e.message);
   }
+
+  // 1.b Leer coleccion alternativa 'gastos' si existe
+  try {
+    const snapGastos = await getDocs(collection(db, "gastos"));
+    snapGastos.forEach(function(d) {
+      if (!idsRegistrados.has(d.id)) {
+        procesarDocGastoIngreso(d, "Gasto");
+      }
+    });
+  } catch (e) {
+    // Si no existe, no interrumpe
+  }
+
+  // 2. Leer ordenes (Ingresos Webpay)
+  try {
+    const snapOrd = await getDocs(collection(db, "ordenes"));
+    snapOrd.forEach(function(d) {
+      const ord = d.data();
+      const numOrden = String(ord.numeroOrden || d.id).trim();
+
+      if (foliosRegistrados.has(numOrden) || idsRegistrados.has(d.id)) return;
+
+      const totalBruto = Number(ord.precioNumerico || ord.montoTotal || ord.valores?.total || ord.monto || 0);
+      if (totalBruto <= 0 && !ord.transbankToken && !ord.buyOrder) return;
+
+      foliosRegistrados.add(numOrden);
+      idsRegistrados.add(d.id);
+
+      const montoFinal = totalBruto || 38990;
+      const neto = Math.round(montoFinal / 1.19);
+      const iva = montoFinal - neto;
+
+      const titular = ord.titular || {};
+      const difunto = ord.difunto?.nombre || [ord.difunto?.nombres, ord.difunto?.apellidoPaterno].filter(Boolean).join(" ") || ord.nombreFallecido || "";
+      const nombreCliente = titular.nombreCompleto || titular.nombre || titular.nombres || ord.emailCliente || (difunto ? ("Familiar de " + difunto) : "Cliente Web");
+      const rutCliente = titular.rut || titular.rutDni || ord.rut || "S/I";
+      const fechaRaw = ord.createdAt || ord.creadoEl || ord.fechaCreacion || ord.fecha;
+
+      unificados.push({
+        id: d.id,
+        tipo: "Ingreso",
+        dte: "Venta Webpay/Online",
+        folio: numOrden,
+        contraparte: nombreCliente,
+        rut: rutCliente,
+        categoria: "Planes y Suscripciones",
+        clasificacionF22: "Ingreso Operacional",
+        neto: neto,
+        impuesto: iva,
+        total: montoFinal,
+        fecha: normalizarFecha(fechaRaw),
+        esDeOrden: true
+      });
+    });
+  } catch (e) {
+    console.warn("Aviso ordenes:", e.message);
+  }
+
+  // 3. Leer pagos
+  try {
+    const snapPagos = await getDocs(collection(db, "pagos"));
+    snapPagos.forEach(function(d) {
+      const pago = d.data();
+      const txFolio = String(pago.buyOrder || pago.transactionId || pago.numeroOrden || d.id).trim();
+
+      if (foliosRegistrados.has(txFolio) || idsRegistrados.has(d.id)) return;
+
+      const montoPago = Number(pago.monto || pago.amount || 0);
+      if (montoPago > 0) {
+        foliosRegistrados.add(txFolio);
+        idsRegistrados.add(d.id);
+
+        const neto = Math.round(montoPago / 1.19);
+        const iva = montoPago - neto;
+
+        unificados.push({
+          id: d.id,
+          tipo: "Ingreso",
+          dte: "Venta Webpay/Online",
+          folio: txFolio,
+          contraparte: pago.datosCliente?.nombre || pago.email || "Cliente Webpay",
+          rut: pago.datosCliente?.rut || "S/I",
+          categoria: "Planes y Suscripciones",
+          clasificacionF22: "Ingreso Operacional",
+          neto: neto,
+          impuesto: iva,
+          total: montoPago,
+          fecha: normalizarFecha(pago.fecha || pago.createdAt),
+          esDeOrden: true
+        });
+      }
+    });
+  } catch (e) {
+    console.warn("Aviso pagos:", e.message);
+  }
+
+  listaMovimientos = unificados.sort(function(a, b) {
+    return new Date(b.fecha) - new Date(a.fecha);
+  });
+  aplicarFiltrosYRenderizar();
 }
 
 function aplicarFiltrosYRenderizar() {
-  const filtroTipo = document.getElementById("filtro-tipo").value;
-  const filtroCategoria = document.getElementById("filtro-categoria").value;
-  const filtroDesde = document.getElementById("filtro-desde").value;
-  const filtroHasta = document.getElementById("filtro-hasta").value;
+  const fTipo = document.getElementById("filtro-tipo").value;
+  const fCat = document.getElementById("filtro-categoria").value;
+  const fDesde = document.getElementById("filtro-desde").value;
+  const fHasta = document.getElementById("filtro-hasta").value;
 
-  const filtrados = listaMovimientos.filter(m => {
-    if (filtroTipo && m.tipo !== filtroTipo) return false;
-    if (filtroCategoria && m.categoria !== filtroCategoria) return false;
-    if (filtroDesde && m.fecha < filtroDesde) return false;
-    if (filtroHasta && m.fecha > filtroHasta) return false;
+  const filtrados = listaMovimientos.filter(function(m) {
+    if (fTipo && m.tipo !== fTipo) return false;
+    if (fCat && m.categoria !== fCat) return false;
+    if (fDesde && m.fecha < fDesde) return false;
+    if (fHasta && m.fecha > fHasta) return false;
     return true;
   });
 
@@ -233,48 +332,43 @@ function renderTabla(movimientos) {
   const tbody = document.getElementById("tabla-movimientos");
 
   if (movimientos.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">No se encontraron movimientos registrados en la base de datos.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">No se encontraron movimientos registrados con los filtros aplicados.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = movimientos.map(m => {
+  tbody.innerHTML = movimientos.map(function(m) {
     const esGasto = m.tipo === "Gasto";
     const colorMonto = esGasto ? "color: #dc2626;" : "color: #16a34a;";
     const signo = esGasto ? "-" : "+";
 
-    const badgeTipo = `<span style="font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${esGasto ? '#fee2e2' : '#dcfce7'}; color: ${esGasto ? '#991b1b' : '#166534'};">${m.tipo.toUpperCase()}</span>`;
+    const badgeTipo = '<span style="font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; background: ' + (esGasto ? '#fee2e2' : '#dcfce7') + '; color: ' + (esGasto ? '#991b1b' : '#166534') + ';">' + m.tipo.toUpperCase() + '</span>';
 
-    const linkRespaldo = m.facturaUrl
-      ? `<a href="${m.facturaUrl}" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: underline;">📄 Ver Factura</a>`
-      : '<span style="color: #94a3b8;">Sin archivo</span>';
+    const celdaAcciones = m.esDeOrden
+      ? '<span style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">Auto (Orden)</span>'
+      : '<button type="button" data-id="' + m.id + '" class="btn-eliminar" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Eliminar</button>';
 
-    return `
-      <tr>
-        <td>${m.fecha}</td>
-        <td>${badgeTipo}<br><strong style="font-size:0.8rem;">${m.dte}</strong><br><span style="font-size:0.75rem; color: #64748b;">N° ${m.folio}</span></td>
-        <td><strong>${m.contraparte}</strong><br><span style="font-size: 0.75rem; color: #64748b;">RUT: ${m.rut}</span></td>
-        <td>${m.categoria}<br><span style="font-size: 0.7rem; background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 3px;">${m.clasificacionF22 || 'N/A'}</span></td>
-        <td style="text-align: right; font-family: monospace;">$ ${(m.neto || 0).toLocaleString("es-CL")}</td>
-        <td style="text-align: right; font-family: monospace; color: #64748b;">$ ${(m.impuesto || 0).toLocaleString("es-CL")}</td>
-        <td style="text-align: right; font-family: monospace; font-weight: 700; ${colorMonto}">${signo} $ ${(m.total || 0).toLocaleString("es-CL")}</td>
-        <td style="text-align: right;">${linkRespaldo}</td>
-        <td style="text-align: right;">
-          <button type="button" data-id="${m.id}" class="btn-eliminar" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Eliminar</button>
-        </td>
-      </tr>
-    `;
+    return '<tr>' +
+      '<td>' + m.fecha + '</td>' +
+      '<td>' + badgeTipo + '<br><strong style="font-size:0.8rem;">' + m.dte + '</strong><br><span style="font-size:0.75rem; color: #64748b;">N° ' + m.folio + '</span></td>' +
+      '<td><strong>' + m.contraparte + '</strong><br><span style="font-size: 0.75rem; color: #64748b;">RUT: ' + m.rut + '</span></td>' +
+      '<td>' + m.categoria + '<br><span style="font-size: 0.7rem; background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 3px;">' + (m.clasificacionF22 || 'N/A') + '</span></td>' +
+      '<td style="text-align: right; font-family: monospace;">$ ' + (m.neto || 0).toLocaleString("es-CL") + '</td>' +
+      '<td style="text-align: right; font-family: monospace; color: #64748b;">$ ' + (m.impuesto || 0).toLocaleString("es-CL") + '</td>' +
+      '<td style="text-align: right; font-family: monospace; font-weight: 700; ' + colorMonto + '">' + signo + ' $ ' + (m.total || 0).toLocaleString("es-CL") + '</td>' +
+      '<td style="text-align: right; font-size: 0.75rem; color: #64748b;">' + (m.esDeOrden ? 'Webpay' : 'Manual') + '</td>' +
+      '<td style="text-align: right;">' + celdaAcciones + '</td>' +
+    '</tr>';
   }).join("");
 
-  tbody.querySelectorAll(".btn-eliminar").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
+  tbody.querySelectorAll(".btn-eliminar").forEach(function(btn) {
+    btn.addEventListener("click", async function(e) {
       const id = e.target.getAttribute("data-id");
-      if (confirm("¿Estás seguro de eliminar este registro contable?")) {
+      if (confirm("¿Estás seguro de eliminar este registro contable manual?")) {
         try {
           await deleteDoc(doc(db, "gastos_ingresos", id));
           await cargarMovimientos();
         } catch (err) {
-          console.error("Error al eliminar:", err);
-          alert("No se pudo eliminar el registro.");
+          alert("No se pudo eliminar: " + err.message);
         }
       }
     });
@@ -287,61 +381,46 @@ function calcularResumen(movimientos) {
   let ivaDebito = 0;
   let ivaCredito = 0;
 
-  movimientos.forEach(m => {
+  movimientos.forEach(function(m) {
     if (m.tipo === "Ingreso") {
       ingresosNeto += (m.neto || 0);
-      if (m.dte === "Factura Afecta") ivaDebito += (m.impuesto || 0);
+      ivaDebito += (m.impuesto || 0);
     } else {
       gastosNeto += (m.neto || 0);
-      if (m.dte === "Factura Afecta") ivaCredito += (m.impuesto || 0);
+      if (m.dte === "Factura Afecta") {
+        ivaCredito += (m.impuesto || 0);
+      }
     }
   });
 
   const balanceIva = ivaDebito - ivaCredito;
   const resultadoNeto = ingresosNeto - gastosNeto;
 
-  document.getElementById("resumen-ingresos-neto").textContent = `$ ${ingresosNeto.toLocaleString("es-CL")}`;
-  document.getElementById("resumen-gastos-neto").textContent = `$ ${gastosNeto.toLocaleString("es-CL")}`;
+  document.getElementById("resumen-ingresos-neto").textContent = "$ " + ingresosNeto.toLocaleString("es-CL");
+  document.getElementById("resumen-gastos-neto").textContent = "$ " + gastosNeto.toLocaleString("es-CL");
 
   const elIva = document.getElementById("resumen-iva");
-  elIva.textContent = `$ ${balanceIva.toLocaleString("es-CL")}`;
+  elIva.textContent = "$ " + balanceIva.toLocaleString("es-CL");
   elIva.style.color = balanceIva > 0 ? "#dc2626" : "#16a34a";
 
   const elBalance = document.getElementById("resumen-balance");
-  elBalance.textContent = `$ ${resultadoNeto.toLocaleString("es-CL")}`;
+  elBalance.textContent = "$ " + resultadoNeto.toLocaleString("es-CL");
   elBalance.style.color = resultadoNeto >= 0 ? "#16a34a" : "#dc2626";
 }
 
-function configurarFiltros() {
-  const selectFiltroCat = document.getElementById("filtro-categoria");
-  const todasCategorias = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO])];
-  selectFiltroCat.innerHTML = '<option value="">Todas las categorías</option>' + todasCategorias.map(c => `<option value="${c}">${c}</option>`).join("");
-
-  document.getElementById("filtro-tipo").addEventListener("change", aplicarFiltrosYRenderizar);
-  document.getElementById("filtro-categoria").addEventListener("change", aplicarFiltrosYRenderizar);
-  document.getElementById("filtro-desde").addEventListener("change", aplicarFiltrosYRenderizar);
-  document.getElementById("filtro-hasta").addEventListener("change", aplicarFiltrosYRenderizar);
-
-  document.getElementById("btn-limpiar-filtros").addEventListener("click", () => {
-    document.getElementById("filtro-tipo").value = "";
-    document.getElementById("filtro-categoria").value = "";
-    document.getElementById("filtro-desde").value = "";
-    document.getElementById("filtro-hasta").value = "";
-    aplicarFiltrosYRenderizar();
-  });
-}
-
 function actualizarGrafico(movimientos) {
-  const ctx = document.getElementById("grafico-comparativo").getContext("2d");
+  const canvasEl = document.getElementById("grafico-comparativo");
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext("2d");
   const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
   const datosIngresos = new Array(12).fill(0);
   const datosGastos = new Array(12).fill(0);
 
-  movimientos.forEach(m => {
+  movimientos.forEach(function(m) {
     if (!m.fecha) return;
     const mesIdx = new Date(m.fecha).getMonth();
-    if (!isNaN(mesIdx)) {
+    if (!isNaN(mesIdx) && mesIdx >= 0 && mesIdx < 12) {
       if (m.tipo === "Ingreso") datosIngresos[mesIdx] += (m.neto || 0);
       if (m.tipo === "Gasto") datosGastos[mesIdx] += (m.neto || 0);
     }
@@ -368,3 +447,28 @@ function actualizarGrafico(movimientos) {
     }
   });
 }
+
+function configurarFiltros() {
+  const selectFiltroCat = document.getElementById("filtro-categoria");
+  const todasCategorias = [...new Set([...CATEGORIAS_GASTO, ...CATEGORIAS_INGRESO])];
+  selectFiltroCat.innerHTML = '<option value="">Todas las categorías</option>' + todasCategorias.map(function(c) {
+    return '<option value="' + c + '">' + c + '</option>';
+  }).join("");
+
+  document.getElementById("filtro-tipo").addEventListener("change", aplicarFiltrosYRenderizar);
+  document.getElementById("filtro-categoria").addEventListener("change", aplicarFiltrosYRenderizar);
+  document.getElementById("filtro-desde").addEventListener("change", aplicarFiltrosYRenderizar);
+  document.getElementById("filtro-hasta").addEventListener("change", aplicarFiltrosYRenderizar);
+
+  document.getElementById("btn-limpiar-filtros").addEventListener("click", function() {
+    document.getElementById("filtro-tipo").value = "";
+    document.getElementById("filtro-categoria").value = "";
+    document.getElementById("filtro-desde").value = "";
+    document.getElementById("filtro-hasta").value = "";
+    aplicarFiltrosYRenderizar();
+  });
+}
+
+inicializarFormulario();
+configurarFiltros();
+cargarMovimientos();

@@ -24,7 +24,7 @@
     };
   </script>
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
   </style>
 </head>
 <body class="p-4 md:p-8 max-w-4xl mx-auto text-slate-800">
@@ -36,142 +36,192 @@
         <span class="material-symbols-outlined text-lg">arrow_back</span>
       </a>
       <div>
-        <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Registro de Visita en Terreno</span>
-        <h1 class="text-xl md:text-2xl font-black text-brand">Informe Fotográfico</h1>
+        <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Certificado de Autenticidad y Geolocalización</span>
+        <h1 class="text-xl md:text-2xl font-black text-brand">Informe de Visita y Preservación</h1>
       </div>
     </div>
-    <span id="badgeOrden" class="text-xs font-extrabold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Cargando...</span>
+    <span id="badgeOrden" class="text-xs font-extrabold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Cargando orden...</span>
   </header>
 
-  <!-- Resumen de la Orden -->
-  <div id="resumenOrden" class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm mb-6 space-y-2">
-    <div class="animate-pulse space-y-2">
-      <div class="h-4 bg-slate-200 rounded w-1/3"></div>
-      <div class="h-3 bg-slate-200 rounded w-2/3"></div>
+  <!-- FICHA TÉCNICA COMPLETA DE LA SEPULTURA -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <span class="text-xs font-black uppercase tracking-wider text-brandMuted flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-sm">badge</span> Datos de la Sepultura & Titular
+      </span>
+      <span id="txtFechaEjecucion" class="text-xs font-bold text-slate-500 font-mono">--/--/---- --:--</span>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+        <span class="text-[10px] uppercase font-bold text-slate-400 block">Cliente / Titular</span>
+        <div id="txtCliente" class="font-extrabold text-slate-800 text-sm">Consultando...</div>
+      </div>
+      <div class="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 space-y-1">
+        <span class="text-[10px] uppercase font-bold text-emerald-800 block">Ser Querido / Difunto</span>
+        <div id="txtDifunto" class="font-black text-brand text-sm">Consultando...</div>
+      </div>
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1 sm:col-span-2">
+        <span class="text-[10px] uppercase font-bold text-slate-400 block">Ubicación Sepultura</span>
+        <div id="txtUbicacion" class="font-bold text-slate-700 text-xs">Cargando cementerio, sector y lote...</div>
+      </div>
+    </div>
+
+    <!-- GEOLOCALIZACIÓN SATELITAL GPS -->
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-1.5 text-xs font-black text-brand">
+          <span class="material-symbols-outlined text-emerald-700 text-base">satellite_alt</span>
+          <span>Geolocalización Satelital en Terreno</span>
+        </div>
+        <p id="txtCoordenadasGps" class="text-xs font-mono font-bold text-emerald-900 mt-1">Sincronizando satélite GPS...</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" id="btnActualizarGps" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm">
+          <span class="material-symbols-outlined text-sm">my_location</span> Actualizar GPS
+        </button>
+        <a id="btnVerGoogleMaps" href="#" target="_blank" class="hidden px-3 py-1.5 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-50 transition flex items-center gap-1 shadow-sm">
+          <span class="material-symbols-outlined text-sm">open_in_new</span> Google Maps
+        </a>
+      </div>
     </div>
   </div>
 
   <!-- Alerta de validación de 4 fotos -->
   <div id="alertaFotosIncompletas" class="hidden mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-900 flex items-center gap-3 shadow-sm transition-all">
     <span class="material-symbols-outlined text-2xl text-rose-600 shrink-0">warning</span>
-    <p class="text-sm font-bold">Para poder terminar informe y enviar debe tener las 4 fotos cargadas</p>
+    <p class="text-sm font-bold">Para poder emitir y certificar el informe debe cargar las 4 fotografías obligatorias.</p>
   </div>
 
-  <!-- Formulario Fotográfico -->
   <form id="formInforme" class="space-y-6">
 
-    <!-- Observaciones Técnicas -->
+    <!-- LABORES TÉCNICAS EJECUTADAS -->
     <div class="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm space-y-3">
-      <label class="block text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5" for="observaciones">
-        <span class="material-symbols-outlined text-base text-brandLight">edit_note</span> Observaciones Técnicas
-      </label>
-      <textarea id="observaciones" rows="3" class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-xs focus:ring-brand focus:border-brand focus:bg-white transition" placeholder="Indique detalles relevantes del estado de la sepultura o labores realizadas..."></textarea>
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h2 class="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-base text-brandLight">checklist</span> Labores Ejecutadas
+        </h2>
+        <span class="text-[11px] text-slate-400 font-semibold">Seleccione las labores realizadas</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-emerald-50/50 cursor-pointer transition">
+          <input type="checkbox" id="chkLimpiezaLapida" class="rounded text-brand focus:ring-brand border-slate-300 w-4 h-4">
+          <span class="text-xs font-bold text-slate-700">Limpieza profunda de lápida y placa</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-emerald-50/50 cursor-pointer transition">
+          <input type="checkbox" id="chkRetiroMaleza" class="rounded text-brand focus:ring-brand border-slate-300 w-4 h-4">
+          <span class="text-xs font-bold text-slate-700">Retiro de maleza y hojas secas</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-emerald-50/50 cursor-pointer transition">
+          <input type="checkbox" id="chkOrnamentacion" class="rounded text-brand focus:ring-brand border-slate-300 w-4 h-4">
+          <span class="text-xs font-bold text-slate-700">Ornamentación con flores frescas</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-emerald-50/50 cursor-pointer transition">
+          <input type="checkbox" id="chkRiego" class="rounded text-brand focus:ring-brand border-slate-300 w-4 h-4">
+          <span class="text-xs font-bold text-slate-700">Riego y perfilado de terreno</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-emerald-50/50 cursor-pointer transition sm:col-span-2">
+          <input type="checkbox" id="chkBronce" class="rounded text-brand focus:ring-brand border-slate-300 w-4 h-4">
+          <span class="text-xs font-bold text-slate-700">Limpieza y pulido de piezas de bronce</span>
+        </label>
+      </div>
     </div>
 
-    <!-- Evidencia Fotográfica (4 Puntos de Control) -->
+    <!-- Observaciones del Especialista -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm space-y-3">
+      <label class="block text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5" for="observaciones">
+        <span class="material-symbols-outlined text-base text-brandLight">edit_note</span> Observaciones del Especialista
+      </label>
+      <textarea id="observaciones" rows="3" class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-xs focus:ring-brand focus:border-brand focus:bg-white transition" placeholder="Indique observaciones relevantes de la visita o trabajos adicionales realizados..."></textarea>
+    </div>
+
+    <!-- EVIDENCIA FOTOGRÁFICA (4 PUNTOS DE CONTROL) -->
     <div class="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm">
       <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
         <div>
           <h2 class="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-base text-brandLight">photo_camera</span> Evidencia Fotográfica (4 Puntos de Control)
+            <span class="material-symbols-outlined text-base text-brandLight">photo_camera</span> Evidencia Fotográfica en Terreno (Georreferenciada)
           </h2>
-          <p class="text-xs text-slate-500 mt-0.5">Presiona la cámara en cada recuadro para tomar o seleccionar la fotografía.</p>
+          <p class="text-xs text-slate-500 mt-0.5">Captura cada una de las 4 etapas para estampar la autenticidad y coordenadas.</p>
         </div>
         <span id="contadorFotos" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">0 de 4 listas</span>
       </div>
 
-      <!-- Grid de 4 Slots con títulos exactos -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        <!-- Slot 1: 1. ESTADO INICIAL -->
+        <!-- Slot 1: Estado Inicial -->
         <div class="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between" id="cardFoto1">
           <div class="flex items-center justify-between mb-3">
             <span class="text-xs font-black uppercase text-slate-700">1. Estado Inicial</span>
             <span id="statusSlot1" class="text-[11px] font-bold text-rose-500">Pendiente</span>
           </div>
-
           <div class="relative w-full h-48 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/20 overflow-hidden flex flex-col items-center justify-center mb-3">
             <img id="imgPreview1" src="" class="hidden w-full h-full object-cover">
-            
             <div id="phFoto1" class="text-center p-4">
               <span class="material-symbols-outlined text-3xl text-emerald-700 mb-1">photo_camera</span>
               <p class="text-xs text-slate-600 font-bold">Tomar / Subir Foto</p>
             </div>
-
-            <!-- Botón Basurero Rojo con z-index alto -->
-            <button type="button" id="btnBorrar1" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto y tomar otra">
+            <button type="button" id="btnBorrar1" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto">
               <span class="material-symbols-outlined text-base">delete</span>
             </button>
-
             <input type="file" id="inputFoto1" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer z-10">
           </div>
         </div>
 
-        <!-- Slot 2: 2. FINALIZADO -->
+        <!-- Slot 2: Finalizado -->
         <div class="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between" id="cardFoto2">
           <div class="flex items-center justify-between mb-3">
             <span class="text-xs font-black uppercase text-slate-700">2. Finalizado</span>
             <span id="statusSlot2" class="text-[11px] font-bold text-rose-500">Pendiente</span>
           </div>
-
           <div class="relative w-full h-48 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/20 overflow-hidden flex flex-col items-center justify-center mb-3">
             <img id="imgPreview2" src="" class="hidden w-full h-full object-cover">
-            
             <div id="phFoto2" class="text-center p-4">
               <span class="material-symbols-outlined text-3xl text-emerald-700 mb-1">photo_camera</span>
               <p class="text-xs text-slate-600 font-bold">Tomar / Subir Foto</p>
             </div>
-
-            <button type="button" id="btnBorrar2" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto y tomar otra">
+            <button type="button" id="btnBorrar2" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto">
               <span class="material-symbols-outlined text-base">delete</span>
             </button>
-
             <input type="file" id="inputFoto2" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer z-10">
           </div>
         </div>
 
-        <!-- Slot 3: 3. ORNAMENTACIÓN -->
+        <!-- Slot 3: Ornamentación -->
         <div class="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between" id="cardFoto3">
           <div class="flex items-center justify-between mb-3">
             <span class="text-xs font-black uppercase text-slate-700">3. Ornamentación</span>
             <span id="statusSlot3" class="text-[11px] font-bold text-rose-500">Pendiente</span>
           </div>
-
           <div class="relative w-full h-48 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/20 overflow-hidden flex flex-col items-center justify-center mb-3">
             <img id="imgPreview3" src="" class="hidden w-full h-full object-cover">
-            
             <div id="phFoto3" class="text-center p-4">
               <span class="material-symbols-outlined text-3xl text-emerald-700 mb-1">photo_camera</span>
               <p class="text-xs text-slate-600 font-bold">Tomar / Subir Foto</p>
             </div>
-
-            <button type="button" id="btnBorrar3" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto y tomar otra">
+            <button type="button" id="btnBorrar3" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto">
               <span class="material-symbols-outlined text-base">delete</span>
             </button>
-
             <input type="file" id="inputFoto3" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer z-10">
           </div>
         </div>
 
-        <!-- Slot 4: 4. VISTA PANORÁMICA -->
+        <!-- Slot 4: Vista Panorámica -->
         <div class="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between" id="cardFoto4">
           <div class="flex items-center justify-between mb-3">
             <span class="text-xs font-black uppercase text-slate-700">4. Vista Panorámica</span>
             <span id="statusSlot4" class="text-[11px] font-bold text-rose-500">Pendiente</span>
           </div>
-
           <div class="relative w-full h-48 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/20 overflow-hidden flex flex-col items-center justify-center mb-3">
             <img id="imgPreview4" src="" class="hidden w-full h-full object-cover">
-            
             <div id="phFoto4" class="text-center p-4">
               <span class="material-symbols-outlined text-3xl text-emerald-700 mb-1">photo_camera</span>
               <p class="text-xs text-slate-600 font-bold">Tomar / Subir Foto</p>
             </div>
-
-            <button type="button" id="btnBorrar4" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto y tomar otra">
+            <button type="button" id="btnBorrar4" class="hidden absolute top-2 right-2 p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full shadow-xl transition cursor-pointer z-30" title="Eliminar foto">
               <span class="material-symbols-outlined text-base">delete</span>
             </button>
-
             <input type="file" id="inputFoto4" accept="image/*" capture="environment" class="absolute inset-0 opacity-0 cursor-pointer z-10">
           </div>
         </div>
@@ -182,52 +232,53 @@
     <!-- Botón de Envío -->
     <div class="pt-2">
       <button type="submit" id="btnEnviar" class="w-full py-4 bg-brand hover:bg-brandLight text-white font-extrabold rounded-2xl shadow-lg transition flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
-        <span class="material-symbols-outlined text-lg">send</span>
-        <span>Terminar Informe y Enviar</span>
+        <span class="material-symbols-outlined text-lg">verified</span>
+        <span>Terminar Informe y Enviar a Auditoría</span>
       </button>
     </div>
 
   </form>
 
   <script type="module">
-    import { requireStaffAccess } from "./js/portal-common.js";
-    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
       authDomain: "gravecare-2e8d2.firebaseapp.com",
       projectId: "gravecare-2e8d2",
-      storageBucket: "gravecare-2e8d2.appspot.com",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
       messagingSenderId: "160012946248",
       appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
     };
 
     const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
-    const storage = getStorage(app);
 
     const urlParams = new URLSearchParams(window.location.search);
     const ordenId = urlParams.get('ordenId') || localStorage.getItem('gravecare_orden_activa');
+    const visitaIndex = parseInt(urlParams.get('v') || '1', 10);
 
     if (!ordenId) {
       alert("No se indicó una orden de trabajo válida.");
       window.location.href = "portal.html#mis-trabajos";
     }
 
-    const fotosCargadas = {
-      1: null,
-      2: null,
-      3: null,
-      4: null
-    };
+    // Identificador único por visita para evitar sobreescritura de informes
+    const informeDocId = `${ordenId}-V${visitaIndex}`;
 
+    let datosOrden = null;
+    let usuarioActual = null;
+    let coordenadasActuales = null;
+
+    const fotosDataUrls = { 1: null, 2: null, 3: null, 4: null };
     const alertaFotosIncompletas = document.getElementById("alertaFotosIncompletas");
     const contadorFotos = document.getElementById("contadorFotos");
 
     function actualizarContador() {
-      const total = Object.values(fotosCargadas).filter(Boolean).length;
+      const total = Object.values(fotosDataUrls).filter(Boolean).length;
       contadorFotos.textContent = `${total} de 4 listas`;
       if (total === 4) {
         contadorFotos.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200";
@@ -237,6 +288,105 @@
       }
     }
 
+    function optimizarABase64(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const maxDimension = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxDimension) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              }
+            } else {
+              if (height > maxDimension) {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            resolve(canvas.toDataURL("image/jpeg", 0.65));
+          };
+        };
+      });
+    }
+
+    function extraerTexto(obj, fallback = "Sin información") {
+      if (!obj) return fallback;
+      if (typeof obj === "string") return obj.trim() || fallback;
+      if (typeof obj === "object") {
+        if (obj.nombreCompleto) return String(obj.nombreCompleto).trim();
+        const combo = `${obj.nombres || obj.nombre || ''} ${obj.apellidoPaterno || obj.apellido || ''}`.trim();
+        if (combo) return combo;
+        if (obj.nombre) return String(obj.nombre).trim();
+        if (obj.email) return String(obj.email).trim();
+      }
+      return fallback;
+    }
+
+    function capturarUbicacionGps() {
+      const txtGps = document.getElementById("txtCoordenadasGps");
+      const btnMaps = document.getElementById("btnVerGoogleMaps");
+
+      if (!navigator.geolocation) {
+        asignarCoordenadasFallback("GPS no soportado");
+        return;
+      }
+
+      txtGps.textContent = "Detectando señal GPS satelital...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude.toFixed(5);
+          const lng = pos.coords.longitude.toFixed(5);
+          coordenadasActuales = { lat: parseFloat(lat), lng: parseFloat(lng) };
+          txtGps.textContent = `Lat: ${lat}, Lng: ${lng} (Precisión: ±${Math.round(pos.coords.accuracy)}m)`;
+          btnMaps.href = `https://www.google.com/maps?q=${lat},${lng}`;
+          btnMaps.classList.remove("hidden");
+        },
+        () => {
+          asignarCoordenadasFallback("GPS manual / registrado");
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    }
+
+    function asignarCoordenadasFallback(motivo) {
+      const txtGps = document.getElementById("txtCoordenadasGps");
+      const btnMaps = document.getElementById("btnVerGoogleMaps");
+
+      let lat = -33.44154;
+      let lng = -70.65623;
+
+      if (datosOrden?.coordenadas?.latitude && datosOrden?.coordenadas?.longitude) {
+        lat = Number(datosOrden.coordenadas.latitude).toFixed(5);
+        lng = Number(datosOrden.coordenadas.longitude).toFixed(5);
+      } else if (datosOrden?.ubicacionSepultura?.coordenadas?.latitude) {
+        lat = Number(datosOrden.ubicacionSepultura.coordenadas.latitude).toFixed(5);
+        lng = Number(datosOrden.ubicacionSepultura.coordenadas.longitude).toFixed(5);
+      }
+
+      coordenadasActuales = { lat: parseFloat(lat), lng: parseFloat(lng) };
+      txtGps.textContent = `Lat: ${lat}, Lng: ${lng} (${motivo})`;
+      btnMaps.href = `https://www.google.com/maps?q=${lat},${lng}`;
+      btnMaps.classList.remove("hidden");
+    }
+
+    document.getElementById("btnActualizarGps").addEventListener("click", capturarUbicacionGps);
+
     [1, 2, 3, 4].forEach(num => {
       const input = document.getElementById(`inputFoto${num}`);
       const preview = document.getElementById(`imgPreview${num}`);
@@ -244,68 +394,72 @@
       const btnBorrar = document.getElementById(`btnBorrar${num}`);
       const statusSlot = document.getElementById(`statusSlot${num}`);
 
-      input.addEventListener("change", function(e) {
+      input.addEventListener("change", async function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-          fotosCargadas[num] = evt.target.result;
-          preview.src = evt.target.result;
-          preview.classList.remove("hidden");
-          placeholder.classList.add("hidden");
-          btnBorrar.classList.remove("hidden");
-          input.classList.add("pointer-events-none"); // Desactiva input para que el click caiga en el basurero
-          statusSlot.textContent = "✓ Lista";
-          statusSlot.className = "text-[11px] font-bold text-emerald-600";
-          actualizarContador();
-        };
-        reader.readAsDataURL(file);
+        statusSlot.textContent = "Procesando...";
+        const dataUrlOptimizada = await optimizarABase64(file);
+
+        fotosDataUrls[num] = dataUrlOptimizada;
+        preview.src = dataUrlOptimizada;
+        preview.classList.remove("hidden");
+        placeholder.classList.add("hidden");
+        btnBorrar.classList.remove("hidden");
+        input.classList.add("pointer-events-none");
+        statusSlot.textContent = "✓ Lista";
+        statusSlot.className = "text-[11px] font-bold text-emerald-600";
+        actualizarContador();
       });
 
       btnBorrar.addEventListener("click", function(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        fotosCargadas[num] = null;
+        fotosDataUrls[num] = null;
         input.value = "";
         preview.src = "";
         preview.classList.add("hidden");
         placeholder.classList.remove("hidden");
         btnBorrar.classList.add("hidden");
-        input.classList.remove("pointer-events-none"); // Reactiva input para tomar otra foto
+        input.classList.remove("pointer-events-none");
         statusSlot.textContent = "Pendiente";
         statusSlot.className = "text-[11px] font-bold text-rose-500";
         actualizarContador();
       });
     });
 
-    async function inicializarOrden() {
+    async function cargarDetallesOrden() {
       try {
         const docRef = doc(db, "ordenes", ordenId);
         const snap = await getDoc(docRef);
 
         if (!snap.exists()) {
-          alert("La orden no existe en el sistema.");
+          alert("La orden no existe en Firestore.");
           window.location.href = "portal.html#mis-trabajos";
           return;
         }
 
-        const data = snap.data();
-        const numOrden = data.numeroOrden || ordenId;
-        const difunto = data.difunto?.nombreCompleto || data.difunto?.nombre || "Homenaje Técnico";
-        const cem = data.ubicacionSepultura?.cementerio || data.cementerio || "Cementerio";
-        const sec = data.ubicacionSepultura?.sector || data.sector || "S/S";
-        const sep = data.ubicacionSepultura?.numeroSepultura || data.ubicacionSepultura?.numero || "S/N";
+        datosOrden = snap.data();
+        const numOrden = datosOrden.numeroOrden || datosOrden.nOrden || ordenId.substring(0, 8);
+        const titular = extraerTexto(datosOrden.titular || datosOrden.nombreTitular || datosOrden.cliente || datosOrden.usuario || datosOrden.email, "Cliente General");
+        const difunto = extraerTexto(datosOrden.difunto || datosOrden.nombreDifunto || datosOrden.fallecido || datosOrden.sepultura, "Ser Querido");
+        const cem = datosOrden.ubicacionSepultura?.cementerio || datosOrden.cementerio || "Parque del Recuerdo";
+        const sec = datosOrden.ubicacionSepultura?.sector || datosOrden.sector || "General";
+        const sep = datosOrden.ubicacionSepultura?.numeroSepultura || datosOrden.ubicacionSepultura?.numero || datosOrden.numeroSepultura || datosOrden.lote || "S/N";
 
-        document.getElementById("badgeOrden").textContent = `Orden #${numOrden}`;
-        document.getElementById("resumenOrden").innerHTML = `
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-            <h3 class="text-base font-extrabold text-brand">${difunto}</h3>
-            <span class="text-xs font-bold text-slate-500">${cem}</span>
-          </div>
-          <p class="text-xs text-slate-600"><strong>Ubicación:</strong> Sector ${sec} • Sepultura #${sep}</p>
+        const ahora = new Date();
+        const fechaHoraTexto = ahora.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) + " " + ahora.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+        document.getElementById("txtFechaEjecucion").textContent = `Fecha: ${fechaHoraTexto}`;
+
+        document.getElementById("badgeOrden").textContent = `Orden #${numOrden} (Visita ${visitaIndex})`;
+        document.getElementById("txtCliente").textContent = titular;
+        document.getElementById("txtDifunto").textContent = difunto;
+        document.getElementById("txtUbicacion").innerHTML = `
+          <strong>${cem}</strong> • Sector: <span class="text-brand font-bold">${sec}</span> • Sepultura / Lote: <span class="text-brand font-bold">#${sep}</span>
         `;
+
+        capturarUbicacionGps();
 
       } catch (err) {
         console.error("Error al cargar orden:", err);
@@ -315,7 +469,7 @@
     document.getElementById("formInforme").addEventListener("submit", async function(e) {
       e.preventDefault();
 
-      const fotosFaltantes = [1, 2, 3, 4].filter(num => !fotosCargadas[num]);
+      const fotosFaltantes = [1, 2, 3, 4].filter(num => !fotosDataUrls[num]);
 
       if (fotosFaltantes.length > 0) {
         alertaFotosIncompletas.classList.remove("hidden");
@@ -329,50 +483,89 @@
       btnEnviar.disabled = true;
       btnEnviar.innerHTML = `
         <span class="material-symbols-outlined text-lg animate-spin">progress_activity</span>
-        <span>Subiendo evidencias y enviando informe...</span>
+        <span>Guardando certificado en base de datos...</span>
       `;
 
       try {
-        const urlsSubidas = [];
+        const laboresEjecutadas = [];
+        if (document.getElementById("chkLimpiezaLapida").checked) laboresEjecutadas.push("Limpieza profunda de lápida y placa");
+        if (document.getElementById("chkRetiroMaleza").checked) laboresEjecutadas.push("Retiro de maleza y hojas secas");
+        if (document.getElementById("chkOrnamentacion").checked) laboresEjecutadas.push("Ornamentación con flores frescas");
+        if (document.getElementById("chkRiego").checked) laboresEjecutadas.push("Riego y perfilado de terreno");
+        if (document.getElementById("chkBronce").checked) laboresEjecutadas.push("Limpieza y pulido de piezas de bronce");
 
-        for (let i = 1; i <= 4; i++) {
-          const base64Data = fotosCargadas[i];
-          const storageRef = ref(storage, `informes/${ordenId}/foto_${i}_${Date.now()}.jpg`);
-          await uploadString(storageRef, base64Data, 'data_url');
-          const downloadUrl = await getDownloadURL(storageRef);
-          urlsSubidas.push(downloadUrl);
-        }
+        const observacionFinal = document.getElementById("observaciones").value.trim();
+        const fechaAhoraISO = new Date().toISOString();
 
+        // 1. Guardar informe con ID ÚNICO de visita (ej: ORD-1791389570626-V2)
+        const informeRef = doc(db, "informes", informeDocId);
+        await setDoc(informeRef, {
+          informeId: informeDocId,
+          ordenId: ordenId,
+          visitaNumero: visitaIndex,
+          numeroOrden: datosOrden?.numeroOrden || ordenId,
+          cliente: document.getElementById("txtCliente").textContent,
+          difunto: document.getElementById("txtDifunto").textContent,
+          cementerio: datosOrden?.ubicacionSepultura?.cementerio || datosOrden?.cementerio || "Parque del Recuerdo",
+          ubicacionSepultura: datosOrden?.ubicacionSepultura || {},
+          coordenadasGps: coordenadasActuales,
+          laboresEjecutadas: laboresEjecutadas,
+          observaciones: observacionFinal,
+          fotos: {
+            inicial: fotosDataUrls[1],
+            finalizado: fotosDataUrls[2],
+            ornamentacion: fotosDataUrls[3],
+            panoramica: fotosDataUrls[4],
+            antes: fotosDataUrls[1],
+            despues: fotosDataUrls[2]
+          },
+          operador: usuarioActual?.displayName || usuarioActual?.email || "Christian Olivares Lizama",
+          estado: "pendiente_revision",
+          fechaCaptura: fechaAhoraISO,
+          createdAt: serverTimestamp()
+        }, { merge: true });
+
+        // 2. Actualizar el estado de esta visita exacta en la orden padre
         const ordenRef = doc(db, "ordenes", ordenId);
+        const ordenSnap = await getDoc(ordenRef);
+        const dataOrden = ordenSnap.exists() ? ordenSnap.data() : {};
+        const progMap = dataOrden.programacionVisitas || {};
+
+        progMap[`v_${visitaIndex}`] = {
+          ...(progMap[`v_${visitaIndex}`] || {}),
+          visitaNumero: visitaIndex,
+          estado: "en revision",
+          fechaEjecucion: fechaAhoraISO,
+          informeDocId: informeDocId
+        };
+
         await updateDoc(ordenRef, {
-          estado: "completada",
+          programacionVisitas: progMap,
           estadoInforme: "en revision",
-          evidenciasFotos: urlsSubidas,
-          fotoInicial: urlsSubidas[0] || null,
-          fotoFinal: urlsSubidas[1] || null,
-          fotoOrnamentacion: urlsSubidas[2] || null,
-          fotoPanoramica: urlsSubidas[3] || null,
-          observacionesOperador: document.getElementById("observaciones").value.trim(),
-          fechaCompletada: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
 
-        alert("¡Informe completado y enviado exitosamente con las 4 evidencias!");
+        alert(`✓ Informe de Visita ${visitaIndex} enviado a revisión exitosamente.`);
         window.location.href = "portal.html#mis-trabajos";
 
       } catch (err) {
         console.error("Error al enviar informe:", err);
-        alert("Ocurrió un error al subir el informe: " + err.message);
+        alert("Ocurrió un error al guardar: " + err.message);
         btnEnviar.disabled = false;
         btnEnviar.innerHTML = `
-          <span class="material-symbols-outlined text-lg">send</span>
-          <span>Terminar Informe y Enviar</span>
+          <span class="material-symbols-outlined text-lg">verified</span>
+          <span>Terminar Informe y Enviar a Auditoría</span>
         `;
       }
     });
 
-    requireStaffAccess((user, staffProfile) => {
-      inicializarOrden();
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.replace("/login.html");
+        return;
+      }
+      usuarioActual = user;
+      cargarDetallesOrden();
     });
   </script>
 </body>

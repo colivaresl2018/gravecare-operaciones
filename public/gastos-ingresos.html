@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="data:,">
   <title>Control Contable y Tributario | GraveCare</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -16,10 +16,16 @@
       color: #1e293b;
       margin: 0;
     }
-    .resumen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .resumen-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 1200px) { .resumen-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 900px) { .resumen-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px) { .resumen-grid { grid-template-columns: 1fr; } }
     .card { background: white; padding: 1.25rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-iva-focus {
+      background: #fbfdff;
+      border: 2px solid #002d1a;
+      box-shadow: 0 4px 12px rgba(0, 45, 26, 0.08);
+    }
     .resumen-valor { font-size: 1.5rem; font-weight: 700; margin-top: 0.5rem; }
     .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; align-items: end; }
     @media (max-width: 900px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -53,38 +59,59 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 1rem;
     }
-    .ocr-banner {
-      grid-column: 1 / -1;
-      background: #f0f9ff;
-      border: 1px solid #bae6fd;
-      border-radius: 10px;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    .btn-primary { background: #002d1a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #002d1a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-primary:hover { background: #1a432f; }
     .btn-secondary { background: #e2e8f0; color: #334155; border: none; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
     .table-container { background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
     th { background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; padding: 0.85rem 1rem; font-weight: 700; }
     td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; }
-    .hidden { display: none !important; }
+    .tag-iva {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .tag-iva-pagar { background: #fee2e2; color: #991b1b; }
+    .tag-iva-favor { background: #dcfce7; color: #166534; }
   </style>
 </head>
 <body>
 
-  <!-- Vista condicional requerida por portal-common.js -->
-  <div id="acceso-denegado" class="hidden" style="text-align: center; padding: 4rem; color: #991b1b;">
-    <h2>Acceso restringido</h2>
-    <p>Módulo exclusivo para Administradores de Operaciones.</p>
-  </div>
-
-  <!-- Contenido Principal del Módulo Contable -->
   <main id="contenido-principal">
-    <div style="margin-bottom: 1.5rem;">
-      <h2 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">Control Contable y Tributario</h2>
-      <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Registro centralizado de compras, ventas, retenciones e IVA con respaldo documental para auditorías del SII.</p>
+    
+    <!-- Topbar con selector de Período Tributario F29 -->
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+      <div>
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">Control Contable y Tributario</h2>
+        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Liquidación mensual de Formulario 29 (IVA Débito vs. Crédito Fiscal) y respaldos del SII.</p>
+      </div>
+
+      <!-- Selector Mes/Año para Liquidación del F29 -->
+      <div style="display: flex; align-items: center; gap: 0.5rem; background: white; padding: 0.5rem 0.8rem; border-radius: 10px; border: 1px solid #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        <label for="periodo-tributario-mes" style="font-size: 0.8rem; font-weight: 700; color: #002d1a;">Período Tributario:</label>
+        <select id="periodo-tributario-mes" style="padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
+          <option value="0">Enero</option>
+          <option value="1">Febrero</option>
+          <option value="2">Marzo</option>
+          <option value="3">Abril</option>
+          <option value="4">Mayo</option>
+          <option value="5">Junio</option>
+          <option value="6">Julio</option>
+          <option value="7">Agosto</option>
+          <option value="8">Septiembre</option>
+          <option value="9" selected>Octubre</option>
+          <option value="10">Noviembre</option>
+          <option value="11">Diciembre</option>
+        </select>
+        <select id="periodo-tributario-anio" style="padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+        </select>
+      </div>
     </div>
 
     <!-- Indicadores Resumen -->
@@ -98,40 +125,62 @@
         <p id="resumen-gastos-neto" class="resumen-valor" style="color: #dc2626;">$ 0</p>
       </div>
       <div class="card">
-        <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0;">Balance IVA (Débito - Crédito)</p>
+        <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0;">Balance IVA Acumulado</p>
         <p id="resumen-iva" class="resumen-valor" style="color: #0f172a;">$ 0</p>
       </div>
       <div class="card">
-        <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0;">Resultado Operacional Neto</p>
+        <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0;">Resultado Operacional</p>
         <p id="resumen-balance" class="resumen-valor" style="color: #16a34a;">$ 0</p>
       </div>
-    </section>
 
-    <!-- Gráfico -->
-    <section class="card" style="margin-bottom: 1.5rem;">
-      <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 1rem 0;">Evolución de Ingresos y Gastos (Valores Netos)</h3>
-      <div style="position: relative; height: 260px;">
-        <canvas id="grafico-comparativo"></canvas>
+      <!-- TARJETA DESTACADA: IVA A PAGAR DEL MES (F29) -->
+      <div class="card card-iva-focus">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <p style="font-size: 0.75rem; font-weight: 800; color: #002d1a; text-transform: uppercase; margin: 0;">IVA Mes Seleccionado (F29)</p>
+          <span id="badge-estado-iva" class="tag-iva tag-iva-pagar">A Pagar</span>
+        </div>
+        <p id="resumen-iva-mes" class="resumen-valor" style="color: #b91c1c; font-size: 1.6rem; margin-top: 0.35rem;">$ 0</p>
+        <p id="detalle-sub-iva" style="font-size: 0.72rem; color: #64748b; margin: 0.25rem 0 0 0;">
+          Débito: $0 | Crédito: $0
+        </p>
       </div>
     </section>
 
-    <!-- Formulario Nuevo Movimiento Contable -->
+    <!-- Gráfico y Resumen de IVA Mensual -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+      <!-- Gráfico -->
+      <section class="card" style="margin-bottom: 0;">
+        <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 1rem 0;">Evolución de Ingresos y Gastos (Valores Netos)</h3>
+        <div style="position: relative; height: 260px;">
+          <canvas id="grafico-comparativo"></canvas>
+        </div>
+      </section>
+
+      <!-- Tabla Resumen de IVA por Mes (Año en curso) -->
+      <section class="card" style="margin-bottom: 0; display: flex; flex-direction: column;">
+        <h3 style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 0.75rem 0;">Liquidación Mensual de IVA</h3>
+        <div style="overflow-y: auto; max-height: 250px; font-size: 0.8rem;">
+          <table style="width: 100%;">
+            <thead>
+              <tr style="border-bottom: 1px solid #cbd5e1; font-size: 0.72rem;">
+                <th style="padding: 0.4rem 0.5rem;">Mes</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">Débito</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">Crédito</th>
+                <th style="padding: 0.4rem 0.5rem; text-align: right;">F29</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-iva-mensual-body">
+              <tr><td colspan="4" style="text-align: center; padding: 1rem; color: #94a3b8;">Calculando meses...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Formulario Registro -->
     <section class="card" style="margin-bottom: 1.5rem;">
       <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 1rem 0;">Registro de Comprobante / Movimiento</h3>
       <form id="form-movimiento" class="form-grid">
-
-        <div class="ocr-banner">
-          <label for="form-archivo-factura" style="font-weight: 700; color: #0369a1; font-size: 0.85rem;">
-            📁 Adjuntar Documento o Factura (PDF / Imagen) para Respaldo de Auditoría y OCR
-          </label>
-          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-            <input type="file" id="form-archivo-factura" accept=".pdf,image/*" style="background: white; padding: 0.4rem; font-size: 0.82rem; flex: 1;">
-            <button type="button" id="btn-procesar-ocr" class="btn-secondary" style="background: #0284c7; color: white;">
-              ✨ Extraer Datos Automáticamente
-            </button>
-          </div>
-          <p id="ocr-status" style="font-size: 0.75rem; color: #0369a1; margin: 0; display: none; font-weight: 600;"></p>
-        </div>
 
         <div class="campo">
           <label for="form-tipo">Flujo Contable *</label>
@@ -174,7 +223,17 @@
 
         <div class="campo">
           <label for="form-categoria">Categoría Operacional *</label>
-          <select id="form-categoria" required></select>
+          <select id="form-categoria" required>
+            <option value="Flores y Plantas">Flores y Plantas</option>
+            <option value="Insumos Limpieza">Insumos Limpieza</option>
+            <option value="Herramientas">Herramientas</option>
+            <option value="Combustible y Traslado">Combustible y Traslado</option>
+            <option value="Servicios Básicos">Servicios Básicos</option>
+            <option value="Honorarios Terreno">Honorarios Terreno</option>
+            <option value="Venta de Planes">Venta de Planes</option>
+            <option value="Servicios Spot">Servicios Spot</option>
+            <option value="Otros Gastos">Otros Gastos</option>
+          </select>
         </div>
 
         <div class="campo">
@@ -208,14 +267,14 @@
 
         <div style="grid-column: 1 / -1; margin-top: 0.5rem;">
           <button id="btn-guardar" type="submit" class="btn-primary">
-            Registrar Movimiento y Guardar Respaldo
+            Registrar Movimiento en el Libro Contable
           </button>
         </div>
 
       </form>
     </section>
 
-    <!-- Filtros y Búsqueda -->
+    <!-- Filtros de Búsqueda -->
     <section class="card" style="margin-bottom: 1.5rem;">
       <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 1rem 0;">Filtros de Búsqueda</h3>
       <div class="filtros-grid">
@@ -229,7 +288,17 @@
         </div>
         <div class="campo">
           <label for="filtro-categoria">Categoría</label>
-          <select id="filtro-categoria"></select>
+          <select id="filtro-categoria">
+            <option value="">Todas</option>
+            <option value="Flores y Plantas">Flores y Plantas</option>
+            <option value="Insumos Limpieza">Insumos Limpieza</option>
+            <option value="Herramientas">Herramientas</option>
+            <option value="Combustible y Traslado">Combustible y Traslado</option>
+            <option value="Servicios Básicos">Servicios Básicos</option>
+            <option value="Honorarios Terreno">Honorarios Terreno</option>
+            <option value="Venta de Planes">Venta de Planes</option>
+            <option value="Servicios Spot">Servicios Spot</option>
+          </select>
         </div>
         <div class="campo">
           <label for="filtro-desde">Desde</label>
@@ -247,7 +316,7 @@
       </div>
     </section>
 
-    <!-- Tabla de Registros -->
+    <!-- Tabla de Comprobantes -->
     <div class="table-container">
       <div style="overflow-x: auto;">
         <table>
@@ -260,126 +329,475 @@
               <th style="text-align: right;">Neto</th>
               <th style="text-align: right;">IVA / Ret.</th>
               <th style="text-align: right;">Total</th>
-              <th style="text-align: right;">Respaldo SII</th>
+              <th style="text-align: right;">Origen</th>
               <th style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-movimientos">
-            <tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Cargando registros contables...</td></tr>
+            <tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Consolidando datos contables...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </main>
 
-  <!-- Script modular con versionado actualizado -->
-  <script type="module" src="js/gastosIngresos.js?v=20260922_v5"></script>
+  <!-- Script con Motor Tributario y Cálculo Automático de IVA por Mes -->
+  <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { 
+      getFirestore, 
+      collection, 
+      getDocs, 
+      addDoc, 
+      deleteDoc, 
+      doc, 
+      serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-  <!-- Lógica de cálculo y OCR simulado -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const selectDte = document.getElementById("form-dte");
-      const inputNeto = document.getElementById("form-monto-neto");
-      const inputImpuesto = document.getElementById("form-impuesto");
-      const inputTotal = document.getElementById("form-total");
-      const labelImpuesto = document.getElementById("label-impuesto");
-      
-      const btnOcr = document.getElementById("btn-procesar-ocr");
-      const fileInput = document.getElementById("form-archivo-factura");
-      const ocrStatus = document.getElementById("ocr-status");
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
 
-      function recalcularValores() {
-        const neto = Math.round(parseFloat(inputNeto.value) || 0);
-        const dte = selectDte.value;
-        let impuesto = 0;
-        let total = neto;
+    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        if (dte === "Factura Afecta") {
-          labelImpuesto.textContent = "IVA Débito/Crédito (19%)";
-          impuesto = Math.round(neto * 0.19);
-          total = neto + impuesto;
-        } else if (dte === "Boleta Honorarios") {
-          labelImpuesto.textContent = "Retención SII (15.25%)";
-          impuesto = Math.round(neto * 0.1525);
-          total = neto - impuesto;
-        } else {
-          labelImpuesto.textContent = "Impuesto / Retención ($ 0)";
-          impuesto = 0;
-          total = neto;
-        }
+    let todosLosMovimientos = [];
+    let graficoInstancia = null;
 
-        inputImpuesto.value = impuesto;
-        inputTotal.value = total;
+    const NOMBRES_MESES = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    function formatearDinero(num) {
+      return "$ " + Math.round(Number(num || 0)).toLocaleString("es-CL");
+    }
+
+    function extraerFechaDate(f) {
+      if (!f) return new Date();
+      if (typeof f?.toDate === "function") return f.toDate();
+      if (f instanceof Date) return f;
+      if (typeof f === "string") {
+        const d = new Date(f.includes("T") ? f : f + "T12:00:00");
+        if (!isNaN(d.getTime())) return d;
       }
+      return new Date();
+    }
 
-      if (selectDte) selectDte.addEventListener("change", recalcularValores);
-      if (inputNeto) inputNeto.addEventListener("input", recalcularValores);
+    // Cálculo automático del impuesto en el formulario
+    const inputNeto = document.getElementById("form-monto-neto");
+    const inputImpuesto = document.getElementById("form-impuesto");
+    const inputTotal = document.getElementById("form-total");
+    const selectDte = document.getElementById("form-dte");
 
-      if (btnOcr) {
-        btnOcr.addEventListener("click", async () => {
-          if (!fileInput.files || fileInput.files.length === 0) {
-            alert("Por favor, seleccione primero un archivo PDF o imagen de la factura.");
-            return;
-          }
+    function recalcularImpuestoFormulario() {
+      const neto = Number(inputNeto.value || 0);
+      const dte = selectDte.value;
 
-          const archivo = fileInput.files[0];
-          ocrStatus.style.display = "block";
-          ocrStatus.style.color = "#0369a1";
-          ocrStatus.textContent = "📄 Iniciando lectura del documento...";
-          btnOcr.disabled = true;
+      if (dte === "Factura Afecta" || dte === "Boleta Venta") {
+        const iva = Math.round(neto * 0.19);
+        inputImpuesto.value = iva;
+        inputTotal.value = neto + iva;
+      } else if (dte === "Boleta Honorarios") {
+        const ret = Math.round(neto * 0.1525);
+        inputImpuesto.value = ret;
+        inputTotal.value = neto - ret;
+      } else {
+        inputImpuesto.value = 0;
+        inputTotal.value = neto;
+      }
+    }
 
-          try {
-            const { extraerDatosFactura } = await import("./js/facturaOcr.js");
+    inputNeto?.addEventListener("input", recalcularImpuestoFormulario);
+    selectDte?.addEventListener("change", recalcularImpuestoFormulario);
 
-            const datos = await extraerDatosFactura(archivo, (mensaje) => {
-              ocrStatus.textContent = mensaje;
+    // Cargar movimientos desde Firestore y órdenes
+    async function cargarDatosContables() {
+      try {
+        const lista = [];
+
+        // 1. Cargar gastos e ingresos registrados en la colección contable
+        const snap = await getDocs(collection(db, "gastos_ingresos"));
+        snap.forEach(d => {
+          const m = d.data();
+          lista.push({
+            id: d.id,
+            origen: "Manual",
+            tipo: m.tipo || "Gasto",
+            dte: m.dte || "Factura Afecta",
+            folio: m.folio || "-",
+            rut: m.rut || "-",
+            concepto: m.concepto || "Proveedor",
+            fecha: extraerFechaDate(m.fecha),
+            categoria: m.categoria || "Operacional",
+            clasificacionF22: m.clasificacionF22 || "Gasto Deducible",
+            neto: Number(m.neto || 0),
+            impuesto: Number(m.impuesto || m.iva || 0),
+            total: Number(m.total || 0),
+            descripcion: m.descripcion || ""
+          });
+        });
+
+        // 2. Cargar ingresos automáticos de las órdenes formalizadas
+        const snapOrd = await getDocs(collection(db, "ordenes"));
+        snapOrd.forEach(d => {
+          const ord = d.data();
+          const totalBruto = Number(ord.montoTotal || ord.total || ord.precioNumerico || 0);
+          if (totalBruto > 0) {
+            // En ventas con IVA 19% chileno: Neto = Total / 1.19, IVA = Total - Neto
+            const neto = Math.round(totalBruto / 1.19);
+            const ivaDebito = totalBruto - neto;
+            const f = extraerFechaDate(ord.creadoEl || ord.createdAt || ord.fechaPago);
+
+            lista.push({
+              id: d.id,
+              origen: "Webpay",
+              tipo: "Ingreso",
+              dte: "Boleta Venta",
+              folio: ord.numeroOrden || d.id.substring(0, 8),
+              rut: ord.titular?.rut || ord.rut || "-",
+              concepto: ord.titular?.nombreCompleto || ord.cliente || "Cliente Webpay",
+              fecha: f,
+              categoria: "Venta de Planes",
+              clasificacionF22: "Ingreso Bruto",
+              neto: neto,
+              impuesto: ivaDebito,
+              total: totalBruto,
+              descripcion: ord.planNombre || "Servicio GraveCare"
             });
-
-            let camposEncontrados = 0;
-
-            if (datos.tipoDte) {
-              selectDte.value = datos.tipoDte;
-              camposEncontrados++;
-            }
-            if (datos.folio) {
-              document.getElementById("form-folio").value = datos.folio;
-              camposEncontrados++;
-            }
-            if (datos.rut) {
-              document.getElementById("form-rut").value = datos.rut;
-              camposEncontrados++;
-            }
-            if (datos.razonSocial) {
-              document.getElementById("form-concepto").value = datos.razonSocial;
-              camposEncontrados++;
-            }
-            if (datos.fecha) {
-              document.getElementById("form-fecha").value = datos.fecha;
-              camposEncontrados++;
-            }
-            if (datos.montoNeto != null) {
-              document.getElementById("form-monto-neto").value = datos.montoNeto;
-              camposEncontrados++;
-            }
-
-            recalcularValores();
-
-            if (camposEncontrados > 0) {
-              ocrStatus.textContent = `✓ Se extrajeron ${camposEncontrados} campo(s). Verifique todos los datos antes de guardar — la extracción es automática pero puede contener errores.`;
-              ocrStatus.style.color = "#16a34a";
-            } else {
-              ocrStatus.textContent = "⚠ No se pudieron identificar campos automáticamente en este documento. Complete el formulario manualmente.";
-              ocrStatus.style.color = "#d97706";
-            }
-          } catch (err) {
-            console.error("Error en extracción OCR:", err);
-            ocrStatus.textContent = "⚠ No se pudo procesar el documento (" + err.message + "). Complete el formulario manualmente.";
-            ocrStatus.style.color = "#dc2626";
-          } finally {
-            btnOcr.disabled = false;
           }
         });
+
+        todosLosMovimientos = lista;
+        recalcularLiquidacionTributaria();
+        renderizarTabla(todosLosMovimientos);
+
+      } catch (err) {
+        console.error("Error al cargar datos contables:", err);
       }
+    }
+
+    // MOTOR TRIBUTARIO: Cálculo del IVA mensual y acumulado
+    function recalcularLiquidacionTributaria() {
+      const mesFiltro = Number(document.getElementById("periodo-tributario-mes").value);
+      const anioFiltro = Number(document.getElementById("periodo-tributario-anio").value);
+
+      let totalIngresosNetos = 0;
+      let totalGastosNetos = 0;
+      let totalIvaDebito = 0;
+      let totalIvaCredito = 0;
+
+      // Variables para el mes seleccionado
+      let debitoMesSeleccionado = 0;
+      let creditoMesSeleccionado = 0;
+
+      // Acumulador de los 12 meses del año para la tabla resumen y el gráfico
+      const mesesData = Array.from({ length: 12 }, () => ({
+        ingresosNetos: 0,
+        gastosNetos: 0,
+        debito: 0,
+        credito: 0
+      }));
+
+      todosLosMovimientos.forEach(m => {
+        const fecha = m.fecha;
+        const anio = fecha.getFullYear();
+        const mes = fecha.getMonth();
+
+        const esIngreso = m.tipo === "Ingreso";
+        const esAfecto = m.dte === "Factura Afecta" || m.dte === "Boleta Venta";
+
+        // Totales generales
+        if (esIngreso) {
+          totalIngresosNetos += m.neto;
+          if (esAfecto) totalIvaDebito += m.impuesto;
+        } else {
+          totalGastosNetos += m.neto;
+          if (esAfecto) totalIvaCredito += m.impuesto;
+        }
+
+        // Datos del mes y año seleccionado
+        if (anio === anioFiltro && mes === mesFiltro) {
+          if (esIngreso && esAfecto) debitoMesSeleccionado += m.impuesto;
+          if (!esIngreso && esAfecto) creditoMesSeleccionado += m.impuesto;
+        }
+
+        // Si corresponde al año en curso, agregar al acumulador de meses
+        if (anio === anioFiltro) {
+          if (esIngreso) {
+            mesesData[mes].ingresosNetos += m.neto;
+            if (esAfecto) mesesData[mes].debito += m.impuesto;
+          } else {
+            mesesData[mes].gastosNetos += m.neto;
+            if (esAfecto) mesesData[mes].credito += m.impuesto;
+          }
+        }
+      });
+
+      // 1. Actualizar Tarjetas Generales
+      document.getElementById("resumen-ingresos-neto").textContent = formatearDinero(totalIngresosNetos);
+      document.getElementById("resumen-gastos-neto").textContent = formatearDinero(totalGastosNetos);
+      
+      const balanceIvaGeneral = totalIvaDebito - totalIvaCredito;
+      document.getElementById("resumen-iva").textContent = formatearDinero(balanceIvaGeneral);
+      document.getElementById("resumen-balance").textContent = formatearDinero(totalIngresosNetos - totalGastosNetos);
+
+      // 2. ACTUALIZAR TARJETA: IVA DEL MES (F29)
+      const ivaDiferenciaMes = debitoMesSeleccionado - creditoMesSeleccionado;
+      const elemIvaMes = document.getElementById("resumen-iva-mes");
+      const badgeEstado = document.getElementById("badge-estado-iva");
+      const elemSub = document.getElementById("detalle-sub-iva");
+
+      if (ivaDiferenciaMes > 0) {
+        // Débito > Crédito: Se paga IVA
+        elemIvaMes.textContent = formatearDinero(ivaDiferenciaMes);
+        elemIvaMes.style.color = "#b91c1c";
+        badgeEstado.textContent = "A Pagar (F29)";
+        badgeEstado.className = "tag-iva tag-iva-pagar";
+      } else if (ivaDiferenciaMes < 0) {
+        // Crédito > Débito: Remanente a favor
+        elemIvaMes.textContent = formatearDinero(Math.abs(ivaDiferenciaMes));
+        elemIvaMes.style.color = "#16a34a";
+        badgeEstado.textContent = "Remanente a Favor";
+        badgeEstado.className = "tag-iva tag-iva-favor";
+      } else {
+        elemIvaMes.textContent = "$ 0";
+        elemIvaMes.style.color = "#0f172a";
+        badgeEstado.textContent = "Sin Impuesto";
+        badgeEstado.className = "tag-iva tag-iva-favor";
+      }
+
+      elemSub.textContent = `Débito: ${formatearDinero(debitoMesSeleccionado)} | Crédito: ${formatearDinero(creditoMesSeleccionado)}`;
+
+      // 3. Renderizar Tabla de Liquidación Mensual del Año
+      renderizarTablaIvaMensual(mesesData, mesFiltro);
+
+      // 4. Actualizar Gráfico
+      actualizarGrafico(mesesData);
+    }
+
+    function renderizarTablaIvaMensual(mesesData, mesSeleccionado) {
+      const tbody = document.getElementById("tabla-iva-mensual-body");
+      if (!tbody) return;
+
+      tbody.innerHTML = mesesData.map((d, idx) => {
+        const saldo = d.debito - d.credito;
+        const saldoTxt = saldo > 0 
+          ? `<strong style="color: #b91c1c;">${formatearDinero(saldo)}</strong>` 
+          : (saldo < 0 ? `<span style="color: #16a34a; font-weight: 700;">+${formatearDinero(Math.abs(saldo))}</span>` : `$ 0`);
+
+        const esMesActivo = (idx === mesSeleccionado);
+        const estiloFila = esMesActivo ? 'background: #f0fdf4; font-weight: bold; border-left: 3px solid #002d1a;' : '';
+
+        return `
+          <tr style="${estiloFila}">
+            <td style="padding: 0.35rem 0.5rem;">${NOMBRES_MESES[idx].substring(0, 3)}</td>
+            <td style="padding: 0.35rem 0.5rem; text-align: right; color: #475569;">${formatearDinero(d.debito)}</td>
+            <td style="padding: 0.35rem 0.5rem; text-align: right; color: #475569;">${formatearDinero(d.credito)}</td>
+            <td style="padding: 0.35rem 0.5rem; text-align: right;">${saldoTxt}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function actualizarGrafico(mesesData) {
+      const ctx = document.getElementById("grafico-comparativo");
+      if (!ctx) return;
+
+      const labels = NOMBRES_MESES.map(m => m.substring(0, 3));
+      const ingresosNetos = mesesData.map(m => m.ingresosNetos);
+      const gastosNetos = mesesData.map(m => m.gastosNetos);
+
+      if (graficoInstancia) {
+        graficoInstancia.destroy();
+      }
+
+      graficoInstancia = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Ingresos Netos',
+              data: ingresosNetos,
+              backgroundColor: '#16a34a',
+              borderRadius: 4
+            },
+            {
+              label: 'Gastos Netos',
+              data: gastosNetos,
+              backgroundColor: '#dc2626',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(v) { return '$ ' + (v / 1000).toLocaleString() + 'k'; }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderizarTabla(datos) {
+      const tbody = document.getElementById("tabla-movimientos");
+      if (!tbody) return;
+
+      if (datos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #94a3b8;">No hay movimientos registrados.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = datos.map(m => {
+        const esIngreso = m.tipo === "Ingreso";
+        const colorTipo = esIngreso ? "#16a34a" : "#dc2626";
+        const fechaStr = m.fecha.toLocaleDateString("es-CL", { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        return `
+          <tr>
+            <td style="white-space: nowrap;">${fechaStr}</td>
+            <td>
+              <strong>${m.dte}</strong><br>
+              <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">Folio: #${m.folio}</span>
+            </td>
+            <td>
+              <strong>${m.concepto}</strong><br>
+              <span style="font-size: 0.75rem; color: #64748b;">${m.rut}</span>
+            </td>
+            <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${m.categoria}</span></td>
+            <td style="text-align: right; font-weight: 600;">${formatearDinero(m.neto)}</td>
+            <td style="text-align: right; color: #475569;">${formatearDinero(m.impuesto)}</td>
+            <td style="text-align: right; font-weight: 800; color: ${colorTipo};">${formatearDinero(m.total)}</td>
+            <td style="text-align: right;">
+              <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${m.origen === 'Webpay' ? '#dbeafe' : '#f1f5f9'}; color: ${m.origen === 'Webpay' ? '#1e40af' : '#475569'};">
+                ${m.origen}
+              </span>
+            </td>
+            <td style="text-align: right;">
+              ${m.origen === 'Manual' ? `
+                <button type="button" data-del-id="${m.id}" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 0.8rem;">
+                  Eliminar
+                </button>
+              ` : `<span style="color: #cbd5e1; font-size: 0.75rem;">Protegido</span>`}
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // Guardar nuevo comprobante en Firestore
+    document.getElementById("form-movimiento")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-guardar");
+      btn.disabled = true;
+      btn.textContent = "Registrando en Firestore...";
+
+      try {
+        const payload = {
+          tipo: document.getElementById("form-tipo").value,
+          dte: document.getElementById("form-dte").value,
+          folio: document.getElementById("form-folio").value.trim(),
+          rut: document.getElementById("form-rut").value.trim(),
+          concepto: document.getElementById("form-concepto").value.trim(),
+          fecha: document.getElementById("form-fecha").value,
+          categoria: document.getElementById("form-categoria").value,
+          clasificacionF22: document.getElementById("form-clasificacion-f22").value,
+          descripcion: document.getElementById("form-descripcion").value.trim(),
+          neto: Number(document.getElementById("form-monto-neto").value || 0),
+          impuesto: Number(document.getElementById("form-impuesto").value || 0),
+          total: Number(document.getElementById("form-total").value || 0),
+          createdAt: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "gastos_ingresos"), payload);
+
+        e.target.reset();
+        recalcularImpuestoFormulario();
+        await cargarDatosContables();
+        alert("Comprobante registrado exitosamente en el libro contable.");
+
+      } catch (err) {
+        alert("Error al registrar movimiento: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Registrar Movimiento en el Libro Contable";
+      }
+    });
+
+    // Eliminar comprobante manual
+    document.getElementById("tabla-movimientos")?.addEventListener("click", async (e) => {
+      const delId = e.target.getAttribute("data-del-id");
+      if (delId && confirm("¿Deseas eliminar este comprobante del libro contable?")) {
+        try {
+          await deleteDoc(doc(db, "gastos_ingresos", delId));
+          await cargarDatosContables();
+        } catch(err) {
+          alert("Error: " + err.message);
+        }
+      }
+    });
+
+    // Filtros de fecha y categorías en la tabla
+    function aplicarFiltrosTabla() {
+      const tipo = document.getElementById("filtro-tipo").value;
+      const cat = document.getElementById("filtro-categoria").value;
+      const desde = document.getElementById("filtro-desde").value;
+      const hasta = document.getElementById("filtro-hasta").value;
+
+      const dDesde = desde ? new Date(desde + "T00:00:00") : null;
+      const dHasta = hasta ? new Date(hasta + "T23:59:59") : null;
+
+      const filtrados = todosLosMovimientos.filter(m => {
+        if (tipo && m.tipo !== tipo) return false;
+        if (cat && m.categoria !== cat) return false;
+        if (dDesde && m.fecha < dDesde) return false;
+        if (dHasta && m.fecha > dHasta) return false;
+        return true;
+      });
+
+      renderizarTabla(filtrados);
+    }
+
+    document.getElementById("filtro-tipo")?.addEventListener("change", aplicarFiltrosTabla);
+    document.getElementById("filtro-categoria")?.addEventListener("change", aplicarFiltrosTabla);
+    document.getElementById("filtro-desde")?.addEventListener("change", aplicarFiltrosTabla);
+    document.getElementById("filtro-hasta")?.addEventListener("change", aplicarFiltrosTabla);
+
+    document.getElementById("btn-limpiar-filtros")?.addEventListener("click", () => {
+      document.getElementById("filtro-tipo").value = "";
+      document.getElementById("filtro-categoria").value = "";
+      document.getElementById("filtro-desde").value = "";
+      document.getElementById("filtro-hasta").value = "";
+      renderizarTabla(todosLosMovimientos);
+    });
+
+    // Eventos del Selector del Período Tributario F29
+    document.getElementById("periodo-tributario-mes")?.addEventListener("change", recalcularLiquidacionTributaria);
+    document.getElementById("periodo-tributario-anio")?.addEventListener("change", recalcularLiquidacionTributaria);
+
+    // Inicializar al cargar
+    document.addEventListener("DOMContentLoaded", () => {
+      // Fijar fecha de hoy en el formulario
+      const hoy = new Date().toISOString().split("T")[0];
+      const campoFecha = document.getElementById("form-fecha");
+      if (campoFecha) campoFecha.value = hoy;
+
+      cargarDatosContables();
     });
   </script>
 </body>

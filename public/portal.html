@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="data:,">
   <title>Portal de Operaciones | GraveCare</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -27,6 +27,8 @@
       flex-direction: column;
       flex-shrink: 0;
       overflow-y: auto;
+      transition: transform 0.3s ease;
+      z-index: 50;
     }
     .sidebar-brand {
       display: flex;
@@ -51,7 +53,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 10px 14px;
+      padding: 11px 14px;
       border-radius: 8px;
       color: #cbd5e1;
       text-decoration: none;
@@ -80,6 +82,7 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
+      position: relative;
     }
     .topbar {
       height: 64px;
@@ -88,8 +91,22 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 28px;
+      padding: 0 16px;
       flex-shrink: 0;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-toggle-menu {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: #002d1a;
+      cursor: pointer;
+      padding: 6px;
     }
     .topbar-title {
       font-size: 0.95rem;
@@ -102,35 +119,39 @@
     .topbar-user {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
     }
     .badge-role {
       background-color: #dcfce7;
       color: #166534;
       font-size: 0.72rem;
       font-weight: 700;
-      padding: 3px 10px;
+      padding: 3px 8px;
       border-radius: 9999px;
       letter-spacing: 0.05em;
       text-transform: uppercase;
     }
     .user-name {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: #1e293b;
+      max-width: 140px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .btn-logout {
       border: 1px solid #fecaca;
       background-color: #fef2f2;
       color: #dc2626;
-      padding: 5px 12px;
+      padding: 5px 10px;
       border-radius: 6px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
     .btn-logout:hover { background-color: #fee2e2; }
 
@@ -142,25 +163,46 @@
       border: none;
       background-color: #f8fafc;
     }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 40;
+    }
+
+    @media (max-width: 768px) {
+      .btn-toggle-menu { display: block; }
+      .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.active { display: block; }
+      .user-name { display: none; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Barra lateral única del sistema con todas las ventanas -->
-  <aside class="sidebar">
+  <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- Barra lateral única -->
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <i class="fa-solid fa-leaf"></i>
       <span>GraveCare Ops</span>
     </div>
     <ul class="sidebar-menu">
-      <!-- Visible para todos -->
       <li>
         <button class="nav-btn active" id="btn-mis-trabajos" onclick="cargarModulo('mis-trabajos')">
           <i class="fa-solid fa-briefcase"></i> Mis Trabajos
         </button>
       </li>
-
-      <!-- Exclusivo para Administrador / Supervisor -->
       <li class="admin-only" style="display: none;">
         <button class="nav-btn" id="btn-todos-los-trabajos" onclick="cargarModulo('todos-los-trabajos')">
           <i class="fa-solid fa-list-check"></i> Todos los Trabajos
@@ -192,6 +234,11 @@
         </button>
       </li>
       <li class="admin-only" style="display: none;">
+        <button class="nav-btn" id="btn-clientes" onclick="cargarModulo('clientes')">
+          <i class="fa-solid fa-address-book"></i> Clientes
+        </button>
+      </li>
+      <li class="admin-only" style="display: none;">
         <button class="nav-btn" id="btn-admin-usuarios" onclick="cargarModulo('admin-usuarios')">
           <i class="fa-solid fa-users-gear"></i> Gestión de Usuarios
         </button>
@@ -202,9 +249,14 @@
   <!-- Contenedor Derecho -->
   <div class="main-area">
     <header class="topbar">
-      <div class="topbar-title">
-        <i class="fa-solid fa-calendar-days" id="currentIcon"></i>
-        <span id="currentTitle">Planificación & Carta Gantt</span>
+      <div class="topbar-left">
+        <button class="btn-toggle-menu" onclick="toggleSidebar()" aria-label="Abrir menú">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="topbar-title">
+          <i class="fa-solid fa-briefcase" id="currentIcon"></i>
+          <span id="currentTitle">Mis Trabajos</span>
+        </div>
       </div>
       <div class="topbar-user">
         <span class="badge-role" id="badgeRole">...</span>
@@ -215,13 +267,13 @@
       </div>
     </header>
 
-    <iframe id="moduloFrame" class="content-frame" src="planificacion.html"></iframe>
+    <iframe id="moduloFrame" class="content-frame" src="about:blank"></iframe>
   </div>
 
   <script type="module">
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
@@ -234,9 +286,16 @@
 
     const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
+    
+    // Conexión estable anti-timeout QUIC
+    const db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+      useFetchStreams: false
+    });
 
     let rolActual = "operador";
+    let moduloActual = "";
+    let sesionIniciadaPreviamente = false;
 
     const titulosModulos = {
       "mis-trabajos": { title: "Mis Trabajos", icon: "fa-solid fa-briefcase" },
@@ -246,7 +305,15 @@
       "mapa": { title: "Mapa de Operaciones", icon: "fa-solid fa-map-location-dot" },
       "gastos-ingresos": { title: "Gastos e Ingresos", icon: "fa-solid fa-wallet" },
       "informe-revision": { title: "Revisión de Informes", icon: "fa-solid fa-clipboard-check" },
+      "clientes": { title: "Gestión de Clientes", icon: "fa-solid fa-address-book" },
       "admin-usuarios": { title: "Gestión de Usuarios", icon: "fa-solid fa-users-gear" }
+    };
+
+    window.toggleSidebar = function() {
+      const sb = document.getElementById("sidebar");
+      const ov = document.getElementById("sidebarOverlay");
+      sb.classList.toggle("open");
+      ov.classList.toggle("active");
     };
 
     window.cargarModulo = function(nombre) {
@@ -254,9 +321,11 @@
         nombre = "mis-trabajos";
       }
 
-      window.location.hash = "#" + nombre;
+      moduloActual = nombre;
+
       const iframe = document.getElementById("moduloFrame");
-      iframe.src = nombre + ".html";
+      // Timestamp dinámico para evitar retención de caché entre cambios
+      iframe.src = `${nombre}.html?t=${Date.now()}`;
 
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
       const btnActual = document.getElementById("btn-" + nombre);
@@ -265,18 +334,30 @@
       const info = titulosModulos[nombre] || { title: "Operaciones", icon: "fa-solid fa-circle" };
       document.getElementById("currentTitle").textContent = info.title;
       document.getElementById("currentIcon").className = info.icon;
+
+      const sb = document.getElementById("sidebar");
+      const ov = document.getElementById("sidebarOverlay");
+      if (sb.classList.contains("open")) {
+        sb.classList.remove("open");
+        ov.classList.remove("active");
+      }
     };
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.replace("/login.html");
+        if (sesionIniciadaPreviamente) {
+          console.warn("Aviso: Pérdida temporal de red. Manteniendo sesión en pantalla...");
+          return;
+        }
+        window.location.replace("login-ops.html");
         return;
       }
+
+      sesionIniciadaPreviamente = true;
 
       const emailLower = (user.email || "").toLowerCase().trim();
       let nombre = user.displayName || user.email;
 
-      // Detección de rol
       if (emailLower === "colivaresl@hotmail.com" || emailLower === "admin@gravecare.cl") {
         rolActual = "administrador";
         nombre = "Christian Olivares";
@@ -302,14 +383,16 @@
         cargarModulo("mis-trabajos");
       } else {
         adminBtns.forEach(el => el.style.display = "block");
-        const hash = window.location.hash.replace("#", "");
-        cargarModulo(hash || "planificacion");
+        const rawHash = window.location.hash.replace("#", "").trim();
+        const hashValido = (rawHash && titulosModulos[rawHash]) ? rawHash : "mis-trabajos";
+        cargarModulo(hashValido);
       }
     });
 
     document.getElementById("btnLogout").addEventListener("click", async () => {
+      sesionIniciadaPreviamente = false;
       await signOut(auth);
-      window.location.replace("/login.html");
+      window.location.replace("login-ops.html");
     });
   </script>
 </body>

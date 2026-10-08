@@ -6,6 +6,16 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/login.html",
+        "destination": "/login-ops.html"
+      },
+      {
+        "source": "/",
+        "destination": "/login-ops.html"
+      }
     ]
   }
 }

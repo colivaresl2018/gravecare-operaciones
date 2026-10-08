@@ -27,6 +27,15 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8faf8; }
     .thumb-mini { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
     select[multiple] { scrollbar-width: thin; }
+    .badge-visita {
+      background: #e0e7ff;
+      color: #3730a3;
+      font-weight: 800;
+      font-size: 0.72rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+    }
   </style>
 </head>
 <body class="p-4 md:p-8 text-slate-800">
@@ -38,7 +47,7 @@
       <div>
         <span class="text-xs font-bold uppercase tracking-wider text-brandMuted">Gestión Global de Contratos</span>
         <h1 class="text-2xl sm:text-3xl font-black text-brand">Todos los Trabajos</h1>
-        <p class="text-xs text-slate-500 mt-1">Listado consolidado de servicios contratados, avances de visitas y evidencias técnicas</p>
+        <p class="text-xs text-slate-500 mt-1">Listado consolidado de servicios contratados, visitas ejecutadas y labores proyectadas</p>
       </div>
       <div class="flex items-center gap-3">
         <span id="badge-total" class="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">Cargando contratos...</span>
@@ -62,7 +71,7 @@
         </div>
 
         <div class="md:col-span-2">
-          <label class="block font-bold text-slate-700 mb-1">Mes Contratación:</label>
+          <label class="block font-bold text-slate-700 mb-1">Mes Estimado / Realizado:</label>
           <select id="filtro-mes" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
             <option value="">Todos los Meses</option>
             <option value="0">Enero</option>
@@ -81,12 +90,12 @@
         </div>
 
         <div class="md:col-span-2">
-          <label class="block font-bold text-slate-700 mb-1">Año Contratación:</label>
+          <label class="block font-bold text-slate-700 mb-1">Año Estimado / Realizado:</label>
           <select id="filtro-anio" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-brand focus:border-brand">
             <option value="">Todos los Años</option>
             <option value="2026">2026</option>
+            <option value="2027">2027</option>
             <option value="2025">2025</option>
-            <option value="2024">2024</option>
           </select>
         </div>
 
@@ -121,14 +130,12 @@
         </div>
         <div class="flex flex-col justify-between">
           <div>
-            <label class="font-bold text-slate-700 block mb-1">Estado Orden:</label>
+            <label class="font-bold text-slate-700 block mb-1">Estado de la Visita:</label>
             <select id="select-filtro-estado" multiple class="w-full h-16 border border-slate-300 rounded-lg p-1.5 text-[11px] focus:ring-brand focus:border-brand">
-              <option value="iniciada">Iniciada / Creada</option>
+              <option value="pendiente">Pendiente (Proyectada)</option>
               <option value="asignada">Asignada</option>
               <option value="en proceso">En Proceso</option>
-              <option value="en_revision">En Revisión</option>
-              <option value="completada">Completada</option>
-              <option value="activa">Suscripción Activa</option>
+              <option value="completada">Completada (Ejecutada)</option>
             </select>
           </div>
           <button id="btn-limpiar" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition mt-2 flex items-center justify-center gap-1 cursor-pointer">
@@ -138,29 +145,26 @@
       </div>
     </section>
 
-    <!-- Tabla Maestra -->
+    <!-- Tabla Maestra de Trabajos Desglosados -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+              <th class="p-3">ID Orden / Visita</th>
               <th class="p-3">Cliente / Titular</th>
               <th class="p-3">Plan</th>
+              <th class="p-3">Fecha Estimada</th>
+              <th class="p-3">Estado</th>
               <th class="p-3">Operador Asignado</th>
-              <th class="p-3">Contratación</th>
-              <th class="p-3">Término</th>
-              <th class="p-3 text-right">Monto Pagado</th>
-              <th class="p-3 text-center">Realizadas</th>
-              <th class="p-3 text-center">Pendientes</th>
-              <th class="p-3">Última Visita</th>
-              <th class="p-3">Próxima Visita</th>
-              <th class="p-3">Cementerio</th>
+              <th class="p-3">Cementerio & Sepultura</th>
+              <th class="p-3 text-right">Monto Contrato</th>
               <th class="p-3 text-center">Informe</th>
             </tr>
           </thead>
           <tbody id="tabla-cuerpo" class="divide-y divide-slate-100 text-slate-700">
             <tr>
-              <td colspan="12" class="p-8 text-center text-slate-400 font-medium">Cargando contratos y órdenes...</td>
+              <td colspan="9" class="p-8 text-center text-slate-400 font-medium">Cargando contratos y visitas proyectadas...</td>
             </tr>
           </tbody>
         </table>
@@ -244,7 +248,7 @@
     const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let listaTotalTrabajos = [];
+    let listaTotalVisitas = [];
 
     function formatearFecha(f) {
       if (!f) return "-";
@@ -298,12 +302,24 @@
       return "Ser Querido";
     }
 
+    function badgeEstadoHTML(estado) {
+      const normalizado = (estado || "pendiente").toLowerCase();
+      const estilos = {
+        "pendiente": "background: #f1f5f9; color: #475569;",
+        "asignada": "background: #e0f2fe; color: #0369a1;",
+        "en proceso": "background: #fef3c7; color: #b45309;",
+        "completada": "background: #dcfce7; color: #15803d;"
+      };
+      const texto = normalizado.charAt(0).toUpperCase() + normalizado.slice(1);
+      return `<span style="padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; ${estilos[normalizado] || estilos['pendiente']}">${texto}</span>`;
+    }
+
     window.cargarTodosLosTrabajos = async function() {
       const cuerpo = document.getElementById("tabla-cuerpo");
       const badge = document.getElementById("badge-total");
       
       if (cuerpo) {
-        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">Consultando registros en Firebase...</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400 font-medium">Consultando registros y proyectando visitas...</td></tr>`;
       }
       if (badge) {
         badge.textContent = "Sincronizando...";
@@ -318,6 +334,7 @@
         const ordenesRaw = snapOrdenes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const informesRaw = snapInformes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+        // Indexar informes por orden
         const mapaInformesPorOrden = new Map();
         informesRaw.forEach(inf => {
           const ordKey = inf.ordenId || inf.numeroOrden || inf.id.replace("informe_", "");
@@ -326,73 +343,130 @@
           mapaInformesPorOrden.set(inf.id, [inf]);
         });
 
-        listaTotalTrabajos = ordenesRaw.map(ord => {
-          const infsAsociados = mapaInformesPorOrden.get(ord.id) || mapaInformesPorOrden.get(ord.numeroOrden) || [];
+        const listaDesglosada = [];
+
+        ordenesRaw.forEach(ord => {
+          const numOrd = ord.numeroOrden || ord.nOrden || ord.id;
+          const planStr = String(ord.planNombre || ord.servicio?.planNombre || ord.plan || "Plan 6").toLowerCase();
+
+          // 1. Determinar número total de visitas e intervalo en meses
+          let totalVisitas = 6;
+          let intervaloMeses = 2;
+
+          if (planStr.includes("spot")) {
+            totalVisitas = 1;
+            intervaloMeses = 0;
+          } else if (planStr.includes("12") || planStr.includes("mensual")) {
+            totalVisitas = 12;
+            intervaloMeses = 1;
+          } else if (planStr.includes("6") || planStr.includes("bimestral")) {
+            totalVisitas = 6;
+            intervaloMeses = 2;
+          } else if (planStr.includes("4") || planStr.includes("trimestral")) {
+            totalVisitas = 4;
+            intervaloMeses = 3;
+          }
+
+          // 2. Fecha base
+          let fBase = extraerFechaDate(ord.creadoEl || ord.createdAt || ord.fechaContratacion || ord.fechaPago) || new Date();
+
+          // 3. Informes ejecutados para esta orden
+          const infsAsociados = mapaInformesPorOrden.get(ord.id) || mapaInformesPorOrden.get(numOrd) || [];
           infsAsociados.sort((a, b) => {
-            const fa = extraerFechaDate(a.fechaCaptura || a.fechaCreacion || a.fechaVisita) || 0;
-            const fb = extraerFechaDate(b.fechaCaptura || b.fechaCreacion || b.fechaVisita) || 0;
-            return fb - fa;
+            const fa = extraerFechaDate(a.fechaCaptura || a.fechaCreacion || a.createdAt) || 0;
+            const fb = extraerFechaDate(b.fechaCaptura || b.fechaCreacion || b.createdAt) || 0;
+            return fa - fb;
           });
-          const ultimoInforme = infsAsociados[0] || null;
 
           const titularObj = ord.titular || {};
           let clienteNombre = titularObj.nombre || [titularObj.nombres, titularObj.apellidoPaterno].filter(Boolean).join(" ");
           if (!clienteNombre) clienteNombre = ord.clienteNombre || ord.nombreTitular || ord.cliente || "Cliente";
 
           const difuntoNombre = extraerNombreDifunto(ord.difunto || ord.nombreDifunto || ord.enMemoriaDe);
-          const plan = ord.servicio?.planNombre || ord.planNombre || ord.plan || "Plan Específico";
-          const operador = ord.operadorAsignadoNombre || ord.operador || ultimoInforme?.operadorNombre || "Sin Asignar";
+          const plan = ord.servicio?.planNombre || ord.planNombre || ord.plan || `Plan ${totalVisitas}`;
 
           const ubi = ord.ubicacionSepultura || {};
-          const cementerio = ubi.cementerio || ord.cementerio || ultimoInforme?.cementerio || "No especificado";
-          const sector = ubi.sector || ord.sector || ultimoInforme?.sector || "-";
-          const lote = ubi.numeroSepultura || ord.lote || ultimoInforme?.lote || "-";
-          const estado = (ord.estado || "activa").toLowerCase();
+          const cementerio = ubi.cementerio || ord.cementerio || "No especificado";
+          const sector = ubi.sector || ord.sector || "-";
+          const lote = ubi.numeroSepultura || ord.lote || "-";
+          const montoTotal = Number(ord.montoTotal || ord.precioNumerico || ord.valores?.total || 0);
 
-          const fechaContrato = ord.creadoEl || ord.createdAt || ord.fechaContratacion || ord.fechaPago;
-          const fechaTermino = ord.fechaTermino || ord.vigenciaHasta || ord.fechaFin;
-          const fechaUltimaVisita = ord.fechaUltimaVisita || ord.fechaAprobacion || ultimoInforme?.fechaCaptura;
-          const fechaProximaVisita = ord.proximaVisita || ord.fechaProximaVisita;
+          const progMap = ord.programacionVisitas || {};
 
-          const monto = Number(ord.montoTotal || ord.precioNumerico || ord.valores?.total || 0);
-          const realizadas = ord.serviciosRealizados ?? (infsAsociados.length > 0 ? infsAsociados.length : (estado === "completada" ? 1 : 0));
-          const pendientes = Math.max(0, (ord.visitas || 1) - realizadas);
-          const pdfUrl = ord.ultimoInformePdfUrl || ultimoInforme?.pdfUrl || "";
+          // 4. DESGLOSAR CADA UNA DE LAS VISITAS DEL PLAN
+          for (let v = 1; v <= totalVisitas; v++) {
+            const numVisita = v;
+            const esRealizada = numVisita <= infsAsociados.length;
+            
+            let fechaEstimada;
+            let estadoVisita = "pendiente";
+            let operadorVisita = "Sin Asignar";
+            let informeVisita = null;
 
-          return {
-            id: ord.id,
-            ordenId: ord.numeroOrden || ord.id,
-            cliente: clienteNombre,
-            difunto: difuntoNombre,
-            plan: plan,
-            operador: operador,
-            fechaContrato: fechaContrato,
-            fechaContratoDate: extraerFechaDate(fechaContrato),
-            fechaTermino: fechaTermino,
-            monto: monto,
-            realizadas: realizadas,
-            pendientes: pendientes,
-            ultimaVisita: fechaUltimaVisita,
-            proximaVisita: fechaProximaVisita,
-            cementerio: cementerio,
-            sector: sector,
-            lote: lote,
-            estado: estado,
-            ultimoInforme: ultimoInforme,
-            pdfUrl: pdfUrl
-          };
+            if (esRealizada) {
+              informeVisita = infsAsociados[numVisita - 1];
+              fechaEstimada = extraerFechaDate(informeVisita.fechaCaptura || informeVisita.createdAt || informeVisita.fechaCreacion) || fBase;
+              estadoVisita = "completada";
+              operadorVisita = informeVisita.operador || informeVisita.operadorNombre || ord.operadorAsignadoNombre || "Christian Olivares";
+            } else {
+              // Calcular fecha estimada
+              if (infsAsociados.length > 0) {
+                const ultFecha = extraerFechaDate(infsAsociados[infsAsociados.length - 1].fechaCaptura || infsAsociados[infsAsociados.length - 1].createdAt) || fBase;
+                const salto = (numVisita - infsAsociados.length) * intervaloMeses;
+                fechaEstimada = new Date(ultFecha.getFullYear(), ultFecha.getMonth() + salto, ultFecha.getDate());
+              } else {
+                const salto = (numVisita - 1) * intervaloMeses;
+                fechaEstimada = new Date(fBase.getFullYear(), fBase.getMonth() + salto, fBase.getDate());
+              }
+
+              // Leer programación manual si fue asignada
+              const progVisita = progMap[`v_${numVisita}`] || ord[`programacionVisitas.v_${numVisita}`];
+              if (progVisita) {
+                if (progVisita.fecha) fechaEstimada = extraerFechaDate(progVisita.fecha) || fechaEstimada;
+                if (progVisita.operadorNombre && progVisita.operadorNombre !== "Sin asignar") {
+                  operadorVisita = progVisita.operadorNombre;
+                }
+                if (progVisita.estado) estadoVisita = progVisita.estado;
+              }
+            }
+
+            listaDesglosada.push({
+              id: ord.id,
+              ordenId: numOrd,
+              idVisual: `${numOrd}-V${numVisita}`,
+              visitaIndex: numVisita,
+              totalVisitas: totalVisitas,
+              cliente: clienteNombre,
+              difunto: difuntoNombre,
+              plan: plan,
+              operador: operadorVisita,
+              fechaEstimada: fechaEstimada,
+              fechaEstimadaDate: fechaEstimada,
+              estado: estadoVisita,
+              cementerio: cementerio,
+              sector: sector,
+              lote: lote,
+              monto: montoTotal,
+              informe: informeVisita
+            });
+          }
         });
 
-        poblarOpcionesFiltros(listaTotalTrabajos);
-        renderizarTabla(listaTotalTrabajos);
+        // Ordenar cronológicamente por fecha estimada
+        listaDesglosada.sort((a, b) => (a.fechaEstimadaDate || 0) - (b.fechaEstimadaDate || 0));
+
+        listaTotalVisitas = listaDesglosada;
+
+        poblarOpcionesFiltros(listaTotalVisitas);
+        renderizarTabla(listaTotalVisitas);
         if (badge) {
-          badge.textContent = `${listaTotalTrabajos.length} trabajos registrados`;
+          badge.textContent = `${listaTotalVisitas.length} visitas registradas`;
         }
 
       } catch (err) {
         console.error("Error al cargar todos los trabajos:", err);
         if (cuerpo) {
-          cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-red-600 font-semibold">Error al sincronizar con Firestore: ${err.message}</td></tr>`;
+          cuerpo.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-red-600 font-semibold">Error al sincronizar con Firestore: ${err.message}</td></tr>`;
         }
         if (badge) {
           badge.textContent = "Error al conectar";
@@ -450,22 +524,23 @@
       const dDesde = desdeFiltro ? new Date(desdeFiltro + "T00:00:00") : null;
       const dHasta = hastaFiltro ? new Date(hastaFiltro + "T23:59:59") : null;
 
-      const filtrados = listaTotalTrabajos.filter(item => {
+      const filtrados = listaTotalVisitas.filter(item => {
         if (q) {
           const matchTexto = 
             item.cliente.toLowerCase().includes(q) ||
             item.difunto.toLowerCase().includes(q) ||
             item.cementerio.toLowerCase().includes(q) ||
+            item.idVisual.toLowerCase().includes(q) ||
             item.ordenId.toLowerCase().includes(q) ||
             item.plan.toLowerCase().includes(q);
           if (!matchTexto) return false;
         }
 
-        if (item.fechaContratoDate) {
-          if (mesFiltro !== "" && item.fechaContratoDate.getMonth() !== Number(mesFiltro)) return false;
-          if (anioFiltro !== "" && item.fechaContratoDate.getFullYear() !== Number(anioFiltro)) return false;
-          if (dDesde && item.fechaContratoDate < dDesde) return false;
-          if (dHasta && item.fechaContratoDate > dHasta) return false;
+        if (item.fechaEstimadaDate) {
+          if (mesFiltro !== "" && item.fechaEstimadaDate.getMonth() !== Number(mesFiltro)) return false;
+          if (anioFiltro !== "" && item.fechaEstimadaDate.getFullYear() !== Number(anioFiltro)) return false;
+          if (dDesde && item.fechaEstimadaDate < dDesde) return false;
+          if (dHasta && item.fechaEstimadaDate > dHasta) return false;
         } else if (mesFiltro !== "" || anioFiltro !== "" || dDesde || dHasta) {
           return false;
         }
@@ -481,7 +556,7 @@
 
       renderizarTabla(filtrados);
       if (elBadge) {
-        elBadge.textContent = `${filtrados.length} de ${listaTotalTrabajos.length} trabajos`;
+        elBadge.textContent = `${filtrados.length} de ${listaTotalVisitas.length} visitas`;
       }
     }
 
@@ -491,7 +566,7 @@
       cuerpo.innerHTML = "";
 
       if (datos.length === 0) {
-        cuerpo.innerHTML = `<tr><td colspan="12" class="p-8 text-center text-slate-400 font-medium">No se encontraron trabajos con los filtros seleccionados.</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400 font-medium">No se encontraron trabajos con los filtros seleccionados.</td></tr>`;
         return;
       }
 
@@ -499,52 +574,60 @@
         const tr = document.createElement("tr");
         tr.className = "hover:bg-slate-50 transition border-b border-slate-100 cursor-pointer";
 
+        const tieneInforme = t.estado === "completada" && t.informe;
+
         tr.innerHTML = `
+          <td class="p-3">
+            <span class="font-mono font-bold text-brand block">${t.idVisual}</span>
+            <span class="badge-visita">Visita ${t.visitaIndex}/${t.totalVisitas}</span>
+          </td>
           <td class="p-3">
             <span class="font-bold text-slate-900 block">${t.cliente}</span>
             <span class="text-[11px] text-brandMuted block">Difunto: ${t.difunto}</span>
-            <span class="text-[10px] text-slate-400 font-mono">${t.ordenId}</span>
           </td>
           <td class="p-3 font-medium text-slate-700">${t.plan}</td>
+          <td class="p-3 whitespace-nowrap text-slate-800 font-semibold font-mono">
+            📅 ${formatearFecha(t.fechaEstimada)}
+          </td>
           <td class="p-3">
-            <span class="px-2 py-0.5 rounded-full text-[11px] ${t.operador === 'Sin Asignar' ? 'bg-amber-100 text-amber-800 font-bold' : 'bg-slate-100 text-slate-800'}">
+            ${badgeEstadoHTML(t.estado)}
+          </td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[11px] ${t.operador === 'Sin Asignar' ? 'bg-slate-100 text-slate-400 font-semibold italic' : 'bg-slate-100 text-slate-800 font-bold'}">
               ${t.operador}
             </span>
           </td>
-          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.fechaContrato)}</td>
-          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.fechaTermino)}</td>
-          <td class="p-3 text-right font-bold text-slate-900">${formatearDinero(t.monto)}</td>
-          <td class="p-3 text-center">
-            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[11px]">${t.realizadas}</span>
-          </td>
-          <td class="p-3 text-center">
-            <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[11px]">${t.pendientes}</span>
-          </td>
-          <td class="p-3 whitespace-nowrap text-slate-600">${formatearFecha(t.ultimaVisita)}</td>
-          <td class="p-3 whitespace-nowrap text-slate-600 font-semibold text-brand">${formatearFecha(t.proximaVisita)}</td>
           <td class="p-3">
             <span class="font-medium text-slate-800 block">${t.cementerio}</span>
             <span class="text-[10px] text-slate-400 block">Sec: ${t.sector} | Lote: ${t.lote}</span>
           </td>
+          <td class="p-3 text-right font-bold text-slate-900">${formatearDinero(t.monto)}</td>
           <td class="p-3 text-center" onclick="event.stopPropagation()">
-            <button class="btn-ver-modal p-1.5 rounded-lg bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200 transition cursor-pointer" title="Ver Evidencias y Ficha">
-              <span class="material-symbols-outlined text-base">visibility</span>
-            </button>
+            ${tieneInforme ? `
+              <button class="btn-ver-modal p-1.5 rounded-lg bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200 transition cursor-pointer" title="Ver Evidencias e Informe">
+                <span class="material-symbols-outlined text-base">visibility</span>
+              </button>
+            ` : `
+              <span class="text-slate-300 text-xs italic">—</span>
+            `}
           </td>
         `;
 
-        tr.addEventListener("click", () => abrirModalTrabajo(t));
-        tr.querySelector(".btn-ver-modal").addEventListener("click", () => abrirModalTrabajo(t));
+        if (tieneInforme) {
+          tr.addEventListener("click", () => abrirModalTrabajo(t));
+          tr.querySelector(".btn-ver-modal").addEventListener("click", () => abrirModalTrabajo(t));
+        }
         cuerpo.appendChild(tr);
       });
     }
 
     function abrirModalTrabajo(trabajo) {
-      const inf = trabajo.ultimoInforme;
+      const inf = trabajo.informe;
+      if (!inf) return;
 
-      document.getElementById("modal-orden-id").textContent = trabajo.ordenId;
+      document.getElementById("modal-orden-id").textContent = trabajo.idVisual;
       document.getElementById("modal-difunto").textContent = trabajo.difunto;
-      document.getElementById("modal-subtitulo").textContent = `Plan: ${trabajo.plan} • Estado: ${trabajo.estado.toUpperCase()}`;
+      document.getElementById("modal-subtitulo").textContent = `Plan: ${trabajo.plan} • Visita ${trabajo.visitaIndex}/${trabajo.totalVisitas} • Estado: ${trabajo.estado.toUpperCase()}`;
       document.getElementById("modal-cliente").textContent = trabajo.cliente;
       document.getElementById("modal-operador").textContent = trabajo.operador;
       document.getElementById("modal-ubicacion").textContent = `${trabajo.cementerio} - Sector: ${trabajo.sector}, Lote: ${trabajo.lote}`;
@@ -562,23 +645,17 @@
 
       const extraerFotoUrl = (f) => typeof f === 'string' ? f : (f?.url || f?.previewBase64 || "");
       const fotos = inf?.fotos || inf?.fotosUrls || {};
-      cargarFotoBox("box-foto-antes", extraerFotoUrl(fotos.antes), "Antes");
-      cargarFotoBox("box-foto-despues", extraerFotoUrl(fotos.despues), "Después");
-      cargarFotoBox("box-foto-flores", extraerFotoUrl(fotos.flores), "Flores");
+      cargarFotoBox("box-foto-antes", extraerFotoUrl(fotos.antes || inf.fotoAntes), "Antes");
+      cargarFotoBox("box-foto-despues", extraerFotoUrl(fotos.despues || inf.fotoDespues), "Después");
+      cargarFotoBox("box-foto-flores", extraerFotoUrl(fotos.flores || fotos.ornamentacion), "Flores");
       cargarFotoBox("box-foto-general", extraerFotoUrl(fotos.general || fotos.panoramica), "Panorámica");
 
       const btnOficial = document.getElementById("btn-modal-ver-oficial");
       if (btnOficial) {
         btnOficial.onclick = () => {
-          if (trabajo.pdfUrl && trabajo.pdfUrl.startsWith("https://")) {
-            window.open(trabajo.pdfUrl, "_blank");
-          } else if (inf?.pdfUrl && inf.pdfUrl.startsWith("https://")) {
-            window.open(inf.pdfUrl, "_blank");
-          } else {
-            const infIdParam = inf?.id ? `&informeId=${inf.id}` : "";
-            const urlFallback = `https://gravecare.cl/informe.html?ordenId=${trabajo.ordenId}${infIdParam}`;
-            window.open(urlFallback, "_blank");
-          }
+          const infIdParam = inf?.id ? `&informeId=${inf.id}` : "";
+          const urlFallback = `https://gravecare.cl/informe.html?ordenId=${trabajo.ordenId}${infIdParam}`;
+          window.open(urlFallback, "_blank");
         };
       }
 
@@ -633,7 +710,6 @@
       });
     }
 
-    // Asegurar carga tras validar staff y DOM
     requireStaffAccess(async () => {
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", async () => {

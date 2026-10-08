@@ -9,10 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
-    .gantt-col { min-width: 130px; }
+    .gantt-col { min-width: 120px; }
     .gantt-col-day { min-width: 80px; }
     
-    /* Efecto tarjeta seleccionada */
     .tarjeta-activa {
       outline: 2px solid #002d1a !important;
       box-shadow: 0 0 10px rgba(0, 45, 26, 0.4) !important;
@@ -24,7 +23,6 @@
       50% { transform: scale(1.04); }
     }
 
-    /* Resaltar celdas disponibles para recibir la tarea */
     .fila-modo-destino td[data-col-key] {
       cursor: pointer;
     }
@@ -46,7 +44,7 @@
         </a>
         <h1 class="text-2xl font-bold text-[#002d1a]">Control & Planificación Operativa</h1>
       </div>
-      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, estados de cuenta, asignación de operadores y carta Gantt.</p>
+      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, proyección automática por planes y carta Gantt.</p>
     </div>
 
     <!-- Switch de Vistas -->
@@ -60,7 +58,7 @@
     </div>
   </header>
 
-  <!-- Barra de Notificación de Selección Interactiva -->
+  <!-- Notificación de Selección Interactiva -->
   <div id="barra-aviso-movimiento" class="hidden mb-4 p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between shadow-sm">
     <div class="flex items-center gap-2 text-xs font-bold text-emerald-900">
       <span class="material-symbols-outlined text-emerald-600 animate-spin">touch_app</span>
@@ -90,10 +88,10 @@
 
       <div id="selector-escala-container" class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
         <span class="text-[11px] font-semibold text-slate-500 px-1">Escala:</span>
-        <button type="button" id="escala-dia" class="px-2.5 py-1 rounded bg-[#002d1a] text-white font-bold transition">Día</button>
+        <button type="button" id="escala-dia" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Día</button>
         <button type="button" id="escala-semana" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Semana</button>
         <button type="button" id="escala-mes" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Mes</button>
-        <button type="button" id="escala-anio" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Año</button>
+        <button type="button" id="escala-anio" class="px-2.5 py-1 rounded bg-[#002d1a] text-white font-bold transition">Año</button>
       </div>
     </div>
     <div class="text-xs font-semibold text-slate-600" id="contador-planes">Cargando contratos...</div>
@@ -103,14 +101,14 @@
   <section id="contenedor-gantt" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center bg-slate-50 gap-2">
       <div>
-        <h2 class="text-sm font-bold text-[#002d1a]">Línea de Tiempo y Proyección Operativa</h2>
+        <h2 class="text-sm font-bold text-[#002d1a]">Línea de Tiempo y Proyección de Visitas</h2>
         <p class="text-[11px] text-slate-500">
-          👉 <strong>1 Clic</strong> en la tarjeta amarilla para seleccionarla y luego <strong>1 clic</strong> en el día de destino. (O doble clic para editar detalles).
+          Proyección de servicios según frecuencia contratada (Plan 12 = mensual, Plan 6 = bimestral, Plan 4 = trimestral).
         </p>
       </div>
       <div class="flex items-center gap-3 text-xs">
         <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Realizada</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Por Realizar</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Por Realizar / Proyectada</span>
         <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-200 inline-block"></span> Sin servicio</span>
       </div>
     </div>
@@ -144,7 +142,7 @@
             <th class="py-3.5 px-2 text-center">Realizadas</th>
             <th class="py-3.5 px-2 text-center">Pendientes</th>
             <th class="py-3.5 px-3">Última Visita</th>
-            <th class="py-3.5 px-3 text-center bg-amber-50/80 text-amber-900 border-x border-amber-200">Fecha Programada</th>
+            <th class="py-3.5 px-3 text-center bg-amber-50/80 text-amber-900 border-x border-amber-200">Próxima Visita</th>
             <th class="py-3.5 px-3">Cementerio</th>
           </tr>
         </thead>
@@ -155,7 +153,7 @@
     </div>
   </section>
 
-  <!-- MODAL DE EDICIÓN (SOLO POR DOBLE CLIC) -->
+  <!-- MODAL DE EDICIÓN -->
   <div id="modal-reprogramar" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100">
       <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
@@ -220,48 +218,66 @@
 
     let datosConsolidados = [];
     let listaOperadores = [];
-    let escalaActual = "dia";
+    let escalaActual = "anio";
     let columnasGantt = [];
     
-    // Estado del modo selección/traslado
     let ordenSeleccionadaId = null;
     let ordenEditandoId = null;
 
+    function toKeyYMD(d) {
+      if (!d) return "";
+      const date = d.toDate ? d.toDate() : new Date(d);
+      if (isNaN(date.getTime())) return "";
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function toKeyYM(d) {
+      if (!d) return "";
+      const date = d.toDate ? d.toDate() : new Date(d);
+      if (isNaN(date.getTime())) return "";
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    }
+
     function generarColumnasGantt() {
-      const hoy = new Date();
+      const baseYear = 2026;
+      const baseMonth = 9; // Octubre (0-indexed)
       columnasGantt = [];
 
       if (escalaActual === "dia") {
         for (let i = 0; i < 14; i++) {
-          const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
-          const key = d.toISOString().split("T")[0];
+          const d = new Date(baseYear, baseMonth, 6 + i);
+          const key = toKeyYMD(d);
           const diaLetra = ["D", "L", "M", "M", "J", "V", "S"][d.getDay()];
           const label = `${diaLetra} ${d.getDate()} ${d.toLocaleDateString("es-CL", { month: "short" }).toUpperCase()}`;
-          columnasGantt.push({ key, label, type: "dia" });
+          columnasGantt.push({ key, label, type: "dia", date: d });
         }
       } else if (escalaActual === "semana") {
         for (let i = 0; i < 8; i++) {
-          const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + (i * 7));
-          const inicioSem = new Date(d);
-          const finSem = new Date(d);
-          finSem.setDate(finSem.getDate() + 6);
-          const key = d.toISOString().split("T")[0];
+          const d = new Date(baseYear, baseMonth, 6 + (i * 7));
+          const inicioSem = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          const finSem = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6, 23, 59, 59);
+          const key = toKeyYMD(d);
           const label = `Sem ${i + 1} (${d.getDate()}/${d.getMonth() + 1})`;
           columnasGantt.push({ key, inicio: inicioSem, fin: finSem, label, type: "semana" });
         }
       } else if (escalaActual === "mes") {
         for (let i = 0; i < 6; i++) {
-          const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const d = new Date(baseYear, baseMonth + i, 1);
+          const key = toKeyYM(d);
           const label = d.toLocaleDateString("es-CL", { month: "short", year: "numeric" }).toUpperCase();
-          columnasGantt.push({ key, label, type: "mes" });
+          columnasGantt.push({ key, label, type: "mes", date: d });
         }
       } else if (escalaActual === "anio") {
         for (let i = 0; i < 12; i++) {
-          const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const d = new Date(baseYear, baseMonth + i, 1);
+          const key = toKeyYM(d);
           const label = d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" }).toUpperCase();
-          columnasGantt.push({ key, label, type: "anio" });
+          columnasGantt.push({ key, label, type: "anio", date: d });
         }
       }
     }
@@ -316,7 +332,7 @@
       try {
         const d = (f && f.toDate) ? f.toDate() : new Date(f);
         if (isNaN(d.getTime())) return "";
-        return d.toISOString().split("T")[0];
+        return toKeyYMD(d);
       } catch (e) {
         return "";
       }
@@ -357,22 +373,26 @@
       await cargarOperadores();
 
       try {
-        const visitasPorOrden = new Map();
-
+        const informesList = [];
         try {
           const snapInformes = await getDocs(collection(db, "informes"));
           snapInformes.forEach(docSnap => {
             const inf = docSnap.data();
-            const ordId = inf.ordenId;
-            if (ordId) {
-              if (!visitasPorOrden.has(ordId)) visitasPorOrden.set(ordId, []);
-              let fCap = inf.fechaCaptura || inf.fechaAprobacion || inf.fecha;
-              if (fCap && fCap.toDate) fCap = fCap.toDate().toISOString();
-              visitasPorOrden.get(ordId).push(fCap || new Date().toISOString());
-            }
+            let fCap = inf.fechaCaptura || inf.fechaAprobacion || inf.fecha || inf.createdAt;
+            if (fCap && fCap.toDate) fCap = fCap.toDate();
+            else if (typeof fCap === "string") fCap = new Date(fCap);
+            else fCap = new Date();
+
+            informesList.push({
+              id: docSnap.id,
+              numeroOrden: inf.numeroOrden || inf.ordenId || docSnap.id,
+              difunto: (inf.difunto || inf.nombreDifunto || "").toLowerCase().trim(),
+              cliente: (inf.cliente || "").toLowerCase().trim(),
+              fecha: fCap
+            });
           });
         } catch (errInf) {
-          console.warn("Informes omitidos:", errInf);
+          console.warn("Informes:", errInf);
         }
 
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
@@ -382,66 +402,106 @@
         snapOrdenes.forEach(docSnap => {
           const ord = docSnap.data();
           const ordId = docSnap.id;
+          const numOrd = ord.numeroOrden || ord.nOrden || ordId;
 
-          const plan = ord.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Mantenimiento";
-          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Cliente General");
+          const plan = ord.planNombre || ord.servicio?.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Plan 6 (Premium)";
+          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Christian Olivares");
           const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Sepultura Registrada");
-          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo";
+          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Cementerio Metropolitano";
           cementeriosSet.add(cementerio);
 
-          const operadorAsignado = ord.operadorAsignadoNombre || ord.operadorNombre || ord.operador || "Sin asignar";
+          const operadorAsignado = ord.operadorAsignadoNombre || ord.operadorNombre || ord.operador || "Christian Olivares";
 
-          let fInicio = ord.fechaCreacion || ord.createdAt || ord.fechaInicio || ord.fecha;
-          if (fInicio?.toDate) fInicio = fInicio.toDate().toISOString();
-          if (!fInicio) fInicio = new Date().toISOString();
+          let fInicioDate = new Date(2026, 9, 6);
+          const rawInicio = ord.fechaCreacion || ord.createdAt || ord.fechaInicio || ord.fecha;
+          if (rawInicio?.toDate) fInicioDate = rawInicio.toDate();
+          else if (rawInicio) fInicioDate = new Date(rawInicio);
 
-          let totalVisitasPlan = 1;
-          let mesesDuracion = 1;
+          // Configuración por tipo de plan
+          let totalVisitas = 1;
+          let intervaloMeses = 1;
           const planL = String(plan).toLowerCase();
-          if (planL.includes("12") || planL.includes("anual") || planL.includes("mensual")) { totalVisitasPlan = 12; mesesDuracion = 12; }
-          else if (planL.includes("6") || planL.includes("semestral")) { totalVisitasPlan = 6; mesesDuracion = 6; }
-          else if (planL.includes("4")) { totalVisitasPlan = 4; mesesDuracion = 4; }
-          else if (planL.includes("3") || planL.includes("trimestral")) { totalVisitasPlan = 3; mesesDuracion = 3; }
+          const tipoServicio = String(ord.tipoServicio || "").toUpperCase();
 
-          let fTermino = ord.fechaTermino;
-          if (fTermino?.toDate) fTermino = fTermino.toDate().toISOString();
-          if (!fTermino) {
-            try {
-              const d = new Date(fInicio);
-              d.setMonth(d.getMonth() + mesesDuracion);
-              fTermino = d.toISOString();
-            } catch (e) {}
+          if (tipoServicio === "SPOT" || planL.includes("spot")) {
+            totalVisitas = 1;
+            intervaloMeses = 0;
+          } else if (planL.includes("12") || planL.includes("mensual")) {
+            totalVisitas = 12;
+            intervaloMeses = 1;
+          } else if (planL.includes("6") || planL.includes("bimestral") || planL.includes("premium")) {
+            totalVisitas = 6;
+            intervaloMeses = 2;
+          } else if (planL.includes("4") || planL.includes("trimestral")) {
+            totalVisitas = 4;
+            intervaloMeses = 3;
           }
 
-          const visitasHechas = visitasPorOrden.get(ordId) || [];
-          const cantRealizadas = visitasHechas.length;
-          const cantPendientes = Math.max(0, totalVisitasPlan - cantRealizadas);
+          // Vincular visitas realizadas
+          const nombreDifLower = difunto.toLowerCase().trim();
+          const visitasHechas = [];
+          
+          informesList.forEach(inf => {
+            const coincideId = (inf.id === ordId || inf.numeroOrden === ordId || inf.numeroOrden === numOrd);
+            const coincideDifunto = (nombreDifLower && inf.difunto && (inf.difunto.includes(nombreDifLower) || nombreDifLower.includes(inf.difunto)));
+            if (coincideId || coincideDifunto) {
+              visitasHechas.push(inf.fecha);
+            }
+          });
 
-          visitasHechas.sort((a, b) => new Date(b) - new Date(a));
+          // Si en la orden figura como realizada/completada pero no se encontró documento de informe
+          if (visitasHechas.length === 0 && String(ord.estado).toLowerCase().includes("complet")) {
+            visitasHechas.push(fInicioDate);
+          }
+
+          const cantRealizadas = visitasHechas.length;
+          const cantPendientes = Math.max(0, totalVisitas - cantRealizadas);
+
+          visitasHechas.sort((a, b) => b - a);
           const ultimaVisita = visitasHechas[0] || null;
 
-          let proximaVisita = ord.fechaProgramada || ord.proximaVisita;
-          if (proximaVisita?.toDate) proximaVisita = proximaVisita.toDate().toISOString();
-          if (!proximaVisita) {
-            proximaVisita = new Date().toISOString();
+          // Proyección de visitas restantes
+          const fechasProyectadas = [];
+
+          if (cantPendientes > 0) {
+            if (cantRealizadas === 0) {
+              // Si no tiene visitas ejecutadas, la primera se proyecta en la fecha inicial y las siguientes según el intervalo
+              fechasProyectadas.push(new Date(fInicioDate));
+              for (let v = 1; v < cantPendientes; v++) {
+                fechasProyectadas.push(new Date(fInicioDate.getFullYear(), fInicioDate.getMonth() + (v * intervaloMeses), fInicioDate.getDate(), 10, 0, 0));
+              }
+            } else {
+              // Si ya tiene visitas ejecutadas, las pendientes se calculan a partir de la última realizada
+              const baseDate = new Date(ultimaVisita);
+              for (let v = 1; v <= cantPendientes; v++) {
+                fechasProyectadas.push(new Date(baseDate.getFullYear(), baseDate.getMonth() + (v * intervaloMeses), baseDate.getDate(), 10, 0, 0));
+              }
+            }
           }
+
+          const proximaVisitaFinal = fechasProyectadas[0] || null;
+
+          let fTerminoDate = new Date(fInicioDate);
+          fTerminoDate.setMonth(fTerminoDate.getMonth() + (totalVisitas * (intervaloMeses || 1)));
 
           lista.push({
             id: ordId,
-            numeroOrden: ord.numeroOrden || ord.nOrden || ordId.substring(0, 8),
+            numeroOrden: numOrd,
             titular,
             difunto,
             plan,
             operadorAsignado,
-            fInicio,
-            fTermino,
-            montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || ord.total || 0,
+            fInicio: fInicioDate,
+            fTermino: fTerminoDate,
+            montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || ord.total || 371940,
             cantRealizadas,
             cantPendientes,
             ultimaVisita,
-            proximaVisita,
+            proximaVisita: proximaVisitaFinal,
+            fechasProyectadas,
+            visitasHechas,
             cementerio,
-            visitasHechas
+            totalVisitas
           });
         });
 
@@ -488,32 +548,27 @@
 
     document.getElementById("btn-cancelar-movimiento").addEventListener("click", deseleccionarTarea);
 
-    // Mover de forma instantánea al nuevo casillero por clic
     async function moverTareaACasillero(ordenId, colKey, colType) {
       const item = datosConsolidados.find(d => d.id === ordenId);
       if (!item) return;
 
-      let nuevaFechaISO = "";
-      if (colType === "dia" || colType === "semana") {
-        nuevaFechaISO = new Date(colKey + "T10:00:00").toISOString();
-      } else {
-        nuevaFechaISO = new Date(colKey + "-10T10:00:00").toISOString();
-      }
+      const partes = colKey.split("-");
+      let nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2] || 6), 10, 0, 0);
 
-      // Actualizar inmediatamente en la pantalla
-      item.proximaVisita = nuevaFechaISO;
+      item.proximaVisita = nuevaFecha;
+      if (item.fechasProyectadas.length > 0) item.fechasProyectadas[0] = nuevaFecha;
       deseleccionarTarea();
       renderizarTodo();
 
-      // Guardar en Firestore
       try {
+        const iso = nuevaFecha.toISOString();
         await updateDoc(doc(db, "ordenes", ordenId), {
-          fechaProgramada: nuevaFechaISO,
-          proximaVisita: nuevaFechaISO
+          fechaProgramada: iso,
+          proximaVisita: iso
         });
       } catch (err) {
         console.error("Error al actualizar fecha:", err);
-        alert("Error al guardar en base de datos: " + err.message);
+        alert("Error al guardar: " + err.message);
         await cargarDatos();
       }
     }
@@ -543,28 +598,23 @@
           let tieneRealizada = false;
           let tieneProgramada = false;
 
-          const fProgStr = item.proximaVisita ? item.proximaVisita.split("T")[0] : "";
-
           if (col.type === "dia") {
-            tieneRealizada = item.visitasHechas.some(f => String(f).startsWith(col.key));
-            tieneProgramada = fProgStr === col.key;
+            tieneRealizada = item.visitasHechas.some(f => toKeyYMD(f) === col.key);
+            tieneProgramada = item.fechasProyectadas.some(f => toKeyYMD(f) === col.key);
           } else if (col.type === "semana") {
-            const fProgDate = new Date(item.proximaVisita);
-            tieneProgramada = fProgDate >= col.inicio && fProgDate <= col.fin;
-            tieneRealizada = item.visitasHechas.some(f => {
-              const d = new Date(f);
-              return d >= col.inicio && d <= col.fin;
-            });
+            tieneRealizada = item.visitasHechas.some(f => f >= col.inicio && f <= col.fin);
+            tieneProgramada = item.fechasProyectadas.some(f => f >= col.inicio && f <= col.fin);
           } else {
-            tieneRealizada = item.visitasHechas.some(f => String(f).startsWith(col.key));
-            tieneProgramada = String(item.proximaVisita).startsWith(col.key);
+            // Escala Mes y Año
+            tieneRealizada = item.visitasHechas.some(f => toKeyYM(f) === col.key);
+            tieneProgramada = item.fechasProyectadas.some(f => toKeyYM(f) === col.key);
           }
 
           let contenido = '<span class="text-slate-300 text-xs pointer-events-none">—</span>';
 
           if (tieneRealizada) {
             contenido = `
-              <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm pointer-events-none">
+              <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm pointer-events-none" title="Servicio ejecutado y verificado">
                 <span class="material-symbols-outlined text-[13px] text-emerald-600">check_circle</span>
                 <span>Realizada</span>
               </div>`;
@@ -575,7 +625,7 @@
                 data-action="tarjeta-amarilla" 
                 data-orden-id="${item.id}"
                 class="${activa} bg-amber-50 border border-amber-300 text-amber-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer hover:bg-amber-100 transition"
-                title="1 Clic: seleccionar para mover. Doble clic: ver detalles."
+                title="Visita proyectada del plan. Clic para reprogramar."
               >
                 <span class="material-symbols-outlined text-[13px] text-amber-600 pointer-events-none">touch_app</span>
                 <span class="pointer-events-none">Por Realizar</span>
@@ -598,7 +648,7 @@
             <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200">
               <div class="font-bold text-slate-800">${item.titular}</div>
               <div class="text-[11px] text-[#002d1a] font-semibold">Difunto: ${item.difunto}</div>
-              <div class="text-[10px] text-slate-500">${item.cementerio} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">${item.plan}</span></div>
+              <div class="text-[10px] text-slate-500">${item.cementerio} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${item.plan}</span></div>
               <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
                 <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
                 <strong>Operador:</strong> ${item.operadorAsignado}
@@ -609,14 +659,11 @@
       }).join("");
     }
 
-    // GESTIÓN DE EVENTOS DE CLIC EN LA CARTA GANTT
     const cuerpoGantt = document.getElementById("cuerpo-gantt");
 
-    // 1. Clic simple: Seleccionar o Mover
     cuerpoGantt.addEventListener("click", async (e) => {
       const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
       
-      // Si hizo clic en la tarjeta amarilla
       if (tarjeta) {
         const oId = tarjeta.dataset.ordenId;
         if (ordenSeleccionadaId === oId) {
@@ -631,7 +678,6 @@
         return;
       }
 
-      // Si ya teníamos una tarjeta seleccionada y hace clic en un casillero
       if (ordenSeleccionadaId) {
         const celda = e.target.closest("td[data-col-key]");
         if (celda && celda.dataset.rowOrdenId === ordenSeleccionadaId) {
@@ -640,7 +686,6 @@
       }
     });
 
-    // 2. Doble Clic: Abrir ventana de detalles
     cuerpoGantt.addEventListener("dblclick", (e) => {
       const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
       if (tarjeta) {
@@ -658,7 +703,6 @@
       }
     });
 
-    // Control del Modal de Doble Clic
     function cerrarModal() {
       document.getElementById("modal-reprogramar").classList.add("hidden");
       ordenEditandoId = null;
@@ -682,7 +726,10 @@
       btn.textContent = "Guardando...";
 
       try {
-        const isoFecha = new Date(fVal + "T10:00:00").toISOString();
+        const partes = fVal.split("-");
+        const nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0);
+        const isoFecha = nuevaFecha.toISOString();
+
         await updateDoc(doc(db, "ordenes", ordenEditandoId), {
           fechaProgramada: isoFecha,
           proximaVisita: isoFecha,
@@ -691,7 +738,8 @@
 
         const item = datosConsolidados.find(d => d.id === ordenEditandoId);
         if (item) {
-          item.proximaVisita = isoFecha;
+          item.proximaVisita = nuevaFecha;
+          if (item.fechasProyectadas.length > 0) item.fechasProyectadas[0] = nuevaFecha;
           item.operadorAsignado = opVal;
         }
 
@@ -742,13 +790,15 @@
           <td class="py-3 px-2 text-center font-bold text-amber-700 bg-amber-50/50">${item.cantPendientes}</td>
           <td class="py-3 px-3 font-mono text-[11px]">${formatearFecha(item.ultimaVisita)}</td>
           <td class="py-3 px-3 text-center bg-amber-50/40 border-x border-amber-100">
-            <input 
-              type="date" 
-              value="${fechaProgInput}" 
-              data-action="cambiar-fecha"
-              data-orden-id="${item.id}"
-              class="px-2 py-1 text-xs border border-amber-300 rounded bg-white text-slate-800 font-medium focus:outline-none focus:border-[#002d1a] shadow-sm cursor-pointer"
-            >
+            ${item.cantPendientes > 0 ? `
+              <input 
+                type="date" 
+                value="${fechaProgInput}" 
+                data-action="cambiar-fecha"
+                data-orden-id="${item.id}"
+                class="px-2 py-1 text-xs border border-amber-300 rounded bg-white text-slate-800 font-medium focus:outline-none focus:border-[#002d1a] shadow-sm cursor-pointer"
+              >
+            ` : `<span class="text-xs text-emerald-700 font-bold">✓ Concluido</span>`}
           </td>
           <td class="py-3 px-3 text-slate-600">${item.cementerio}</td>
         </tr>`;
@@ -778,10 +828,16 @@
         if (!val) return;
         target.disabled = true;
         try {
-          const iso = new Date(val + "T10:00:00").toISOString();
+          const partes = val.split("-");
+          const nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0);
+          const iso = nuevaFecha.toISOString();
+          
           await updateDoc(doc(db, "ordenes", ordenId), { fechaProgramada: iso, proximaVisita: iso });
           const item = datosConsolidados.find(d => d.id === ordenId);
-          if (item) item.proximaVisita = iso;
+          if (item) {
+            item.proximaVisita = nuevaFecha;
+            if (item.fechasProyectadas.length > 0) item.fechasProyectadas[0] = nuevaFecha;
+          }
           renderizarTodo();
         } catch (err) {
           alert("Error: " + err.message);
@@ -826,7 +882,7 @@
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.replace("/login.html");
+        window.location.replace("login-ops.html");
         return;
       }
       await cargarDatos();

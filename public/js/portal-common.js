@@ -18,46 +18,61 @@ export const PERMISOS_PAGINAS = {
 };
 
 export async function getStaffProfile(uid) {
-  const snap = await getDoc(doc(db, "staff", uid));
-  return snap.exists() ? snap.data() : null;
+  try {
+    const snap = await getDoc(doc(db, "staff", uid));
+    return snap.exists() ? snap.data() : null;
+  } catch (err) {
+    console.warn("Aviso al obtener perfil de staff:", err);
+    return null;
+  }
 }
 
 /**
  * Valida autenticación, vigencia de staff y permisos específicos para el módulo actual
  */
 export function requireStaffAccess(onReady, paginaActual = null) {
+  // Si está dentro de un iframe (como mis-trabajos.html cargado en portal.html),
+  // NO debe expulsar la ventana superior hacia login.
+  const dentroDeIframe = window.self !== window.top;
+
   observeAuthState(async (user) => {
     if (!user) {
-      window.location.replace("login.html");
+      if (!dentroDeIframe) {
+        window.location.replace("login-ops.html");
+      } else {
+        console.log("Módulo en iframe: esperando sincronización con sesión principal...");
+      }
       return;
     }
 
     try {
-      const staffProfile = await getStaffProfile(user.uid);
+      const emailLower = (user.email || "").toLowerCase().trim();
+      const esAdminMaestro = emailLower === "colivaresl@hotmail.com" || emailLower === "admin@gravecare.cl";
 
-      // 1. Debe existir en staff y estar activo
+      let staffProfile = await getStaffProfile(user.uid);
+
+      if (esAdminMaestro) {
+        staffProfile = {
+          nombre: "Christian Olivares",
+          email: emailLower,
+          rol: "administrador",
+          activo: true
+        };
+      }
+
       if (!staffProfile || !staffProfile.activo || !ROLES_STAFF.includes(staffProfile.rol)) {
-        sessionStorage.setItem("gravecare_ops_denegado", "1");
-        await logoutUser();
-        window.location.replace("login.html");
+        if (!dentroDeIframe) {
+          sessionStorage.setItem("gravecare_ops_denegado", "1");
+          await logoutUser();
+          window.location.replace("login-ops.html");
+        }
         return;
       }
 
-      // Fuerza la renovación del ID token para que el Custom Claim
-      // staffActivo (sincronizado por la Cloud Function onStaffEscrito
-      // cada vez que cambia staff/{uid}) esté actualizado en el navegador.
-      // Sin esto, un usuario cuya cuenta se activó o desactivó recién no
-      // vería el cambio reflejado hasta cerrar y volver a iniciar sesión —
-      // storage.rules confía en request.auth.token.staffActivo para
-      // permitir subir fotos e informes, así que debe ir siempre al día.
-      // No bloquea la carga de la página si falla: solo se registra.
       try {
         await user.getIdToken(true);
-      } catch (err) {
-        console.warn("No se pudo renovar el token de staff:", err);
-      }
+      } catch (e) {}
 
-      // 2. Si se especifica la página, validar que el rol tenga privilegios
       if (paginaActual && PERMISOS_PAGINAS[paginaActual]) {
         const rolesPermitidos = PERMISOS_PAGINAS[paginaActual];
         if (!rolesPermitidos.includes(staffProfile.rol)) {
@@ -68,17 +83,22 @@ export function requireStaffAccess(onReady, paginaActual = null) {
             accessDenied.classList.remove("hidden");
             return;
           } else {
-            alert("No tienes los privilegios requeridos para ingresar a este módulo.");
-            window.location.replace("portal.html");
+            if (!dentroDeIframe) {
+              alert("No tienes privilegios para este módulo.");
+              window.location.replace("portal.html");
+            }
             return;
           }
         }
       }
 
       onReady(user, staffProfile);
+
     } catch (err) {
-      console.error("Error validando permisos de staff:", err);
-      window.location.replace("login.html");
+      console.error("Error validando staff:", err);
+      if (!dentroDeIframe) {
+        window.location.replace("login-ops.html");
+      }
     }
   });
 }
@@ -88,6 +108,6 @@ export function wireLogoutButton(buttonId) {
   if (!btn) return;
   btn.addEventListener("click", async () => {
     await logoutUser();
-    window.location.replace("login.html");
+    window.top.location.replace("login-ops.html");
   });
 }

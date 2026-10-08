@@ -3,104 +3,550 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mis Trabajos</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Mis Trabajos | GraveCare Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0&libraries=places"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
       background-color: #f8fafc;
       color: #1e293b;
-      padding: 24px;
+      padding: 16px;
     }
-    .card {
-      background: #ffffff;
+    #mapa-mis-trabajos {
+      width: 100%;
+      height: 280px;
       border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .card-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .card-desc {
-      font-size: 0.88rem;
-      color: #64748b;
-      margin-top: 4px;
-      margin-bottom: 20px;
-    }
-    .search-box {
-      margin-bottom: 20px;
-    }
-    .search-input {
-      width: 100%;
-      max-width: 380px;
-      padding: 9px 14px;
       border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      outline: none;
     }
-    .search-input:focus { border-color: #002d1a; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
+    @media (min-width: 768px) {
+      #mapa-mis-trabajos { height: 350px; }
+      body { padding: 24px; }
     }
+    table { width: 100%; border-collapse: collapse; }
     th {
       background: #f8fafc;
-      padding: 12px 16px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      padding: 12px 14px;
+      font-size: 0.75rem;
+      font-weight: 700;
       color: #475569;
       border-bottom: 1px solid #e2e8f0;
       text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     td {
-      padding: 14px 16px;
+      padding: 12px 14px;
       border-bottom: 1px solid #f1f5f9;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      vertical-align: middle;
     }
-    .empty-state {
-      text-align: center;
-      padding: 48px;
-      color: #94a3b8;
-      font-size: 0.95rem;
+    .badge-estado {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .estado-pendiente { background-color: #f1f5f9; color: #475569; }
+    .estado-asignada { background-color: #e0f2fe; color: #0369a1; }
+    .estado-en-revision { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .estado-completada { background-color: #dcfce7; color: #166534; }
+    .badge-visita {
+      background: #e0e7ff;
+      color: #3730a3;
+      font-weight: 800;
+      font-size: 0.72rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
     }
   </style>
 </head>
-<body>
+<body class="space-y-5">
 
-  <div class="card">
-    <h2 class="card-title">Mis Servicios y Asignaciones</h2>
-    <p class="card-desc">Listado de órdenes y mantenimientos asignados a tu perfil.</p>
-
-    <div class="search-box">
-      <input type="text" class="search-input" id="filtroTexto" placeholder="Buscar por cliente, difunto o sepultura...">
+  <!-- MAPA DE SEPULTURAS ASIGNADAS -->
+  <div class="bg-white rounded-xl p-4 md:p-5 border border-slate-200 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+      <div>
+        <h2 class="text-sm md:text-base font-bold text-[#002d1a] flex items-center gap-2">
+          <i class="fa-solid fa-map-location-dot text-emerald-600"></i> Sepulturas Programadas
+        </h2>
+        <p class="text-xs text-slate-500">Ubicación satelital de labores activas pendientes de ejecución.</p>
+      </div>
+      <div id="kpi-gps" class="text-xs font-semibold px-3 py-1 bg-slate-100 rounded-full text-slate-700 w-fit">
+        Cargando mapa...
+      </div>
     </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>N° Orden</th>
-          <th>Cliente / Difunto</th>
-          <th>Cementerio</th>
-          <th>Servicio</th>
-          <th>Estado</th>
-          <th>Acción</th>
-        </tr>
-      </thead>
-      <tbody id="tablaTrabajosBody">
-        <tr>
-          <td colspan="6" class="empty-state">No tienes trabajos asignados para el periodo seleccionado.</td>
-        </tr>
-      </tbody>
-    </table>
+    <div id="mapa-mis-trabajos"></div>
   </div>
 
+  <!-- LISTADO DE ASIGNACIONES (RESPONSIVO) -->
+  <div class="bg-white rounded-xl p-4 md:p-5 border border-slate-200 shadow-sm">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+      <div>
+        <h3 class="text-sm md:text-base font-bold text-slate-800">Listado de Asignaciones Pendientes</h3>
+        <p class="text-xs text-slate-500">Selecciona una orden activa para reportar la visita en terreno.</p>
+      </div>
+      <input type="text" id="filtroTexto" placeholder="Buscar difunto, cliente o cementerio..." 
+             class="px-3 py-2 text-xs border border-slate-300 rounded-lg w-full sm:w-72 focus:outline-none focus:border-[#002d1a]">
+    </div>
+
+    <!-- Vista Móvil -->
+    <div id="tarjetasMoviles" class="block md:hidden space-y-3">
+      <div class="text-center py-6 text-xs text-slate-400">Cargando trabajos...</div>
+    </div>
+
+    <!-- Vista Computador -->
+    <div class="hidden md:block overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>N° Orden / Visita</th>
+            <th>Difunto / Sepultura</th>
+            <th>Cementerio</th>
+            <th>Servicio</th>
+            <th>Fecha Programada</th>
+            <th>Estado</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaTrabajosBody">
+          <tr><td colspan="7" class="text-center py-8 text-slate-400 text-xs">Cargando tus órdenes asignadas...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
+
+    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let mapa = null;
+    let marcadores = [];
+    let trabajosUsuario = [];
+
+    const COORDENADAS_CEMENTERIOS = {
+      "cementerio general": { lat: -33.4158, lng: -70.6517 },
+      "parque del recuerdo américo vespucio": { lat: -33.3762, lng: -70.6384 },
+      "parque del recuerdo cordillera": { lat: -33.5678, lng: -70.5843 },
+      "parque del recuerdo": { lat: -33.3762, lng: -70.6384 },
+      "parque sendero maipú": { lat: -33.5186, lng: -70.7645 },
+      "parque sendero": { lat: -33.5186, lng: -70.7645 },
+      "parque el manantial": { lat: -33.5222, lng: -70.7410 },
+      "parque del prado": { lat: -33.5678, lng: -70.5843 }
+    };
+
+    function inicializarMapa() {
+      if (mapa) return;
+      const elMapa = document.getElementById("mapa-mis-trabajos");
+      if (!elMapa) return;
+
+      mapa = new google.maps.Map(elMapa, {
+        zoom: 11,
+        center: { lat: -33.4489, lng: -70.6693 },
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+      });
+    }
+
+    function extraerTexto(obj, fallback = "Sin información") {
+      if (!obj) return fallback;
+      if (typeof obj === "string") return obj.trim() || fallback;
+      if (typeof obj === "object") {
+        if (obj.nombreCompleto) return String(obj.nombreCompleto).trim();
+        const combo = `${obj.nombres || obj.nombre || ''} ${obj.apellidoPaterno || obj.apellido || ''}`.trim();
+        if (combo) return combo;
+        if (obj.nombre) return String(obj.nombre).trim();
+        if (obj.email) return String(obj.email).trim();
+      }
+      return fallback;
+    }
+
+    function formatearFecha(f) {
+      if (!f) return "-";
+      try {
+        const d = (f && f.toDate) ? f.toDate() : new Date(f);
+        if (isNaN(d.getTime())) return "-";
+        return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+      } catch (e) {
+        return "-";
+      }
+    }
+
+    function resolverCoordenadas(ord) {
+      if (ord.coordenadas?.latitude && ord.coordenadas?.longitude) {
+        return { lat: ord.coordenadas.latitude, lng: ord.coordenadas.longitude, exacta: true };
+      }
+      if (ord.ubicacionSepultura?.coordenadas?.latitude && ord.ubicacionSepultura?.coordenadas?.longitude) {
+        return { lat: ord.ubicacionSepultura.coordenadas.latitude, lng: ord.ubicacionSepultura.coordenadas.longitude, exacta: true };
+      }
+      if (ord.lat && ord.lng) {
+        return { lat: parseFloat(ord.lat), lng: parseFloat(ord.lng), exacta: true };
+      }
+
+      const cemNombre = (ord.ubicacionSepultura?.cementerio || ord.cementerio || "").toLowerCase().trim();
+      for (const [key, coords] of Object.entries(COORDENADAS_CEMENTERIOS)) {
+        if (cemNombre.includes(key)) {
+          return {
+            lat: coords.lat + (Math.random() - 0.5) * 0.003,
+            lng: coords.lng + (Math.random() - 0.5) * 0.003,
+            exacta: false
+          };
+        }
+      }
+      return null;
+    }
+
+    function actualizarMapaMarcadores(lista) {
+      if (!mapa) return;
+      marcadores.forEach(m => m.setMap(null));
+      marcadores = [];
+
+      const bounds = new google.maps.LatLngBounds();
+      let totalConGPS = 0;
+
+      lista.forEach(item => {
+        if (!item.coordenadas) return;
+        totalConGPS++;
+        bounds.extend(item.coordenadas);
+
+        const marker = new google.maps.Marker({
+          position: item.coordenadas,
+          map: mapa,
+          title: item.difunto,
+          icon: `https://maps.google.com/mapfiles/ms/icons/green-dot.png`
+        });
+
+        const info = new google.maps.InfoWindow({
+          content: `
+            <div style="font-family:sans-serif; font-size:12px; padding:4px;">
+              <strong style="color:#002d1a; font-size:13px;">${item.difunto}</strong><br>
+              <span>${item.cementerio}</span><br>
+              <span style="color:#64748b;">${item.plan} (${item.idVisual})</span><br>
+              <span style="color:#b45309; font-weight:bold;">Fecha: ${formatearFecha(item.fechaProgramada)}</span>
+            </div>`
+        });
+
+        marker.addListener("click", () => info.open(mapa, marker));
+        item.markerRef = marker;
+        marcadores.push(marker);
+      });
+
+      if (totalConGPS > 0) {
+        mapa.fitBounds(bounds);
+        document.getElementById("kpi-gps").textContent = `${totalConGPS} sepultura(s) ubicada(s)`;
+      } else {
+        document.getElementById("kpi-gps").textContent = "Sin coordenadas registradas";
+      }
+    }
+
+    window.centrarEnSepultura = function(index) {
+      const item = trabajosUsuario[index];
+      if (item && item.coordenadas && mapa) {
+        mapa.setCenter(item.coordenadas);
+        mapa.setZoom(16);
+        if (item.markerRef) {
+          google.maps.event.trigger(item.markerRef, 'click');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        alert("Esta orden no posee coordenadas registradas.");
+      }
+    };
+
+    function badgeEstadoClass(est) {
+      const s = (est || "").toLowerCase();
+      if (s.includes("revis")) return "estado-en-revision";
+      if (s.includes("asign")) return "estado-asignada";
+      return "estado-pendiente";
+    }
+
+    function renderizarTodo() {
+      const q = (document.getElementById("filtroTexto")?.value || "").toLowerCase().trim();
+      const tbody = document.getElementById("tablaTrabajosBody");
+      const contenedorMovil = document.getElementById("tarjetasMoviles");
+
+      const filtrados = trabajosUsuario.filter(t => {
+        if (!q) return true;
+        return (
+          t.idVisual.toLowerCase().includes(q) ||
+          t.titular.toLowerCase().includes(q) ||
+          t.difunto.toLowerCase().includes(q) ||
+          t.cementerio.toLowerCase().includes(q)
+        );
+      });
+
+      actualizarMapaMarcadores(filtrados);
+
+      if (filtrados.length === 0) {
+        const mensajeVacio = `<div class="text-center py-8 text-slate-400 text-xs">No tienes labores pendientes asignadas en este momento.</div>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400 text-xs">No tienes labores pendientes asignadas en este momento.</td></tr>`;
+        contenedorMovil.innerHTML = mensajeVacio;
+        return;
+      }
+
+      // Render Móvil
+      contenedorMovil.innerHTML = filtrados.map((item, idx) => {
+        const enRevision = (item.estado || "").toLowerCase().includes("revis");
+        const btnAccion = enRevision
+          ? `<span class="px-2.5 py-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm">
+               <i class="fa-solid fa-hourglass-half text-amber-600"></i> En Revisión
+             </span>`
+          : `<a href="informe-captura.html?ordenId=${item.id}&v=${item.visitaIndex}" class="px-3 py-2 bg-[#002d1a] hover:bg-[#1a432f] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
+               <i class="fa-solid fa-camera"></i> Reportar
+             </a>`;
+
+        return `
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <span class="font-mono font-bold text-xs text-[#002d1a]">#${item.idVisual}</span>
+                <span class="badge-visita">${item.visitaLabel}</span>
+              </div>
+              <span class="badge-estado ${badgeEstadoClass(item.estado)} text-[11px]">${enRevision ? 'EN REVISIÓN' : item.estado}</span>
+            </div>
+            <div>
+              <div class="font-bold text-sm text-slate-800">${item.difunto}</div>
+              <div class="text-xs text-slate-500">Titular: ${item.titular}</div>
+              <div class="text-xs text-slate-600 mt-1"><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i>${item.cementerio}</div>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t border-slate-200">
+              <div class="text-xs font-mono font-semibold text-amber-800">
+                📅 ${formatearFecha(item.fechaProgramada)}
+              </div>
+              <div class="flex gap-2 items-center">
+                <button onclick="centrarEnSepultura(${idx})" class="p-2 bg-white border border-slate-200 text-[#002d1a] rounded-lg text-xs font-bold">
+                  <i class="fa-solid fa-location-dot"></i>
+                </button>
+                ${btnAccion}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Render Computador
+      tbody.innerHTML = filtrados.map((item, idx) => {
+        const enRevision = (item.estado || "").toLowerCase().includes("revis");
+        const btnAccion = enRevision
+          ? `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold shadow-sm" title="Informe enviado. A la espera de aprobación del supervisor">
+               <i class="fa-solid fa-hourglass-half text-amber-600"></i> Esperando Aprobación
+             </span>`
+          : `<a href="informe-captura.html?ordenId=${item.id}&v=${item.visitaIndex}" class="inline-block p-1.5 bg-[#002d1a] hover:bg-[#1a432f] text-white rounded transition text-xs font-bold px-3 shadow-sm">
+               <i class="fa-solid fa-camera mr-1"></i> Reportar
+             </a>`;
+
+        return `
+          <tr>
+            <td class="font-mono font-bold text-[#002d1a]">
+              #${item.idVisual}
+              <span class="badge-visita">${item.visitaLabel}</span>
+            </td>
+            <td>
+              <div class="font-bold text-slate-800">${item.difunto}</div>
+              <div class="text-[11px] text-slate-500">Cliente: ${item.titular}</div>
+            </td>
+            <td>${item.cementerio}</td>
+            <td><span class="bg-slate-100 px-2 py-0.5 rounded text-xs font-semibold">${item.plan}</span></td>
+            <td class="font-mono text-amber-800 font-semibold">📅 ${formatearFecha(item.fechaProgramada)}</td>
+            <td><span class="badge-estado ${badgeEstadoClass(item.estado)}">${enRevision ? 'EN REVISIÓN' : item.estado}</span></td>
+            <td class="text-center space-x-1">
+              <button onclick="centrarEnSepultura(${idx})" title="Ver en el mapa" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-[#002d1a] rounded transition">
+                <i class="fa-solid fa-location-dot"></i>
+              </button>
+              ${btnAccion}
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function cargarMisTrabajos(usuarioAuth) {
+      const emailLower = (usuarioAuth.email || "").toLowerCase().trim();
+      let nombresPosibles = [emailLower, usuarioAuth.uid];
+
+      if (emailLower === "colivaresl@hotmail.com" || emailLower === "admin@gravecare.cl") {
+        nombresPosibles.push("christian olivares lizama", "christian olivares", "christian", "administrador");
+      }
+
+      try {
+        const staffSnap = await getDoc(doc(db, "staff", usuarioAuth.uid));
+        if (staffSnap.exists()) {
+          const s = staffSnap.data();
+          if (s.nombre) nombresPosibles.push(s.nombre.toLowerCase().trim());
+          if (s.email) nombresPosibles.push(s.email.toLowerCase().trim());
+        }
+      } catch (e) {}
+
+      function coincideConmigo(cadena) {
+        if (!cadena) return false;
+        const norm = String(cadena).toLowerCase().trim();
+        return nombresPosibles.some(alias => alias && (norm.includes(alias) || alias.includes(norm)));
+      }
+
+      try {
+        const informesAprobados = new Set();
+        const informesEnRevision = new Map();
+        const conteoInformesAprobadosPorOrden = new Map();
+
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          snapInf.forEach(d => {
+            const inf = d.data();
+            const estInf = (inf.estado || "").toLowerCase().trim();
+            const idDoc = d.id;
+            const ordKey = inf.numeroOrden || inf.ordenId || idDoc.split("-V")[0];
+            const vNum = inf.visitaNumero ? String(inf.visitaNumero) : "";
+
+            if (estInf === "aprobado" || estInf === "aprobada") {
+              informesAprobados.add(idDoc);
+              informesAprobados.add(ordKey);
+              if (vNum) informesAprobados.add(`${ordKey}-V${vNum}`);
+
+              const cant = conteoInformesAprobadosPorOrden.get(ordKey) || 0;
+              conteoInformesAprobadosPorOrden.set(ordKey, cant + 1);
+            } else if (["pendiente_revision", "pendiente", "en revision", "en_revision", "completado"].includes(estInf)) {
+              informesEnRevision.set(idDoc, true);
+              informesEnRevision.set(ordKey, true);
+              if (vNum) informesEnRevision.set(`${ordKey}-V${vNum}`, true);
+            }
+          });
+        } catch(e) {
+          console.warn("Aviso lectura informes:", e);
+        }
+
+        const snap = await getDocs(collection(db, "ordenes"));
+        const lista = [];
+
+        snap.forEach(docSnap => {
+          const ord = docSnap.data();
+          const ordId = docSnap.id;
+          const numOrd = ord.numeroOrden || ord.nOrden || ordId;
+          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Cliente");
+          const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Sepultura");
+          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo";
+          const plan = ord.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Plan 6";
+
+          const coords = resolverCoordenadas(ord);
+          const progMap = ord.programacionVisitas || {};
+          const aprobadosTotales = conteoInformesAprobadosPorOrden.get(ordId) || conteoInformesAprobadosPorOrden.get(numOrd) || 0;
+
+          let hayVisitasProgramadas = false;
+
+          for (let v = 1; v <= 12; v++) {
+            const prog = progMap[`v_${v}`] || ord[`programacionVisitas.v_${v}`];
+            if (prog) {
+              hayVisitasProgramadas = true;
+              const opVisita = prog.operadorNombre || prog.operadorId || "";
+              let estadoVisita = (prog.estado || "asignada").toLowerCase();
+
+              const idVisitaFull = `${ordId}-V${v}`;
+              const numVisitaFull = `${numOrd}-V${v}`;
+
+              const yaAprobada = estadoVisita.includes("complet") || 
+                                 v <= aprobadosTotales ||
+                                 informesAprobados.has(idVisitaFull) || 
+                                 informesAprobados.has(numVisitaFull);
+
+              if (yaAprobada) continue;
+
+              const tieneInformePendiente = informesEnRevision.has(idVisitaFull) || 
+                                             informesEnRevision.has(numVisitaFull) || 
+                                             estadoVisita.includes("revis");
+
+              if (tieneInformePendiente) {
+                estadoVisita = "en revision";
+              }
+
+              if (coincideConmigo(opVisita)) {
+                lista.push({
+                  id: ordId,
+                  idVisual: `${numOrd}-V${v}`,
+                  visitaIndex: v,
+                  visitaLabel: `Visita ${v}`,
+                  titular,
+                  difunto,
+                  cementerio,
+                  plan,
+                  estado: estadoVisita === "en revision" ? "En Revisión" : (prog.estado || "Asignada"),
+                  fechaProgramada: prog.fecha || ord.fechaProgramada || ord.proximaVisita,
+                  coordenadas: coords
+                });
+              }
+            }
+          }
+
+          if (!hayVisitasProgramadas) {
+            const opRaiz = ord.operadorAsignadoNombre || ord.operadorNombre || ord.operador || ord.operadorAsignadoId || "";
+            let estadoRaiz = (ord.estado || "").toLowerCase();
+
+            const yaAprobada = estadoRaiz.includes("complet") || 
+                               aprobadosTotales >= 1 ||
+                               informesAprobados.has(ordId) || 
+                               informesAprobados.has(numOrd);
+
+            if (!yaAprobada) {
+              const tieneInformePendiente = informesEnRevision.has(ordId) || 
+                                             informesEnRevision.has(numOrd) || 
+                                             estadoRaiz.includes("revis");
+
+              if (tieneInformePendiente) {
+                estadoRaiz = "en revision";
+              }
+
+              if (coincideConmigo(opRaiz)) {
+                lista.push({
+                  id: ordId,
+                  idVisual: numOrd,
+                  visitaIndex: 1,
+                  visitaLabel: "Visita 1",
+                  titular,
+                  difunto,
+                  cementerio,
+                  plan,
+                  estado: estadoRaiz === "en revision" ? "En Revisión" : (ord.estado || "Asignada"),
+                  fechaProgramada: ord.fechaProgramada || ord.proximaVisita || ord.createdAt,
+                  coordenadas: coords
+                });
+              }
+            }
+          }
+        });
+
+        lista.sort((a, b) => new Date(a.fechaProgramada || 0) - new Date(b.fechaProgramada || 0));
+        trabajosUsuario = lista;
+        renderizarTodo();
+
+      } catch (err) {
+        console.error("Error cargando asignaciones:", err);
+      }
+    }
+
+    document.getElementById("filtroTexto")?.addEventListener("input", renderizarTodo);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        inicializarMapa();
+        await cargarMisTrabajos(user);
+      }
+    });
+  </script>
 </body>
 </html>
