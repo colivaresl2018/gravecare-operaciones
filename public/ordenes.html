@@ -189,6 +189,7 @@
     let paginaActual = 1;
     let listaOperadores = [];
     let visitaSeleccionada = null;
+    let cargandoVisitas = false;
 
     function formatFecha(ts) {
       if (!ts) return "—";
@@ -230,8 +231,15 @@
     }
 
     async function cargarOrdenesYProyectarVisitas() {
+      if (cargandoVisitas) return;
+      cargandoVisitas = true;
+
+      const tbody = document.getElementById("ordenes-tbody");
+      if (tbody && todasLasVisitas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="color: var(--color-text-light, #64748b); text-align: center; padding: 2rem 0;">Consultando órdenes y proyectando visitas...</td></tr>';
+      }
+
       try {
-        // 1. Obtener informes para identificar visitas realizadas
         const informesList = [];
         try {
           const snapInf = await getDocs(collection(db, "informes"));
@@ -251,10 +259,9 @@
             });
           });
         } catch(e) {
-          console.warn("Informes:", e);
+          console.warn("Informes warning:", e);
         }
 
-        // 2. Obtener órdenes activas
         const snap = await getDocs(collection(db, "ordenes"));
         const listaDesglosada = [];
 
@@ -294,10 +301,8 @@
           );
           informesDeOrden.sort((a, b) => a.fecha - b.fecha);
 
-          // Objeto de programación manual en Firestore
           const progMap = o.programacionVisitas || {};
 
-          // DESGLOSE INDIVIDUAL DE CADA VISITA
           for (let v = 1; v <= totalVisitas; v++) {
             const numVisita = v;
             const esRealizada = numVisita <= informesDeOrden.length;
@@ -313,7 +318,6 @@
               estadoVisita = "completada";
               operadorVisita = inf.operador || o.operadorAsignadoNombre || "Christian Olivares Lizama";
             } else {
-              // Cálculo de fecha estimada base
               if (informesDeOrden.length > 0) {
                 const ultFecha = new Date(informesDeOrden[informesDeOrden.length - 1].fecha);
                 const salto = (numVisita - informesDeOrden.length) * intervaloMeses;
@@ -323,7 +327,6 @@
                 fechaEstimada = new Date(fBase.getFullYear(), fBase.getMonth() + salto, fBase.getDate());
               }
 
-              // LECTURA DE ASIGNACIÓN MANUAL (admite objeto directo o clave con punto)
               const progVisita = progMap[`v_${numVisita}`] || o[`programacionVisitas.v_${numVisita}`];
               if (progVisita) {
                 if (progVisita.fecha) fechaEstimada = new Date(progVisita.fecha);
@@ -364,13 +367,20 @@
 
         todasLasVisitas = listaDesglosada;
         visitasFiltradas = todasLasVisitas;
+        renderTabla();
       } catch (e) {
         console.error("Error cargando visitas:", e);
+        if (tbody) {
+          tbody.innerHTML = `<tr><td colspan="9" style="color: #dc2626; text-align: center; padding: 2rem 0;">Error al cargar visitas: ${e.message}</td></tr>`;
+        }
+      } finally {
+        cargandoVisitas = false;
       }
     }
 
     function renderTabla() {
       const tbody = document.getElementById("ordenes-tbody");
+      if (!tbody) return;
       const inicio = (paginaActual - 1) * PAGE_SIZE;
       const pagina = visitasFiltradas.slice(inicio, inicio + PAGE_SIZE);
 
@@ -544,7 +554,6 @@
           isoFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0).toISOString();
         }
 
-        // 1. Obtener datos actuales del documento para mergear de forma segura el mapa
         const snapDoc = await getDoc(docRef);
         const dataActual = snapDoc.exists() ? snapDoc.data() : {};
         const programacionActual = dataActual.programacionVisitas || {};
@@ -563,7 +572,6 @@
           updatedAt: serverTimestamp()
         };
 
-        // Si es la visita inmediata siguiente y tiene operador, actualizar también los campos principales de la orden
         if (v.visitaIndex === 2 && operador) {
           updatePayload.operadorAsignadoId = operador.id;
           updatePayload.operadorAsignadoNombre = operador.nombre;
@@ -613,16 +621,36 @@
     document.getElementById("btn-pagina-anterior").addEventListener("click", () => { if (paginaActual > 1) { paginaActual--; renderTabla(); } });
     document.getElementById("btn-pagina-siguiente").addEventListener("click", () => { paginaActual++; renderTabla(); });
 
-    requireStaffAccess(async (user, staffProfile) => {
-      const rol = (staffProfile.rol || "").toLowerCase();
-      if (rol === "operador") {
-        window.location.replace("mis-trabajos.html");
-        return;
-      }
-      wireLogoutButton("btn-logout");
+    wireLogoutButton("btn-logout");
+
+    // Inicialización resiliente: arranca sin depender del bloqueo de iframe
+    let inicializado = false;
+    const inicializarModulo = async () => {
+      if (inicializado) return;
+      inicializado = true;
       await cargarOrdenesYProyectarVisitas();
-      renderTabla();
-    }, "ordenes.html");
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", inicializarModulo);
+    } else {
+      inicializarModulo();
+    }
+
+    try {
+      requireStaffAccess(async (user, staffProfile) => {
+        const rol = (staffProfile?.rol || "").toLowerCase();
+        if (rol === "operador") {
+          window.location.replace("mis-trabajos.html");
+          return;
+        }
+        if (!todasLasVisitas || todasLasVisitas.length === 0) {
+          await cargarOrdenesYProyectarVisitas();
+        }
+      });
+    } catch(e) {
+      console.warn("requireStaffAccess en iframe omitido o diferido:", e);
+    }
   </script>
 </body>
 </html>

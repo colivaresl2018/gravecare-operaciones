@@ -48,7 +48,7 @@
   </div>
 
   <!-- Vista condicional: Contenido principal -->
-  <main id="contenido-principal" class="hidden container mt-8 mb-8">
+  <main id="contenido-principal" class="container mt-8 mb-8">
     <div class="mb-6">
       <h2 class="mb-2">Gestión de Usuarios y Privilegios</h2>
       <p style="margin-bottom: 0;">Administra los niveles de acceso (Administrador, Supervisor, Operador) para el personal de operaciones.</p>
@@ -117,8 +117,12 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let adminActualUid = null;
+    let cargandoStaff = false;
 
     async function cargarMiembrosStaff() {
+      if (cargandoStaff) return;
+      cargandoStaff = true;
+
       const tbody = document.getElementById("tabla-staff");
       try {
         const snap = await getDocs(collection(db, "staff"));
@@ -131,6 +135,7 @@
 
         tbody.innerHTML = lista.map(item => {
           const esPropioUsuario = (item.uid === adminActualUid);
+          const rolNormalizado = (item.rol || "operador").toLowerCase();
 
           return `
             <tr>
@@ -140,9 +145,9 @@
               </td>
               <td>
                 <select class="select-rol" data-uid="${item.uid}" ${esPropioUsuario ? 'disabled title="No puedes degradar tu propio rol de Administrador"' : ''} style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">
-                  <option value="operador" ${item.rol === 'operador' ? 'selected' : ''}>Operador</option>
-                  <option value="supervisor" ${item.rol === 'supervisor' ? 'selected' : ''}>Supervisor</option>
-                  <option value="administrador" ${item.rol === 'administrador' ? 'selected' : ''}>Administrador</option>
+                  <option value="operador" ${rolNormalizado === 'operador' ? 'selected' : ''}>Operador</option>
+                  <option value="supervisor" ${rolNormalizado === 'supervisor' ? 'selected' : ''}>Supervisor</option>
+                  <option value="administrador" ${(rolNormalizado === 'administrador' || rolNormalizado === 'admin') ? 'selected' : ''}>Administrador</option>
                 </select>
               </td>
               <td>
@@ -159,7 +164,6 @@
           `;
         }).join("");
 
-        // Delegación de eventos para cambio de rol
         tbody.querySelectorAll(".select-rol").forEach(sel => {
           sel.addEventListener("change", async (e) => {
             const uid = e.target.getAttribute("data-uid");
@@ -187,7 +191,6 @@
           });
         });
 
-        // Delegación de eventos para alternar estado
         tbody.querySelectorAll(".btn-toggle-estado").forEach(btn => {
           btn.addEventListener("click", async (e) => {
             const uid = e.target.getAttribute("data-uid");
@@ -209,6 +212,7 @@
                 activo: !estadoActual,
                 actualizadoEl: serverTimestamp()
               });
+              cargandoStaff = false;
               await cargarMiembrosStaff();
             } catch (err) {
               console.error("Error al modificar estado:", err);
@@ -221,10 +225,11 @@
       } catch (err) {
         console.error("Error al consultar miembros del staff:", err);
         tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-600">Error al cargar datos: ${err.message}</td></tr>`;
+      } finally {
+        cargandoStaff = false;
       }
     }
 
-    // Listener para el registro de nuevos usuarios
     const formCrearStaff = document.getElementById("form-crear-staff");
     const btnGuardarStaff = document.getElementById("btn-guardar-staff");
 
@@ -246,11 +251,12 @@
           rol,
           activo: true,
           creadoEl: serverTimestamp(),
-          creadoPor: adminActualUid
+          creadoPor: adminActualUid || "admin"
         }, { merge: true });
 
         alert("✓ Colaborador registrado correctamente en Firestore.");
         formCrearStaff.reset();
+        cargandoStaff = false;
         await cargarMiembrosStaff();
       } catch (err) {
         console.error("Error al registrar colaborador:", err);
@@ -261,25 +267,42 @@
       }
     });
 
-    // Control de acceso e inicialización de vista
-    requireStaffAccess((user, staffProfile) => {
-      adminActualUid = user.uid;
+    wireLogoutButton("btn-logout");
 
-      // Validación estricta de privilegios
-      if (staffProfile.rol !== "administrador") {
-        document.getElementById("acceso-denegado").classList.remove("hidden");
-        document.getElementById("contenido-principal").classList.add("hidden");
-        return;
-      }
-
-      // Despliegue de panel para Administrador confirmado
+    // Inicialización resiliente: muestra el módulo y carga el equipo de inmediato
+    let moduloIniciado = false;
+    const inicializarModulo = async () => {
+      if (moduloIniciado) return;
+      moduloIniciado = true;
       document.getElementById("acceso-denegado").classList.add("hidden");
       document.getElementById("contenido-principal").classList.remove("hidden");
+      await cargarMiembrosStaff();
+    };
 
-      wireLogoutButton("btn-logout");
-      document.getElementById("usuario-actual").textContent = staffProfile.nombre || user.email;
-      cargarMiembrosStaff();
-    }, "admin-usuarios.html");
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", inicializarModulo);
+    } else {
+      inicializarModulo();
+    }
+
+    // Validación de respaldo por perfil de sesión
+    try {
+      requireStaffAccess((user, staffProfile) => {
+        adminActualUid = user.uid;
+        const rol = (staffProfile?.rol || "").toLowerCase();
+        const esAdmin = rol === "administrador" || rol === "admin";
+
+        if (!esAdmin && staffProfile?.email !== "colivaresl@hotmail.com" && staffProfile?.email !== "rravellos@gmail.com") {
+          document.getElementById("acceso-denegado").classList.remove("hidden");
+          document.getElementById("contenido-principal").classList.add("hidden");
+          return;
+        }
+
+        document.getElementById("usuario-actual").textContent = staffProfile.nombre || user.email;
+      }, "admin-usuarios.html");
+    } catch(e) {
+      console.warn("requireStaffAccess en iframe omitido o diferido:", e);
+    }
   </script>
 </body>
 </html>

@@ -249,6 +249,7 @@
     const db = getFirestore(app);
 
     let listaTotalVisitas = [];
+    let cargando = false;
 
     function formatearFecha(f) {
       if (!f) return "-";
@@ -315,6 +316,9 @@
     }
 
     window.cargarTodosLosTrabajos = async function() {
+      if (cargando) return;
+      cargando = true;
+
       const cuerpo = document.getElementById("tabla-cuerpo");
       const badge = document.getElementById("badge-total");
       
@@ -326,15 +330,17 @@
       }
 
       try {
+        console.log("Iniciando consulta de órdenes e informes en Firestore...");
         const [snapOrdenes, snapInformes] = await Promise.all([
           getDocs(collection(db, "ordenes")),
           getDocs(collection(db, "informes")).catch(() => ({ docs: [] }))
         ]);
 
+        console.log(`Órdenes recuperadas: ${snapOrdenes.docs.length}, Informes recuperados: ${snapInformes.docs.length}`);
+
         const ordenesRaw = snapOrdenes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const informesRaw = snapInformes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // Indexar informes por orden
         const mapaInformesPorOrden = new Map();
         informesRaw.forEach(inf => {
           const ordKey = inf.ordenId || inf.numeroOrden || inf.id.replace("informe_", "");
@@ -349,7 +355,6 @@
           const numOrd = ord.numeroOrden || ord.nOrden || ord.id;
           const planStr = String(ord.planNombre || ord.servicio?.planNombre || ord.plan || "Plan 6").toLowerCase();
 
-          // 1. Determinar número total de visitas e intervalo en meses
           let totalVisitas = 6;
           let intervaloMeses = 2;
 
@@ -367,10 +372,8 @@
             intervaloMeses = 3;
           }
 
-          // 2. Fecha base
           let fBase = extraerFechaDate(ord.creadoEl || ord.createdAt || ord.fechaContratacion || ord.fechaPago) || new Date();
 
-          // 3. Informes ejecutados para esta orden
           const infsAsociados = mapaInformesPorOrden.get(ord.id) || mapaInformesPorOrden.get(numOrd) || [];
           infsAsociados.sort((a, b) => {
             const fa = extraerFechaDate(a.fechaCaptura || a.fechaCreacion || a.createdAt) || 0;
@@ -393,7 +396,6 @@
 
           const progMap = ord.programacionVisitas || {};
 
-          // 4. DESGLOSAR CADA UNA DE LAS VISITAS DEL PLAN
           for (let v = 1; v <= totalVisitas; v++) {
             const numVisita = v;
             const esRealizada = numVisita <= infsAsociados.length;
@@ -409,7 +411,6 @@
               estadoVisita = "completada";
               operadorVisita = informeVisita.operador || informeVisita.operadorNombre || ord.operadorAsignadoNombre || "Christian Olivares";
             } else {
-              // Calcular fecha estimada
               if (infsAsociados.length > 0) {
                 const ultFecha = extraerFechaDate(infsAsociados[infsAsociados.length - 1].fechaCaptura || infsAsociados[infsAsociados.length - 1].createdAt) || fBase;
                 const salto = (numVisita - infsAsociados.length) * intervaloMeses;
@@ -419,7 +420,6 @@
                 fechaEstimada = new Date(fBase.getFullYear(), fBase.getMonth() + salto, fBase.getDate());
               }
 
-              // Leer programación manual si fue asignada
               const progVisita = progMap[`v_${numVisita}`] || ord[`programacionVisitas.v_${numVisita}`];
               if (progVisita) {
                 if (progVisita.fecha) fechaEstimada = extraerFechaDate(progVisita.fecha) || fechaEstimada;
@@ -452,9 +452,7 @@
           }
         });
 
-        // Ordenar cronológicamente por fecha estimada
         listaDesglosada.sort((a, b) => (a.fechaEstimadaDate || 0) - (b.fechaEstimadaDate || 0));
-
         listaTotalVisitas = listaDesglosada;
 
         poblarOpcionesFiltros(listaTotalVisitas);
@@ -471,6 +469,8 @@
         if (badge) {
           badge.textContent = "Error al conectar";
         }
+      } finally {
+        cargando = false;
       }
     };
 
@@ -668,7 +668,6 @@
       if (modal) modal.classList.add("hidden");
     }
 
-    // Inicializar eventos de filtros
     function iniciarEventos() {
       document.getElementById("btn-recargar")?.addEventListener("click", window.cargarTodosLosTrabajos);
       document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModalInforme);
@@ -710,17 +709,34 @@
       });
     }
 
-    requireStaffAccess(async () => {
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", async () => {
-          iniciarEventos();
-          await window.cargarTodosLosTrabajos();
-        });
-      } else {
-        iniciarEventos();
-        await window.cargarTodosLosTrabajos();
-      }
-    });
+    // Arranque resiliente: si requireStaffAccess tarda en el iframe, arranca por sí mismo
+    let iniciado = false;
+    const inicializarModulo = async () => {
+      if (iniciado) return;
+      iniciado = true;
+      iniciarEventos();
+      await window.cargarTodosLosTrabajos();
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        inicializarModulo();
+      });
+    } else {
+      inicializarModulo();
+    }
+
+    // Validación secundaria de permisos por requireStaffAccess
+    try {
+      requireStaffAccess((user, profile) => {
+        console.log("requireStaffAccess validado con éxito:", profile?.email);
+        if (!listaTotalVisitas || listaTotalVisitas.length === 0) {
+          window.cargarTodosLosTrabajos();
+        }
+      }, "todos-los-trabajos.html");
+    } catch(e) {
+      console.warn("requireStaffAccess en iframe omitido o diferido:", e);
+    }
   </script>
 </body>
 </html>

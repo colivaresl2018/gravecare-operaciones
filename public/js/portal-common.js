@@ -3,24 +3,40 @@
  */
 import { observeAuthState, logoutUser } from "./auth.js";
 import { db } from "./firebaseConfig.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-export const ROLES_STAFF = ["operador", "supervisor", "administrador"];
+export const ROLES_STAFF = ["operador", "supervisor", "administrador", "admin"];
 
 // Matriz de permisos por página
 export const PERMISOS_PAGINAS = {
-  "portal.html": ["operador", "supervisor", "administrador"],
-  "mis-trabajos.html": ["operador", "supervisor", "administrador"],
-  "informe-captura.html": ["operador", "supervisor", "administrador"],
-  "informe-revision.html": ["supervisor", "administrador"],
-  "gastos-ingresos.html": ["administrador"],
-  "admin-usuarios.html": ["administrador"]
+  "portal.html": ["operador", "supervisor", "administrador", "admin"],
+  "mis-trabajos.html": ["operador", "supervisor", "administrador", "admin"],
+  "todos-los-trabajos.html": ["supervisor", "administrador", "admin"],
+  "informe-captura.html": ["operador", "supervisor", "administrador", "admin"],
+  "informe-revision.html": ["supervisor", "administrador", "admin"],
+  "gastos-ingresos.html": ["administrador", "admin"],
+  "admin-usuarios.html": ["administrador", "admin"]
 };
 
-export async function getStaffProfile(uid) {
+export async function getStaffProfile(uid, email = "") {
   try {
-    const snap = await getDoc(doc(db, "staff", uid));
-    return snap.exists() ? snap.data() : null;
+    // 1. Búsqueda directa por UID
+    if (uid) {
+      const snap = await getDoc(doc(db, "staff", uid));
+      if (snap.exists()) return snap.data();
+    }
+
+    // 2. Búsqueda de respaldo por Email si el UID no coincide
+    if (email) {
+      const cleanEmail = email.toLowerCase().trim();
+      const q = query(collection(db, "staff"), where("email", "==", cleanEmail));
+      const snapQ = await getDocs(q);
+      if (!snapQ.empty) {
+        return snapQ.docs[0].data();
+      }
+    }
+
+    return null;
   } catch (err) {
     console.warn("Aviso al obtener perfil de staff:", err);
     return null;
@@ -31,8 +47,6 @@ export async function getStaffProfile(uid) {
  * Valida autenticación, vigencia de staff y permisos específicos para el módulo actual
  */
 export function requireStaffAccess(onReady, paginaActual = null) {
-  // Si está dentro de un iframe (como mis-trabajos.html cargado en portal.html),
-  // NO debe expulsar la ventana superior hacia login.
   const dentroDeIframe = window.self !== window.top;
 
   observeAuthState(async (user) => {
@@ -47,20 +61,32 @@ export function requireStaffAccess(onReady, paginaActual = null) {
 
     try {
       const emailLower = (user.email || "").toLowerCase().trim();
-      const esAdminMaestro = emailLower === "colivaresl@hotmail.com" || emailLower === "admin@gravecare.cl";
+      
+      // Administradores con acceso maestro directo
+      const administradoresMaestros = [
+        "colivaresl@hotmail.com",
+        "admin@gravecare.cl",
+        "contacto@gravecare.cl",
+        "rravellos@gmail.com"
+      ];
 
-      let staffProfile = await getStaffProfile(user.uid);
+      const esAdminMaestro = administradoresMaestros.includes(emailLower);
 
+      let staffProfile = await getStaffProfile(user.uid, emailLower);
+
+      // Si es un admin maestro y no se encontró doc en Firestore, o para asegurar rol pleno:
       if (esAdminMaestro) {
         staffProfile = {
-          nombre: "Christian Olivares",
+          nombre: staffProfile?.nombre || (emailLower.includes("ravellos") ? "Raúl Ravellos" : "Christian Olivares"),
           email: emailLower,
           rol: "administrador",
-          activo: true
+          activo: true,
+          valor: true
         };
       }
 
       if (!staffProfile || !staffProfile.activo || !ROLES_STAFF.includes(staffProfile.rol)) {
+        console.warn("Acceso denegado a staff para usuario:", emailLower, staffProfile);
         if (!dentroDeIframe) {
           sessionStorage.setItem("gravecare_ops_denegado", "1");
           await logoutUser();
@@ -92,6 +118,7 @@ export function requireStaffAccess(onReady, paginaActual = null) {
         }
       }
 
+      // Ejecutar la carga real del módulo
       onReady(user, staffProfile);
 
     } catch (err) {
