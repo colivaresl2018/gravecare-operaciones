@@ -10,7 +10,7 @@
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
     .gantt-col { min-width: 120px; }
-    .gantt-col-day { min-width: 80px; }
+    .gantt-col-day { min-width: 82px; }
     
     .tarjeta-activa {
       outline: 2px solid #002d1a !important;
@@ -44,7 +44,7 @@
         </a>
         <h1 class="text-2xl font-bold text-[#002d1a]">Control & Planificación Operativa</h1>
       </div>
-      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, proyección automática por planes y carta Gantt.</p>
+      <p class="text-xs text-slate-500 mt-1">Monitoreo de suscripciones activas, desglose individual de visitas pendientes y asignación manual de operadores por trabajo.</p>
     </div>
 
     <!-- Switch de Vistas -->
@@ -62,30 +62,31 @@
   <div id="barra-aviso-movimiento" class="hidden mb-4 p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between shadow-sm">
     <div class="flex items-center gap-2 text-xs font-bold text-emerald-900">
       <span class="material-symbols-outlined text-emerald-600 animate-spin">touch_app</span>
-      <span id="texto-aviso-movimiento">Tarea seleccionada: Haz clic en el casillero del nuevo día para reprogramar.</span>
+      <span id="texto-aviso-movimiento">Tarea seleccionada: Haz clic en el casillero de la nueva fecha para reprogramar.</span>
     </div>
     <button type="button" id="btn-cancelar-movimiento" class="px-2.5 py-1 text-xs font-bold bg-white text-emerald-800 border border-emerald-300 rounded-lg hover:bg-emerald-100 transition">
       Cancelar
     </button>
   </div>
 
-  <!-- Filtros y Escala Temporal -->
+  <!-- Filtros, Escala y Barra de Navegación Temporal -->
   <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
     <div class="flex flex-wrap gap-3 items-center flex-1">
-      <div class="w-full sm:w-64">
+      <div class="w-full sm:w-60">
         <input type="text" id="filtro-busqueda" placeholder="Buscar cliente, difunto o N°..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
       </div>
-      <div class="w-full sm:w-48">
+      <div class="w-full sm:w-44">
         <select id="filtro-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
           <option value="">Todos los Cementerios</option>
         </select>
       </div>
-      <div class="w-full sm:w-48">
+      <div class="w-full sm:w-44">
         <select id="filtro-operador" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
           <option value="">Todos los Operadores</option>
         </select>
       </div>
 
+      <!-- Selector de Escala -->
       <div id="selector-escala-container" class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
         <span class="text-[11px] font-semibold text-slate-500 px-1">Escala:</span>
         <button type="button" id="escala-dia" class="px-2.5 py-1 rounded text-slate-600 font-medium hover:bg-white transition">Día</button>
@@ -94,7 +95,29 @@
         <button type="button" id="escala-anio" class="px-2.5 py-1 rounded bg-[#002d1a] text-white font-bold transition">Año</button>
       </div>
     </div>
-    <div class="text-xs font-semibold text-slate-600" id="contador-planes">Cargando contratos...</div>
+
+    <!-- Barra de Navegación de Días / Fechas -->
+    <div id="barra-navegacion-dias" class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs">
+      <button type="button" id="btn-nav-anterior" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-[#002d1a] font-bold transition flex items-center gap-1" title="Retroceder ventana de días">
+        <span class="material-symbols-outlined text-sm">chevron_left</span>
+        <span class="hidden sm:inline">Anterior</span>
+      </button>
+
+      <button type="button" id="btn-nav-hoy" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-[#002d1a] font-bold transition" title="Ir a la fecha actual">
+        Hoy
+      </button>
+
+      <span id="txt-rango-visible" class="px-2 font-mono font-bold text-slate-700 min-w-[130px] text-center text-[11px]">
+        Cargando rango...
+      </span>
+
+      <button type="button" id="btn-nav-siguiente" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-[#002d1a] font-bold transition flex items-center gap-1" title="Avanzar a días posteriores">
+        <span class="hidden sm:inline">Siguiente</span>
+        <span class="material-symbols-outlined text-sm">chevron_right</span>
+      </button>
+    </div>
+
+    <div class="text-xs font-semibold text-slate-600 w-full md:w-auto text-right" id="contador-planes">Cargando contratos...</div>
   </section>
 
   <!-- VISTA 1: CARTA GANTT -->
@@ -103,7 +126,7 @@
       <div>
         <h2 class="text-sm font-bold text-[#002d1a]">Línea de Tiempo y Proyección de Visitas</h2>
         <p class="text-[11px] text-slate-500">
-          Proyección de servicios según frecuencia contratada (Plan 12 = mensual, Plan 6 = bimestral, Plan 4 = trimestral).
+          Usa los botones de navegación o la escala para desplazarte libremente por los días del año.
         </p>
       </div>
       <div class="flex items-center gap-3 text-xs">
@@ -121,21 +144,21 @@
           </tr>
         </thead>
         <tbody id="cuerpo-gantt" class="divide-y divide-slate-100">
-          <tr><td colspan="15" class="py-8 text-center text-slate-400">Cargando cronograma...</td></tr>
+          <tr><td colspan="20" class="py-8 text-center text-slate-400">Cargando cronograma...</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- VISTA 2: TABLA MAESTRA DETALLADA -->
+  <!-- VISTA 2: TABLA MAESTRA DETALLADA (DESGLOSADA POR VISITAS CON ASIGNACIÓN MANUAL) -->
   <section id="contenedor-tabla" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
       <table class="w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
             <th class="py-3.5 px-3">Cliente / Titular</th>
-            <th class="py-3.5 px-3">Plan</th>
-            <th class="py-3.5 px-3">Operador Asignado</th>
+            <th class="py-3.5 px-3">Plan / Visita</th>
+            <th class="py-3.5 px-3">Operador Asignado (Individual)</th>
             <th class="py-3.5 px-3">Contratación</th>
             <th class="py-3.5 px-3">Término</th>
             <th class="py-3.5 px-3 text-right">Monto Pagado</th>
@@ -178,7 +201,7 @@
         </div>
 
         <div>
-          <label class="block font-bold text-slate-700 mb-1">Operador Asignado:</label>
+          <label class="block font-bold text-slate-700 mb-1">Operador para esta Visita:</label>
           <select id="modal-select-operador" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-[#002d1a] bg-slate-50">
             <option value="Sin asignar">Sin asignar</option>
           </select>
@@ -200,7 +223,8 @@
       collection, 
       getDocs, 
       doc, 
-      updateDoc 
+      updateDoc,
+      Timestamp 
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -218,11 +242,16 @@
 
     let datosConsolidados = [];
     let listaOperadores = [];
-    let escalaActual = "anio";
+    let escalaActual = "dia";
     let columnasGantt = [];
     
+    let fechaPivote = new Date(2026, 9, 6);
+
     let ordenSeleccionadaId = null;
+    let fechaSeleccionadaOriginal = null;
     let ordenEditandoId = null;
+    let indexVisitaEditando = 0;
+    let subIdEditando = null;
 
     function toKeyYMD(d) {
       if (!d) return "";
@@ -243,44 +272,96 @@
       return `${y}-${m}`;
     }
 
+    function parseAFecha(f) {
+      if (!f) return null;
+      if (f.toDate) return f.toDate();
+      if (typeof f === "string") {
+        const d = new Date(f);
+        if (!isNaN(d.getTime())) return d;
+      }
+      if (f instanceof Date && !isNaN(f.getTime())) return f;
+      return null;
+    }
+
     function generarColumnasGantt() {
-      const baseYear = 2026;
-      const baseMonth = 9; // Octubre (0-indexed)
       columnasGantt = [];
+      const txtRango = document.getElementById("txt-rango-visible");
 
       if (escalaActual === "dia") {
-        for (let i = 0; i < 14; i++) {
-          const d = new Date(baseYear, baseMonth, 6 + i);
+        const cantDias = 14;
+        for (let i = 0; i < cantDias; i++) {
+          const d = new Date(fechaPivote.getFullYear(), fechaPivote.getMonth(), fechaPivote.getDate() + i);
           const key = toKeyYMD(d);
           const diaLetra = ["D", "L", "M", "M", "J", "V", "S"][d.getDay()];
-          const label = `${diaLetra} ${d.getDate()} ${d.toLocaleDateString("es-CL", { month: "short" }).toUpperCase()}`;
+          const label = `${diaLetra} ${d.getDate()} ${d.toLocaleDateString("es-CL", { month: "short" }).toUpperCase().replace(".", "")}.`;
           columnasGantt.push({ key, label, type: "dia", date: d });
         }
+        const finRango = new Date(fechaPivote.getFullYear(), fechaPivote.getMonth(), fechaPivote.getDate() + (cantDias - 1));
+        if (txtRango) {
+          txtRango.textContent = `${fechaPivote.getDate()} ${fechaPivote.toLocaleDateString("es-CL", { month: "short" })} - ${finRango.getDate()} ${finRango.toLocaleDateString("es-CL", { month: "short", year: "2-digit" })}`;
+        }
       } else if (escalaActual === "semana") {
-        for (let i = 0; i < 8; i++) {
-          const d = new Date(baseYear, baseMonth, 6 + (i * 7));
+        const cantSemanas = 8;
+        for (let i = 0; i < cantSemanas; i++) {
+          const d = new Date(fechaPivote.getFullYear(), fechaPivote.getMonth(), fechaPivote.getDate() + (i * 7));
           const inicioSem = new Date(d.getFullYear(), d.getMonth(), d.getDate());
           const finSem = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6, 23, 59, 59);
           const key = toKeyYMD(d);
-          const label = `Sem ${i + 1} (${d.getDate()}/${d.getMonth() + 1})`;
+          const label = `Sem (${d.getDate()}/${d.getMonth() + 1})`;
           columnasGantt.push({ key, inicio: inicioSem, fin: finSem, label, type: "semana" });
         }
+        if (txtRango) {
+          txtRango.textContent = `8 semanas desde ${fechaPivote.getDate()}/${fechaPivote.getMonth() + 1}`;
+        }
       } else if (escalaActual === "mes") {
-        for (let i = 0; i < 6; i++) {
-          const d = new Date(baseYear, baseMonth + i, 1);
+        const cantMeses = 6;
+        for (let i = 0; i < cantMeses; i++) {
+          const d = new Date(fechaPivote.getFullYear(), fechaPivote.getMonth() + i, 1);
           const key = toKeyYM(d);
           const label = d.toLocaleDateString("es-CL", { month: "short", year: "numeric" }).toUpperCase();
           columnasGantt.push({ key, label, type: "mes", date: d });
         }
+        if (txtRango) {
+          txtRango.textContent = `${fechaPivote.toLocaleDateString("es-CL", { month: "short", year: "numeric" })}`;
+        }
       } else if (escalaActual === "anio") {
-        for (let i = 0; i < 12; i++) {
-          const d = new Date(baseYear, baseMonth + i, 1);
+        const cantMesesAnio = 12;
+        for (let i = 0; i < cantMesesAnio; i++) {
+          const d = new Date(fechaPivote.getFullYear(), fechaPivote.getMonth() + i, 1);
           const key = toKeyYM(d);
           const label = d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" }).toUpperCase();
           columnasGantt.push({ key, label, type: "anio", date: d });
         }
+        if (txtRango) {
+          txtRango.textContent = `${fechaPivote.getFullYear()} - 12 Meses`;
+        }
       }
     }
+
+    document.getElementById("btn-nav-siguiente")?.addEventListener("click", () => {
+      deseleccionarTarea();
+      if (escalaActual === "dia") fechaPivote.setDate(fechaPivote.getDate() + 7);
+      else if (escalaActual === "semana") fechaPivote.setDate(fechaPivote.getDate() + 14);
+      else fechaPivote.setMonth(fechaPivote.getMonth() + 1);
+      generarColumnasGantt();
+      renderizarTodo();
+    });
+
+    document.getElementById("btn-nav-anterior")?.addEventListener("click", () => {
+      deseleccionarTarea();
+      if (escalaActual === "dia") fechaPivote.setDate(fechaPivote.getDate() - 7);
+      else if (escalaActual === "semana") fechaPivote.setDate(fechaPivote.getDate() - 14);
+      else fechaPivote.setMonth(fechaPivote.getMonth() - 1);
+      generarColumnasGantt();
+      renderizarTodo();
+    });
+
+    document.getElementById("btn-nav-hoy")?.addEventListener("click", () => {
+      deseleccionarTarea();
+      fechaPivote = new Date(2026, 9, 6);
+      generarColumnasGantt();
+      renderizarTodo();
+    });
 
     function cambiarEscalaGantt(escala) {
       escalaActual = escala;
@@ -368,33 +449,12 @@
       }
     }
 
+    // CARGA DE DATOS CON ASIGNACIÓN MANUAL E INDIVIDUAL POR VISITA
     async function cargarDatos() {
       generarColumnasGantt();
       await cargarOperadores();
 
       try {
-        const informesList = [];
-        try {
-          const snapInformes = await getDocs(collection(db, "informes"));
-          snapInformes.forEach(docSnap => {
-            const inf = docSnap.data();
-            let fCap = inf.fechaCaptura || inf.fechaAprobacion || inf.fecha || inf.createdAt;
-            if (fCap && fCap.toDate) fCap = fCap.toDate();
-            else if (typeof fCap === "string") fCap = new Date(fCap);
-            else fCap = new Date();
-
-            informesList.push({
-              id: docSnap.id,
-              numeroOrden: inf.numeroOrden || inf.ordenId || docSnap.id,
-              difunto: (inf.difunto || inf.nombreDifunto || "").toLowerCase().trim(),
-              cliente: (inf.cliente || "").toLowerCase().trim(),
-              fecha: fCap
-            });
-          });
-        } catch (errInf) {
-          console.warn("Informes:", errInf);
-        }
-
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         const lista = [];
         const cementeriosSet = new Set();
@@ -404,105 +464,83 @@
           const ordId = docSnap.id;
           const numOrd = ord.numeroOrden || ord.nOrden || ordId;
 
-          const plan = ord.planNombre || ord.servicio?.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Plan 6 (Premium)";
-          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Christian Olivares");
-          const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Sepultura Registrada");
-          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Cementerio Metropolitano";
+          const plan = ord.planNombre || ord.servicio?.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Plan 4";
+          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Felipe Toledo Toledo");
+          const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Tulio Santana");
+          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo Padre Hurtado";
           cementeriosSet.add(cementerio);
-
-          const operadorAsignado = ord.operadorAsignadoNombre || ord.operadorNombre || ord.operador || "Christian Olivares";
 
           let fInicioDate = new Date(2026, 9, 6);
           const rawInicio = ord.fechaCreacion || ord.createdAt || ord.fechaInicio || ord.fecha;
           if (rawInicio?.toDate) fInicioDate = rawInicio.toDate();
           else if (rawInicio) fInicioDate = new Date(rawInicio);
 
-          // Configuración por tipo de plan
-          let totalVisitas = 1;
-          let intervaloMeses = 1;
+          let totalVisitas = 4;
           const planL = String(plan).toLowerCase();
-          const tipoServicio = String(ord.tipoServicio || "").toUpperCase();
 
-          if (tipoServicio === "SPOT" || planL.includes("spot")) {
-            totalVisitas = 1;
-            intervaloMeses = 0;
-          } else if (planL.includes("12") || planL.includes("mensual")) {
-            totalVisitas = 12;
-            intervaloMeses = 1;
-          } else if (planL.includes("6") || planL.includes("bimestral") || planL.includes("premium")) {
-            totalVisitas = 6;
-            intervaloMeses = 2;
-          } else if (planL.includes("4") || planL.includes("trimestral")) {
-            totalVisitas = 4;
-            intervaloMeses = 3;
-          }
+          if (planL.includes("spot")) totalVisitas = 1;
+          else if (planL.includes("12")) totalVisitas = 12;
+          else if (planL.includes("6")) totalVisitas = 6;
+          else if (planL.includes("4")) totalVisitas = 4;
 
-          // Vincular visitas realizadas
-          const nombreDifLower = difunto.toLowerCase().trim();
-          const visitasHechas = [];
-          
-          informesList.forEach(inf => {
-            const coincideId = (inf.id === ordId || inf.numeroOrden === ordId || inf.numeroOrden === numOrd);
-            const coincideDifunto = (nombreDifLower && inf.difunto && (inf.difunto.includes(nombreDifLower) || nombreDifLower.includes(inf.difunto)));
-            if (coincideId || coincideDifunto) {
-              visitasHechas.push(inf.fecha);
-            }
-          });
-
-          // Si en la orden figura como realizada/completada pero no se encontró documento de informe
-          if (visitasHechas.length === 0 && String(ord.estado).toLowerCase().includes("complet")) {
-            visitasHechas.push(fInicioDate);
-          }
-
-          const cantRealizadas = visitasHechas.length;
+          const cantRealizadas = Number(ord.visitasCompletadas !== undefined ? ord.visitasCompletadas : 1);
+          const visitasHechas = [new Date(2026, 9, 9)];
           const cantPendientes = Math.max(0, totalVisitas - cantRealizadas);
 
-          visitasHechas.sort((a, b) => b - a);
-          const ultimaVisita = visitasHechas[0] || null;
-
-          // Proyección de visitas restantes
-          const fechasProyectadas = [];
-
-          if (cantPendientes > 0) {
-            if (cantRealizadas === 0) {
-              // Si no tiene visitas ejecutadas, la primera se proyecta en la fecha inicial y las siguientes según el intervalo
-              fechasProyectadas.push(new Date(fInicioDate));
-              for (let v = 1; v < cantPendientes; v++) {
-                fechasProyectadas.push(new Date(fInicioDate.getFullYear(), fInicioDate.getMonth() + (v * intervaloMeses), fInicioDate.getDate(), 10, 0, 0));
-              }
-            } else {
-              // Si ya tiene visitas ejecutadas, las pendientes se calculan a partir de la última realizada
-              const baseDate = new Date(ultimaVisita);
-              for (let v = 1; v <= cantPendientes; v++) {
-                fechasProyectadas.push(new Date(baseDate.getFullYear(), baseDate.getMonth() + (v * intervaloMeses), baseDate.getDate(), 10, 0, 0));
-              }
-            }
+          // Cargar arreglo de fechas programadas
+          let fechasProyectadas = [];
+          if (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length > 0) {
+            fechasProyectadas = ord.fechasProgramadas.map(f => parseAFecha(f)).filter(Boolean);
           }
 
-          const proximaVisitaFinal = fechasProyectadas[0] || null;
+          if (fechasProyectadas.length === 0) {
+            fechasProyectadas.push(new Date(2027, 0, 16, 10, 0));
+            fechasProyectadas.push(new Date(2027, 3, 16, 10, 0));
+            fechasProyectadas.push(new Date(2027, 6, 16, 10, 0));
+          }
+
+          // Mapa individual de operadores guardado en Firestore: ej { V2: "Juan", V3: "Pedro" }
+          const operadoresPorVisita = ord.operadoresPorVisita || {};
 
           let fTerminoDate = new Date(fInicioDate);
-          fTerminoDate.setMonth(fTerminoDate.getMonth() + (totalVisitas * (intervaloMeses || 1)));
+          fTerminoDate.setMonth(fTerminoDate.getMonth() + 12);
 
-          lista.push({
-            id: ordId,
-            numeroOrden: numOrd,
-            titular,
-            difunto,
-            plan,
-            operadorAsignado,
-            fInicio: fInicioDate,
-            fTermino: fTerminoDate,
-            montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || ord.total || 371940,
-            cantRealizadas,
-            cantPendientes,
-            ultimaVisita,
-            proximaVisita: proximaVisitaFinal,
-            fechasProyectadas,
-            visitasHechas,
-            cementerio,
-            totalVisitas
-          });
+          // DESGLOSE INDIVIDUAL DE CADA VISITA PENDIENTE
+          for (let vIdx = 0; vIdx < cantPendientes; vIdx++) {
+            const numVisita = cantRealizadas + vIdx + 1;
+            const claveVisita = `V${numVisita}`;
+            const fechaDeEstaVisita = fechasProyectadas[vIdx] || fechasProyectadas[0];
+
+            // Operador asignado exclusivamente a esta visita (por defecto "Sin asignar")
+            const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || "Sin asignar";
+
+            lista.push({
+              id: ordId,
+              subId: `${ordId}-${claveVisita}`,
+              claveVisita: claveVisita,
+              indexVisita: vIdx,
+              numeroOrden: `${numOrd}`,
+              etiquetaVisita: `Visita ${numVisita} de ${totalVisitas}`,
+              numVisita: numVisita,
+              titular,
+              difunto,
+              plan,
+              operadorAsignado: operadorDeEstaVisita,
+              operadoresPorVisita: { ...operadoresPorVisita },
+              fInicio: fInicioDate,
+              fTermino: fTerminoDate,
+              montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || 259960,
+              cantRealizadas,
+              cantPendientes,
+              ultimaVisita: visitasHechas[0],
+              proximaVisita: fechaDeEstaVisita,
+              fechasProyectadas: [fechaDeEstaVisita],
+              fechasProyectadasCompletas: fechasProyectadas,
+              visitasHechas: (vIdx === 0 ? visitasHechas : []),
+              cementerio,
+              totalVisitas
+            });
+          }
         });
 
         datosConsolidados = lista;
@@ -533,7 +571,7 @@
       });
 
       const contador = document.getElementById("contador-planes");
-      if (contador) contador.textContent = `Mostrando ${filtrados.length} de ${datosConsolidados.length} servicio(s)`;
+      if (contador) contador.textContent = `Mostrando ${filtrados.length} servicio(s) / visita(s) pendiente(s)`;
 
       renderizarGantt(filtrados);
       renderizarTabla(filtrados);
@@ -541,34 +579,41 @@
 
     function deseleccionarTarea() {
       ordenSeleccionadaId = null;
+      fechaSeleccionadaOriginal = null;
       document.getElementById("barra-aviso-movimiento").classList.add("hidden");
       document.querySelectorAll(".fila-modo-destino").forEach(f => f.classList.remove("fila-modo-destino"));
       document.querySelectorAll(".tarjeta-activa").forEach(t => t.classList.remove("tarjeta-activa"));
     }
 
-    document.getElementById("btn-cancelar-movimiento").addEventListener("click", deseleccionarTarea);
+    document.getElementById("btn-cancelar-movimiento")?.addEventListener("click", deseleccionarTarea);
 
-    async function moverTareaACasillero(ordenId, colKey, colType) {
-      const item = datosConsolidados.find(d => d.id === ordenId);
+    async function moverTareaACasillero(subId, colKey, colType) {
+      const item = datosConsolidados.find(d => d.subId === subId);
       if (!item) return;
 
       const partes = colKey.split("-");
-      let nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2] || 6), 10, 0, 0);
+      const diaElegido = partes[2] ? Number(partes[2]) : 15;
+      let nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, diaElegido, 10, 0, 0);
 
       item.proximaVisita = nuevaFecha;
-      if (item.fechasProyectadas.length > 0) item.fechasProyectadas[0] = nuevaFecha;
+      item.fechasProyectadas = [nuevaFecha];
+      item.fechasProyectadasCompletas[item.indexVisita] = nuevaFecha;
+
       deseleccionarTarea();
       renderizarTodo();
 
       try {
-        const iso = nuevaFecha.toISOString();
-        await updateDoc(doc(db, "ordenes", ordenId), {
-          fechaProgramada: iso,
-          proximaVisita: iso
+        const timestamps = item.fechasProyectadasCompletas.map(f => Timestamp.fromDate(f));
+        const isoString = nuevaFecha.toISOString();
+
+        await updateDoc(doc(db, "ordenes", item.id), {
+          fechaProgramada: isoString,
+          proximaVisita: isoString,
+          fechasProgramadas: timestamps
         });
       } catch (err) {
-        console.error("Error al actualizar fecha:", err);
-        alert("Error al guardar: " + err.message);
+        console.error("Error al actualizar fecha en Firestore:", err);
+        alert("Error al guardar en base de datos: " + err.message);
         await cargarDatos();
       }
     }
@@ -586,28 +631,31 @@
       if (!tbody) return;
 
       if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" class="py-8 text-center text-slate-400">No hay contratos para mostrar.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="20" class="py-8 text-center text-slate-400">No hay contratos para mostrar.</td></tr>';
         return;
       }
 
       tbody.innerHTML = lista.map(item => {
-        const esFilaSeleccionada = (ordenSeleccionadaId === item.id);
+        const esFilaSeleccionada = (ordenSeleccionadaId === item.subId);
         const claseFila = esFilaSeleccionada ? "fila-modo-destino" : "";
 
         const celdas = columnasGantt.map(col => {
           let tieneRealizada = false;
           let tieneProgramada = false;
+          let fechaProgEncontrada = null;
 
           if (col.type === "dia") {
             tieneRealizada = item.visitasHechas.some(f => toKeyYMD(f) === col.key);
-            tieneProgramada = item.fechasProyectadas.some(f => toKeyYMD(f) === col.key);
+            fechaProgEncontrada = item.fechasProyectadas.find(f => toKeyYMD(f) === col.key);
+            tieneProgramada = !!fechaProgEncontrada;
           } else if (col.type === "semana") {
             tieneRealizada = item.visitasHechas.some(f => f >= col.inicio && f <= col.fin);
-            tieneProgramada = item.fechasProyectadas.some(f => f >= col.inicio && f <= col.fin);
+            fechaProgEncontrada = item.fechasProyectadas.find(f => f >= col.inicio && f <= col.fin);
+            tieneProgramada = !!fechaProgEncontrada;
           } else {
-            // Escala Mes y Año
             tieneRealizada = item.visitasHechas.some(f => toKeyYM(f) === col.key);
-            tieneProgramada = item.fechasProyectadas.some(f => toKeyYM(f) === col.key);
+            fechaProgEncontrada = item.fechasProyectadas.find(f => toKeyYM(f) === col.key);
+            tieneProgramada = !!fechaProgEncontrada;
           }
 
           let contenido = '<span class="text-slate-300 text-xs pointer-events-none">—</span>';
@@ -619,13 +667,17 @@
                 <span>Realizada</span>
               </div>`;
           } else if (tieneProgramada) {
-            const activa = esFilaSeleccionada ? "tarjeta-activa" : "";
+            const esEstaTarjetaActiva = esFilaSeleccionada;
+            const activa = esEstaTarjetaActiva ? "tarjeta-activa" : "";
+            const fechaAttr = fechaProgEncontrada ? toKeyYMD(fechaProgEncontrada) : col.key;
+
             contenido = `
               <div 
                 data-action="tarjeta-amarilla" 
-                data-orden-id="${item.id}"
+                data-sub-id="${item.subId}"
+                data-fecha-origen="${fechaAttr}"
                 class="${activa} bg-amber-50 border border-amber-300 text-amber-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer hover:bg-amber-100 transition"
-                title="Visita proyectada del plan. Clic para reprogramar."
+                title="Visita programada. Clic para mover o Doble Clic para editar fecha exacta."
               >
                 <span class="material-symbols-outlined text-[13px] text-amber-600 pointer-events-none">touch_app</span>
                 <span class="pointer-events-none">Por Realizar</span>
@@ -635,7 +687,7 @@
           return `
             <td 
               class="py-2.5 px-1 text-center border-r border-slate-100 align-middle transition-colors"
-              data-row-orden-id="${item.id}"
+              data-row-sub-id="${item.subId}"
               data-col-key="${col.key}"
               data-col-type="${col.type}"
             >
@@ -646,8 +698,11 @@
         return `
           <tr class="hover:bg-slate-50/80 transition ${claseFila}">
             <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200">
-              <div class="font-bold text-slate-800">${item.titular}</div>
-              <div class="text-[11px] text-[#002d1a] font-semibold">Difunto: ${item.difunto}</div>
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-800">${item.titular}</span>
+                <span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${item.etiquetaVisita}</span>
+              </div>
+              <div class="text-[11px] text-[#002d1a] font-semibold mt-0.5">Difunto: ${item.difunto}</div>
               <div class="text-[10px] text-slate-500">${item.cementerio} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${item.plan}</span></div>
               <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
                 <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
@@ -661,17 +716,20 @@
 
     const cuerpoGantt = document.getElementById("cuerpo-gantt");
 
-    cuerpoGantt.addEventListener("click", async (e) => {
+    cuerpoGantt?.addEventListener("click", async (e) => {
       const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
       
       if (tarjeta) {
-        const oId = tarjeta.dataset.ordenId;
-        if (ordenSeleccionadaId === oId) {
+        const sId = tarjeta.dataset.subId;
+        const fOrig = tarjeta.dataset.fechaOrigen;
+
+        if (ordenSeleccionadaId === sId && fechaSeleccionadaOriginal === fOrig) {
           deseleccionarTarea();
         } else {
-          ordenSeleccionadaId = oId;
-          const item = datosConsolidados.find(d => d.id === oId);
-          document.getElementById("texto-aviso-movimiento").textContent = `Moviendo servicio de ${item.titular}: Haz clic en cualquier casillero de su fila para asignarlo.`;
+          ordenSeleccionadaId = sId;
+          fechaSeleccionadaOriginal = fOrig;
+          const item = datosConsolidados.find(d => d.subId === sId);
+          document.getElementById("texto-aviso-movimiento").textContent = `Moviendo ${item.etiquetaVisita} de ${item.titular}: Haz clic en la casilla del nuevo día para guardar.`;
           document.getElementById("barra-aviso-movimiento").classList.remove("hidden");
           renderizarTodo();
         }
@@ -680,24 +738,28 @@
 
       if (ordenSeleccionadaId) {
         const celda = e.target.closest("td[data-col-key]");
-        if (celda && celda.dataset.rowOrdenId === ordenSeleccionadaId) {
+        if (celda && celda.dataset.rowSubId === ordenSeleccionadaId) {
           await moverTareaACasillero(ordenSeleccionadaId, celda.dataset.colKey, celda.dataset.colType);
         }
       }
     });
 
-    cuerpoGantt.addEventListener("dblclick", (e) => {
+    cuerpoGantt?.addEventListener("dblclick", (e) => {
       const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
       if (tarjeta) {
-        const oId = tarjeta.dataset.ordenId;
-        const item = datosConsolidados.find(d => d.id === oId);
+        const sId = tarjeta.dataset.subId;
+        const item = datosConsolidados.find(d => d.subId === sId);
         if (!item) return;
 
         deseleccionarTarea();
-        ordenEditandoId = oId;
-        document.getElementById("modal-cliente").textContent = item.titular;
-        document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} (${item.plan})`;
-        document.getElementById("modal-input-fecha").value = convertirAFechaInput(item.proximaVisita);
+        ordenEditandoId = item.id;
+        subIdEditando = item.subId;
+        indexVisitaEditando = item.indexVisita;
+        fechaSeleccionadaOriginal = tarjeta.dataset.fechaOrigen;
+
+        document.getElementById("modal-cliente").textContent = `${item.titular} (${item.etiquetaVisita})`;
+        document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} - ${item.plan}`;
+        document.getElementById("modal-input-fecha").value = fechaSeleccionadaOriginal || convertirAFechaInput(item.proximaVisita);
         document.getElementById("modal-select-operador").value = item.operadorAsignado || "Sin asignar";
         document.getElementById("modal-reprogramar").classList.remove("hidden");
       }
@@ -706,13 +768,15 @@
     function cerrarModal() {
       document.getElementById("modal-reprogramar").classList.add("hidden");
       ordenEditandoId = null;
+      subIdEditando = null;
+      fechaSeleccionadaOriginal = null;
     }
 
-    document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModal);
-    document.getElementById("btn-cancelar-modal").addEventListener("click", cerrarModal);
+    document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModal);
+    document.getElementById("btn-cancelar-modal")?.addEventListener("click", cerrarModal);
 
-    document.getElementById("btn-guardar-modal").addEventListener("click", async () => {
-      if (!ordenEditandoId) return;
+    document.getElementById("btn-guardar-modal")?.addEventListener("click", async () => {
+      if (!ordenEditandoId || !subIdEditando) return;
       const fVal = document.getElementById("modal-input-fecha").value;
       const opVal = document.getElementById("modal-select-operador").value;
 
@@ -730,18 +794,23 @@
         const nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0);
         const isoFecha = nuevaFecha.toISOString();
 
+        const item = datosConsolidados.find(d => d.subId === subIdEditando);
+        if (item) {
+          item.proximaVisita = nuevaFecha;
+          item.fechasProyectadas = [nuevaFecha];
+          item.fechasProyectadasCompletas[indexVisitaEditando] = nuevaFecha;
+          item.operadorAsignado = opVal;
+          item.operadoresPorVisita[item.claveVisita] = opVal;
+        }
+
+        const timestamps = item ? item.fechasProyectadasCompletas.map(f => Timestamp.fromDate(f)) : [];
+
         await updateDoc(doc(db, "ordenes", ordenEditandoId), {
           fechaProgramada: isoFecha,
           proximaVisita: isoFecha,
-          operadorAsignadoNombre: opVal
+          fechasProgramadas: timestamps,
+          operadoresPorVisita: item ? item.operadoresPorVisita : {}
         });
-
-        const item = datosConsolidados.find(d => d.id === ordenEditandoId);
-        if (item) {
-          item.proximaVisita = nuevaFecha;
-          if (item.fechasProyectadas.length > 0) item.fechasProyectadas[0] = nuevaFecha;
-          item.operadorAsignado = opVal;
-        }
 
         renderizarTodo();
         cerrarModal();
@@ -753,6 +822,7 @@
       }
     });
 
+    // RENDERIZAR TABLA DE CLIENTES CON ASIGNACIÓN INDIVIDUAL
     function renderizarTabla(lista) {
       const tbody = document.getElementById("cuerpo-tabla");
       if (!tbody) return;
@@ -776,10 +846,22 @@
             <div class="text-[11px] text-slate-500 font-medium">Difunto: ${item.difunto}</div>
             <div class="text-[10px] text-slate-400 font-mono">#${item.numeroOrden}</div>
           </td>
-          <td class="py-3 px-3 font-semibold text-slate-800">${item.plan}</td>
           <td class="py-3 px-3">
-            <select data-action="asignar-op" data-orden-id="${item.id}" class="px-2 py-1 text-xs border border-slate-300 rounded focus:border-[#002d1a] bg-white font-medium">
-              <option value="Sin asignar">Sin asignar</option>
+            <span class="font-bold text-slate-900 block">${item.plan}</span>
+            <span class="inline-block mt-0.5 text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+              ${item.etiquetaVisita}
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <!-- ASIGNACIÓN INDIVIDUAL DE OPERADOR POR CADA VISITA -->
+            <select 
+              data-action="asignar-op-individual" 
+              data-orden-id="${item.id}"
+              data-sub-id="${item.subId}"
+              data-clave-visita="${item.claveVisita}"
+              class="px-2 py-1 text-xs border border-slate-300 rounded focus:border-[#002d1a] bg-white font-medium shadow-sm cursor-pointer"
+            >
+              <option value="Sin asignar" ${item.operadorAsignado === 'Sin asignar' ? 'selected' : ''}>Sin asignar</option>
               ${opcionesOperadores}
             </select>
           </td>
@@ -790,57 +872,82 @@
           <td class="py-3 px-2 text-center font-bold text-amber-700 bg-amber-50/50">${item.cantPendientes}</td>
           <td class="py-3 px-3 font-mono text-[11px]">${formatearFecha(item.ultimaVisita)}</td>
           <td class="py-3 px-3 text-center bg-amber-50/40 border-x border-amber-100">
-            ${item.cantPendientes > 0 ? `
-              <input 
-                type="date" 
-                value="${fechaProgInput}" 
-                data-action="cambiar-fecha"
-                data-orden-id="${item.id}"
-                class="px-2 py-1 text-xs border border-amber-300 rounded bg-white text-slate-800 font-medium focus:outline-none focus:border-[#002d1a] shadow-sm cursor-pointer"
-              >
-            ` : `<span class="text-xs text-emerald-700 font-bold">✓ Concluido</span>`}
+            <input 
+              type="date" 
+              value="${fechaProgInput}" 
+              data-action="cambiar-fecha"
+              data-orden-id="${item.id}"
+              data-sub-id="${item.subId}"
+              data-visita-index="${item.indexVisita}"
+              class="px-2 py-1 text-xs border border-amber-300 rounded bg-white text-slate-800 font-medium focus:outline-none focus:border-[#002d1a] shadow-sm cursor-pointer"
+            >
           </td>
           <td class="py-3 px-3 text-slate-600">${item.cementerio}</td>
         </tr>`;
       }).join("");
     }
 
-    document.getElementById("cuerpo-tabla").addEventListener("change", async (e) => {
+    // MANEJO DE CAMBIO INDIVIDUAL EN LA TABLA
+    document.getElementById("cuerpo-tabla")?.addEventListener("change", async (e) => {
       const target = e.target;
       const ordenId = target.dataset.ordenId;
-      if (!ordenId) return;
+      const subId = target.dataset.subId;
+      if (!ordenId || !subId) return;
 
-      if (target.dataset.action === "asignar-op") {
+      // 1. ASIGNAR OPERADOR EXCLUSIVAMENTE A ESTA VISITA
+      if (target.dataset.action === "asignar-op-individual") {
         const nuevoOp = target.value;
+        const claveVisita = target.dataset.claveVisita;
         target.disabled = true;
+
         try {
-          await updateDoc(doc(db, "ordenes", ordenId), { operadorAsignadoNombre: nuevoOp });
-          const item = datosConsolidados.find(d => d.id === ordenId);
-          if (item) item.operadorAsignado = nuevoOp;
+          const item = datosConsolidados.find(d => d.subId === subId);
+          if (item) {
+            item.operadorAsignado = nuevoOp;
+            item.operadoresPorVisita[claveVisita] = nuevoOp;
+
+            // Guardar solo en el mapa de operadores de la orden en Firestore
+            await updateDoc(doc(db, "ordenes", ordenId), {
+              [`operadoresPorVisita.${claveVisita}`]: nuevoOp
+            });
+          }
           renderizarTodo();
         } catch (err) {
-          alert("Error: " + err.message);
+          alert("Error asignando operador a esta visita: " + err.message);
         } finally {
           target.disabled = false;
         }
-      } else if (target.dataset.action === "cambiar-fecha") {
+      } 
+      // 2. CAMBIAR FECHA DE ESTA VISITA
+      else if (target.dataset.action === "cambiar-fecha") {
         const val = target.value;
+        const vIdx = Number(target.dataset.visitaIndex || 0);
         if (!val) return;
         target.disabled = true;
+
         try {
           const partes = val.split("-");
           const nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0);
           const iso = nuevaFecha.toISOString();
           
-          await updateDoc(doc(db, "ordenes", ordenId), { fechaProgramada: iso, proximaVisita: iso });
-          const item = datosConsolidados.find(d => d.id === ordenId);
+          const item = datosConsolidados.find(d => d.subId === subId);
           if (item) {
             item.proximaVisita = nuevaFecha;
-            if (item.fechasProyectadas.length > 0) item.fechasProyectadas[0] = nuevaFecha;
+            item.fechasProyectadas = [nuevaFecha];
+            item.fechasProyectadasCompletas[vIdx] = nuevaFecha;
           }
+
+          const timestamps = item ? item.fechasProyectadasCompletas.map(f => Timestamp.fromDate(f)) : [];
+
+          await updateDoc(doc(db, "ordenes", ordenId), { 
+            fechaProgramada: iso, 
+            proximaVisita: iso,
+            fechasProgramadas: timestamps
+          });
+          
           renderizarTodo();
         } catch (err) {
-          alert("Error: " + err.message);
+          alert("Error al actualizar fecha: " + err.message);
         } finally {
           target.disabled = false;
         }
@@ -853,6 +960,7 @@
       const btnG = document.getElementById("btn-vista-gantt");
       const btnT = document.getElementById("btn-vista-tabla");
       const escalaCont = document.getElementById("selector-escala-container");
+      const navDias = document.getElementById("barra-navegacion-dias");
 
       if (vista === "gantt") {
         g.classList.remove("hidden");
@@ -860,17 +968,19 @@
         btnG.className = "px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition";
         btnT.className = "px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition";
         if (escalaCont) escalaCont.style.display = "flex";
+        if (navDias) navDias.style.display = "flex";
       } else {
         g.classList.add("hidden");
         t.classList.remove("hidden");
         btnT.className = "px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition";
         btnG.className = "px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition";
         if (escalaCont) escalaCont.style.display = "none";
+        if (navDias) navDias.style.display = "none";
       }
     }
 
-    document.getElementById("btn-vista-gantt").addEventListener("click", () => cambiarVista("gantt"));
-    document.getElementById("btn-vista-tabla").addEventListener("click", () => cambiarVista("tabla"));
+    document.getElementById("btn-vista-gantt")?.addEventListener("click", () => cambiarVista("gantt"));
+    document.getElementById("btn-vista-tabla")?.addEventListener("click", () => cambiarVista("tabla"));
 
     ['dia', 'semana', 'mes', 'anio'].forEach(e => {
       document.getElementById("escala-" + e)?.addEventListener("click", () => cambiarEscalaGantt(e));

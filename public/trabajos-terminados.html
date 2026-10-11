@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Órdenes de Servicios Terminadas | GraveCare Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+  <!-- Header -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-[#002d1a] flex items-center gap-2">
+        <span class="material-symbols-outlined text-emerald-600">task_alt</span>
+        Órdenes de Servicios Terminadas
+      </h1>
+      <p class="text-xs text-slate-500 mt-1">Registro de visitas y servicios ejecutados y verificados con éxito.</p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="button" onclick="window.parent.cargarModulo ? window.parent.cargarModulo('todos-los-trabajos') : window.location.href='todos-los-trabajos.html'" class="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-300 hover:bg-slate-100 transition flex items-center gap-1.5 text-slate-700 cursor-pointer">
+        <span class="material-symbols-outlined text-sm">arrow_back</span> Volver a Trabajos Activos
+      </button>
+    </div>
+  </header>
+
+  <!-- Filtros -->
+  <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex flex-wrap gap-3 items-center flex-1">
+      <div class="w-full sm:w-72">
+        <input type="text" id="filtro-busqueda" placeholder="Buscar por cliente, difunto o N° Orden..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-56">
+        <select id="filtro-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+    </div>
+    <div class="text-xs font-semibold text-slate-600" id="contador-terminadas">Cargando terminadas...</div>
+  </section>
+
+  <!-- Tabla de Órdenes Terminadas -->
+  <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+            <th class="py-3.5 px-4">N° Orden / Visita</th>
+            <th class="py-3.5 px-4">Cliente / Titular</th>
+            <th class="py-3.5 px-4">Ser Querido (Difunto)</th>
+            <th class="py-3.5 px-4">Cementerio &amp; Ubicación</th>
+            <th class="py-3.5 px-4">Plan / Servicio</th>
+            <th class="py-3.5 px-4">Fecha Ejecutada</th>
+            <th class="py-3.5 px-4 text-center">Estado</th>
+            <th class="py-3.5 px-4 text-center">Operador</th>
+            <th class="py-3.5 px-4 text-center">Informe</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-tabla-terminadas" class="divide-y divide-slate-100">
+          <tr>
+            <td colspan="9" class="py-12 text-center text-slate-400">
+              <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-emerald-800 border-t-transparent mb-2"></div>
+              <p>Cargando órdenes y visitas completadas...</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MODAL INTEGRADO CON LAS 4 FOTOGRAFÍAS -->
+  <div id="modal-informe" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col border border-slate-100 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-700">fact_check</span>
+          <div>
+            <h3 class="font-bold text-sm text-[#002d1a]" id="inf-titulo">Informe de Servicio Realizado</h3>
+            <p class="text-[11px] text-slate-500" id="inf-subtitulo">Reporte fotográfico y operacional verificado</p>
+          </div>
+        </div>
+        <button type="button" id="btn-cerrar-modal-inf" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+          <span class="material-symbols-outlined text-xl">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+        <!-- Ficha de Datos -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Cliente</span>
+            <span class="font-bold text-slate-800" id="inf-cliente">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Ser Querido</span>
+            <span class="font-bold text-slate-800" id="inf-difunto">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Cementerio</span>
+            <span class="font-bold text-slate-800" id="inf-cementerio">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Operador</span>
+            <span class="font-bold text-emerald-800" id="inf-operador">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Fecha Ejecución</span>
+            <span class="font-bold text-slate-800" id="inf-fecha">-</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Estado</span>
+            <span class="inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]" id="inf-estado">APROBADO</span>
+          </div>
+          <div class="col-span-2">
+            <span class="text-slate-400 block text-[10px] uppercase font-bold">Coordenadas GPS</span>
+            <span class="font-mono text-slate-700" id="inf-gps">-</span>
+          </div>
+        </div>
+
+        <!-- Observaciones -->
+        <div>
+          <span class="text-slate-500 block text-[11px] font-bold mb-1">Observaciones / Comentarios Operativos:</span>
+          <div class="p-3 bg-amber-50/50 border border-amber-200 rounded-xl text-slate-700 leading-relaxed font-medium" id="inf-observaciones">
+            todo ok
+          </div>
+        </div>
+
+        <!-- SECCIÓN 1: FOTOS DEL ESTADO INICIAL (ANTES) -->
+        <div>
+          <div class="flex items-center gap-1.5 mb-2.5">
+            <span class="material-symbols-outlined text-amber-600 text-base">history</span>
+            <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Estado Inicial (Antes) - 2 Fotografías</h4>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
+              <span class="block text-[11px] font-bold text-slate-600 mb-1.5">Foto Antes 1</span>
+              <img id="inf-foto-antes-1" src="" alt="Foto Antes 1" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-antes-1" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            </div>
+            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
+              <span class="block text-[11px] font-bold text-slate-600 mb-1.5">Foto Antes 2</span>
+              <img id="inf-foto-antes-2" src="" alt="Foto Antes 2" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-antes-2" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: FOTOS DEL ESTADO FINAL (DESPUÉS) -->
+        <div>
+          <div class="flex items-center gap-1.5 mb-2.5">
+            <span class="material-symbols-outlined text-emerald-600 text-base">verified</span>
+            <h4 class="font-bold text-[#002d1a] text-xs uppercase tracking-wider">Trabajo Finalizado (Después) - 2 Fotografías</h4>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="border border-emerald-100 rounded-xl p-2.5 text-center bg-emerald-50/20">
+              <span class="block text-[11px] font-bold text-emerald-900 mb-1.5">Foto Después 1</span>
+              <img id="inf-foto-despues-1" src="" alt="Foto Después 1" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-despues-1" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            </div>
+            <div class="border border-emerald-100 rounded-xl p-2.5 text-center bg-emerald-50/20">
+              <span class="block text-[11px] font-bold text-emerald-900 mb-1.5">Foto Después 2</span>
+              <img id="inf-foto-despues-2" src="" alt="Foto Después 2" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-despues-2" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 border-t border-slate-100 flex justify-end bg-slate-50">
+        <button type="button" id="btn-cerrar-modal-inf-pie" class="px-5 py-2 bg-[#002d1a] hover:bg-[#003d24] text-white rounded-xl text-xs font-bold transition cursor-pointer">
+          Cerrar Informe
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
+
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    const db = getFirestore(app);
+
+    let listaTerminadas = [];
+    const staffNombres = new Map();
+
+    function formatearFecha(f) {
+      if (!f) return "10-10-2026";
+      const d = f.toDate ? f.toDate() : new Date(f);
+      if (isNaN(d.getTime())) return String(f);
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const anio = d.getFullYear();
+      return `${dia}-${mes}-${anio}`;
+    }
+
+    async function cargarStaff() {
+      try {
+        const snap = await getDocs(collection(db, "staff"));
+        snap.forEach(d => {
+          const s = d.data();
+          const email = (s.email || "").toLowerCase().trim();
+          const nombre = s.nombre || s.nombreCompleto || email;
+          if (email) staffNombres.set(email, nombre);
+          staffNombres.set(d.id, nombre);
+        });
+      } catch (e) {
+        console.warn("Staff lookup aviso:", e);
+      }
+    }
+
+    function resolverNombreOperador(opVal) {
+      if (!opVal) return "Sin asignar";
+      const valLimpio = String(opVal).trim();
+      const valLower = valLimpio.toLowerCase();
+      if (staffNombres.has(valLower)) return staffNombres.get(valLower);
+      if (staffNombres.has(valLimpio)) return staffNombres.get(valLimpio);
+      return valLimpio;
+    }
+
+    async function cargarOrdenesTerminadas() {
+      await cargarStaff();
+
+      try {
+        // Pre-cargar informes existentes en Firestore para cruzar operador exacto
+        const snapInformes = await getDocs(collection(db, "informes"));
+        const informesDataMap = new Map();
+        snapInformes.forEach(d => {
+          informesDataMap.set(d.id, d.data());
+        });
+
+        const snap = await getDocs(collection(db, "ordenes"));
+        const terminadas = [];
+        const cementeriosSet = new Set();
+
+        snap.forEach(docSnap => {
+          const d = docSnap.data();
+          const estadoGlobal = (d.estado || d.estadoServicio || "").toLowerCase().trim();
+
+          const tit = d.titular || d;
+          const dif = d.difunto || {};
+          const nomCliente = tit.nombreCompleto || tit.nombreCliente || d.clienteNombre || d.usuario || "Cliente";
+          const nomDifunto = dif.nombreCompleto || dif.nombre || d.nombreCompletoDifunto || d.difuntoNombre || "Ser Querido";
+          const cem = d.ubicacionSepultura?.cementerio || d.cementerio || "Cementerio";
+          cementeriosSet.add(cem);
+
+          const baseOrdenId = d.numeroOrden || d.ordenId || docSnap.id;
+          const ubicacionTexto = `Sec: ${d.ubicacionSepultura?.sector || d.sector || "-"} / Pat: ${d.ubicacionSepultura?.patio || d.patio || "-"} / N°: ${d.ubicacionSepultura?.numeroSepultura || d.numeroSepultura || "-"}`;
+          const planNombre = d.servicio?.planNombre || d.planNombre || "Plan 4";
+
+          const operadoresPorVisita = d.operadoresPorVisita || {};
+          const operadorGlobal = d.operadorAsignadoNombre || d.operadorNombre || d.operador || "";
+
+          if (Array.isArray(d.visitas) && d.visitas.length > 0) {
+            d.visitas.forEach((v, idx) => {
+              const estVisita = (v.estado || "").toLowerCase().trim();
+              if (estVisita === "completada" || estVisita === "completado" || estVisita === "terminada") {
+                const idVisitaCompleto = `${baseOrdenId}-V${idx + 1}`;
+                const claveV = `V${idx + 1}`;
+                
+                // Obtener operador del informe o de la orden
+                const infDoc = informesDataMap.get(idVisitaCompleto) || {};
+                const opDetectado = infDoc.operador || infDoc.operadorNombre || v.operadorNombre || v.operador || operadoresPorVisita[claveV] || operadorGlobal;
+
+                terminadas.push({
+                  id: `${docSnap.id}-V${idx + 1}`,
+                  ordenDocId: docSnap.id,
+                  idInforme: idVisitaCompleto,
+                  numeroVisita: idx + 1,
+                  numeroOrden: idVisitaCompleto,
+                  etiquetaVisita: `Visita ${idx + 1}`,
+                  cliente: nomCliente,
+                  difunto: nomDifunto,
+                  cementerio: cem,
+                  ubicacion: ubicacionTexto,
+                  plan: planNombre,
+                  operador: resolverNombreOperador(opDetectado),
+                  fechaTermino: v.fechaEjecucion || v.fechaCompletado || v.fechaEstimada || d.actualizadoEn || d.creadoEl
+                });
+              }
+            });
+          } else if (Number(d.visitasCompletadas || 0) > 0) {
+            const numHechas = Number(d.visitasCompletadas);
+            for (let i = 1; i <= numHechas; i++) {
+              const idVisitaCompleto = `${baseOrdenId}-V${i}`;
+              const claveV = `V${i}`;
+              
+              const infDoc = informesDataMap.get(idVisitaCompleto) || {};
+              const opDetectado = infDoc.operador || infDoc.operadorNombre || operadoresPorVisita[claveV] || operadorGlobal;
+
+              terminadas.push({
+                id: `${docSnap.id}-V${i}`,
+                ordenDocId: docSnap.id,
+                idInforme: idVisitaCompleto,
+                numeroVisita: i,
+                numeroOrden: idVisitaCompleto,
+                etiquetaVisita: `Visita ${i}`,
+                cliente: nomCliente,
+                difunto: nomDifunto,
+                cementerio: cem,
+                ubicacion: ubicacionTexto,
+                plan: planNombre,
+                operador: resolverNombreOperador(opDetectado),
+                fechaTermino: d.ultimaVisitaCompletadaFecha || d.fechaCompletado || d.actualizadoEn || d.creadoEl
+              });
+            }
+          } else if (estadoGlobal === "completada" || estadoGlobal === "completado" || estadoGlobal === "terminada" || estadoGlobal === "finalizada") {
+            const idVisitaCompleto = `${baseOrdenId}-V1`;
+            const infDoc = informesDataMap.get(idVisitaCompleto) || informesDataMap.get(docSnap.id) || {};
+            const opDetectado = infDoc.operador || infDoc.operadorNombre || operadoresPorVisita["V1"] || operadorGlobal;
+
+            terminadas.push({
+              id: docSnap.id,
+              ordenDocId: docSnap.id,
+              idInforme: idVisitaCompleto,
+              numeroVisita: 1,
+              numeroOrden: baseOrdenId,
+              etiquetaVisita: "Servicio Completo",
+              cliente: nomCliente,
+              difunto: nomDifunto,
+              cementerio: cem,
+              ubicacion: ubicacionTexto,
+              plan: planNombre,
+              operador: resolverNombreOperador(opDetectado),
+              fechaTermino: d.fechaCompletado || d.fechaEjecucion || d.actualizadoEn || d.creadoEl
+            });
+          }
+        });
+
+        listaTerminadas = terminadas;
+
+        const selCem = document.getElementById("filtro-cementerio");
+        if (selCem) {
+          selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
+            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+        }
+
+        renderizarTabla();
+      } catch (err) {
+        console.error("Error al cargar terminadas:", err);
+      }
+    }
+
+    // ABRIR EL INFORME CON LECTURA COMPLETA
+    window.abrirModalInforme = async function(idInforme, ordenDocId, opFallback) {
+      const modal = document.getElementById("modal-informe");
+      modal.classList.remove("hidden");
+
+      document.getElementById("inf-titulo").textContent = `Informe ${idInforme}`;
+      document.getElementById("inf-subtitulo").textContent = "Cargando informe desde base de datos...";
+
+      try {
+        let docSnap = await getDoc(doc(db, "informes", idInforme));
+        
+        if (!docSnap.exists() && ordenDocId) {
+          docSnap = await getDoc(doc(db, "informes", ordenDocId));
+        }
+
+        if (docSnap.exists()) {
+          const inf = docSnap.data();
+
+          // Priorizar operador del documento en Firestore
+          const opDirecto = inf.operador || inf.operadorNombre || opFallback || "-";
+
+          document.getElementById("inf-titulo").textContent = `Informe ${idInforme}`;
+          document.getElementById("inf-subtitulo").textContent = "Reporte fotográfico y operacional verificado";
+          document.getElementById("inf-cliente").textContent = inf.cliente || "-";
+          document.getElementById("inf-difunto").textContent = inf.difunto || "-";
+          document.getElementById("inf-cementerio").textContent = inf.cementerio || "-";
+          document.getElementById("inf-operador").textContent = resolverNombreOperador(opDirecto);
+          document.getElementById("inf-fecha").textContent = formatearFecha(inf.createdAt || inf.fechaAprobacion || inf.fecha);
+          document.getElementById("inf-estado").textContent = (inf.estado || "Aprobado").toUpperCase();
+
+          if (inf.coordenadasGps) {
+            document.getElementById("inf-gps").textContent = `${inf.coordenadasGps.lat}, ${inf.coordenadasGps.lng}`;
+          } else {
+            document.getElementById("inf-gps").textContent = "Sin GPS";
+          }
+
+          document.getElementById("inf-observaciones").textContent = inf.observaciones || inf.comentarios || "todo ok";
+
+          let antes1 = inf.fotoAntes1 || inf.fotoAntesUrl1 || inf.fotosAntes?.[0] || inf.fotos?.antes1 || null;
+          let antes2 = inf.fotoAntes2 || inf.fotoAntesUrl2 || inf.fotosAntes?.[1] || inf.fotos?.antes2 || null;
+          if (!antes1) antes1 = inf.fotoAntesUrl || inf.fotoAntes || inf.urlFotoAntes || inf.fotos?.antes || null;
+
+          let despues1 = inf.fotoDespues1 || inf.fotoDespuesUrl1 || inf.fotosDespues?.[0] || inf.fotos?.despues1 || null;
+          let despues2 = inf.fotoDespues2 || inf.fotoDespuesUrl2 || inf.fotosDespues?.[1] || inf.fotos?.despues2 || null;
+          if (!despues1) despues1 = inf.fotoDespuesUrl || inf.fotoDespues || inf.urlFotoDespues || inf.fotos?.despues || null;
+
+          const arrGeneral = Array.isArray(inf.fotos) ? inf.fotos : (Array.isArray(inf.imagenes) ? inf.imagenes : null);
+          if (arrGeneral && arrGeneral.length >= 2) {
+            if (!antes1) antes1 = arrGeneral[0];
+            if (!antes2 && arrGeneral.length >= 4) antes2 = arrGeneral[1];
+            if (!despues1) despues1 = arrGeneral[arrGeneral.length >= 4 ? 2 : 1];
+            if (!despues2 && arrGeneral.length >= 4) despues2 = arrGeneral[3];
+          }
+
+          if (antes1 && !antes2 && (inf.fotoAntesExtra || inf.fotoAntes2)) antes2 = inf.fotoAntesExtra || inf.fotoAntes2;
+          if (despues1 && !despues2 && (inf.fotoDespuesExtra || inf.fotoDespues2)) despues2 = inf.fotoDespuesExtra || inf.fotoDespues2;
+
+          aplicarFoto("inf-foto-antes-1", "inf-sin-antes-1", antes1);
+          aplicarFoto("inf-foto-antes-2", "inf-sin-antes-2", antes2);
+          aplicarFoto("inf-foto-despues-1", "inf-sin-despues-1", despues1);
+          aplicarFoto("inf-foto-despues-2", "inf-sin-despues-2", despues2);
+
+        } else {
+          document.getElementById("inf-subtitulo").textContent = "Documento de informe no encontrado";
+          document.getElementById("inf-observaciones").textContent = "No se localizó el registro asociado en la base de datos.";
+        }
+      } catch (e) {
+        console.error("Error al obtener informe:", e);
+        document.getElementById("inf-subtitulo").textContent = "Error al conectar con Firestore";
+      }
+    };
+
+    function aplicarFoto(idImg, idSinFoto, url) {
+      const elImg = document.getElementById(idImg);
+      const elSin = document.getElementById(idSinFoto);
+      if (url) {
+        elImg.src = url;
+        elImg.classList.remove("hidden");
+        elSin.classList.add("hidden");
+      } else {
+        elImg.classList.add("hidden");
+        elSin.classList.remove("hidden");
+      }
+    }
+
+    function cerrarModalInforme() {
+      document.getElementById("modal-informe").classList.add("hidden");
+    }
+
+    document.getElementById("btn-cerrar-modal-inf")?.addEventListener("click", cerrarModalInforme);
+    document.getElementById("btn-cerrar-modal-inf-pie")?.addEventListener("click", cerrarModalInforme);
+
+    function renderizarTabla() {
+      const q = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
+      const c = document.getElementById("filtro-cementerio")?.value || "";
+
+      const filtradas = listaTerminadas.filter(item => {
+        if (q && !item.cliente.toLowerCase().includes(q) && !item.difunto.toLowerCase().includes(q) && !item.numeroOrden.toLowerCase().includes(q) && !item.operador.toLowerCase().includes(q)) return false;
+        if (c && item.cementerio !== c) return false;
+        return true;
+      });
+
+      const contador = document.getElementById("contador-terminadas");
+      if (contador) contador.textContent = `Mostrando ${filtradas.length} servicio(s) terminado(s)`;
+
+      const tbody = document.getElementById("cuerpo-tabla-terminadas");
+      if (!tbody) return;
+
+      if (filtradas.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">task_alt</span>
+              No hay órdenes terminadas que coincidan con la búsqueda.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtradas.map(item => `
+        <tr class="hover:bg-slate-50 transition text-slate-700">
+          <td class="py-3.5 px-4">
+            <span class="font-mono font-bold text-[#002d1a] block">#${item.numeroOrden}</span>
+            <span class="text-[11px] text-emerald-800 font-extrabold">${item.etiquetaVisita}</span>
+          </td>
+          <td class="py-3.5 px-4 font-semibold text-slate-900">${item.cliente}</td>
+          <td class="py-3.5 px-4 font-medium text-emerald-950">${item.difunto}</td>
+          <td class="py-3.5 px-4">
+            <span class="font-semibold block text-slate-800">${item.cementerio}</span>
+            <span class="text-[11px] text-slate-500">${item.ubicacion}</span>
+          </td>
+          <td class="py-3.5 px-4">
+            <span class="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-bold text-[11px] inline-block">${item.plan}</span>
+          </td>
+          <td class="py-3.5 px-4 font-mono text-[11px]">${formatearFecha(item.fechaTermino)}</td>
+          <td class="py-3.5 px-4 text-center">
+            <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-[11px]">
+              <span class="material-symbols-outlined text-xs">check_circle</span> Completada
+            </span>
+          </td>
+          <!-- COLUMNA OPERADOR -->
+          <td class="py-3.5 px-4 text-center">
+            <span class="font-bold text-slate-800 text-[11px] bg-slate-100 px-2.5 py-1 rounded-lg inline-block border border-slate-200">
+              ${item.operador}
+            </span>
+          </td>
+          <!-- COLUMNA INFORME -->
+          <td class="py-3.5 px-4 text-center">
+            <button type="button" onclick="window.abrirModalInforme('${item.idInforme}', '${item.ordenDocId}', '${item.operador}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#002d1a] hover:bg-[#003d24] text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Ver informe fotográfico">
+              <span class="material-symbols-outlined text-sm">visibility</span>
+              <span>Ver Informe</span>
+            </button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    document.getElementById("filtro-busqueda")?.addEventListener("input", renderizarTabla);
+    document.getElementById("filtro-cementerio")?.addEventListener("change", renderizarTabla);
+
+    cargarOrdenesTerminadas();
+  </script>
+</body>
+</html>

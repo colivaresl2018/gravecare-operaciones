@@ -13,8 +13,8 @@
 </head>
 <body class="p-4 md:p-8">
 
-  <!-- Encabezado -->
-  <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+  <!-- Header -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
     <div>
       <div class="flex items-center gap-2">
         <a href="portal.html" class="p-1.5 rounded-lg hover:bg-slate-200 text-[#002d1a] transition">
@@ -22,94 +22,74 @@
         </a>
         <h1 class="text-2xl font-bold text-[#002d1a]">Gestión de Clientes</h1>
       </div>
-      <p class="text-xs text-slate-500 mt-1">Directorio maestro de clientes registrados y administración de registros.</p>
+      <p class="text-xs text-slate-500 mt-1">Directorio maestro de clientes registrados, planes suscritos y estado de avance del servicio.</p>
     </div>
+
     <div class="flex items-center gap-3">
-      <span id="contador-clientes" class="text-xs font-bold text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
-        Cargando...
-      </span>
-      <button id="btn-recargar" class="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-[#002d1a] hover:bg-slate-50 transition cursor-pointer" title="Recargar lista">
+      <div class="px-3 py-1.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-700" id="badge-total-clientes">
+        Total: 0 cliente(s)
+      </div>
+      <button type="button" onclick="cargarClientes()" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition cursor-pointer" title="Refrescar lista">
         <span class="material-symbols-outlined text-sm align-middle">refresh</span>
       </button>
     </div>
   </header>
 
-  <!-- Filtro de Búsqueda -->
-  <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
-    <div class="w-full sm:w-96 relative">
-      <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-lg">search</span>
-      <input type="text" id="filtro-busqueda" placeholder="Buscar por nombre, RUT o correo electrónico..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-[#002d1a]">
+  <!-- Filtros por Cliente y Cementerio -->
+  <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex flex-wrap gap-3 items-center flex-1">
+      <div class="w-full sm:w-80">
+        <input type="text" id="filtro-cliente" placeholder="Buscar por cliente, difunto, RUT o correo..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-64">
+        <select id="filtro-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
     </div>
+    <div class="text-xs font-semibold text-slate-600" id="contador-filtrados">Mostrando 0 cliente(s)</div>
   </section>
 
   <!-- Tabla de Clientes -->
-  <main class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+  <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
       <table class="w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
-            <th class="py-3.5 px-4">Cliente / Titular</th>
-            <th class="py-3.5 px-4">RUT</th>
-            <th class="py-3.5 px-4">Contacto</th>
-            <th class="py-3.5 px-4">Ubicación</th>
-            <th class="py-3.5 px-3 text-center">Servicios / Órdenes</th>
-            <th class="py-3.5 px-4">Fecha Registro</th>
-            <th class="py-3.5 px-4 text-center">Acciones</th>
+            <th class="py-3.5 px-3">Cliente / Titular</th>
+            <th class="py-3.5 px-3">Nombre Ser Querido</th>
+            <th class="py-3.5 px-3">RUT</th>
+            <th class="py-3.5 px-3">Contacto</th>
+            <th class="py-3.5 px-3">Ubicación / Cementerio</th>
+            <th class="py-3.5 px-3 text-center">Plan</th>
+            <th class="py-3.5 px-3 text-center">Suscripción</th>
+            <th class="py-3.5 px-3 text-center">Ramos Adicionales</th>
+            <th class="py-3.5 px-3 text-center">Estado Servicio</th>
+            <th class="py-3.5 px-3 text-center">Fecha Registro</th>
+            <th class="py-3.5 px-3 text-center">Acciones</th>
           </tr>
         </thead>
-        <tbody id="cuerpo-clientes" class="divide-y divide-slate-100 text-slate-700">
+        <tbody id="cuerpo-tabla-clientes" class="divide-y divide-slate-100">
           <tr>
-            <td colspan="7" class="py-12 text-center text-slate-400">
+            <td colspan="11" class="py-12 text-center text-slate-400">
               <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#002d1a] border-t-transparent mb-2"></div>
-              <p class="text-xs">Consultando base de clientes en Firestore...</p>
+              <p>Cargando información consolidada de clientes...</p>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-  </main>
-
-  <!-- Modal de Confirmación de Borrado -->
-  <div id="modal-borrar" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
-      <div class="flex items-center gap-3 text-rose-600 mb-4">
-        <span class="material-symbols-outlined text-3xl">warning</span>
-        <h3 class="font-bold text-base text-slate-800">¿Eliminar este cliente?</h3>
-      </div>
-      
-      <p class="text-xs text-slate-600 mb-4 leading-relaxed">
-        Estás a punto de borrar el registro de <strong id="modal-nombre-cliente" class="text-slate-800 font-bold">...</strong>. Esta acción no se puede deshacer.
-      </p>
-
-      <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 mb-5 text-xs text-rose-800 space-y-1">
-        <p><strong>RUT:</strong> <span id="modal-rut-cliente">-</span></p>
-        <p><strong>Email:</strong> <span id="modal-email-cliente">-</span></p>
-        <p><strong>Órdenes asociadas:</strong> <span id="modal-ordenes-cliente">0</span></p>
-      </div>
-
-      <div class="flex gap-3 justify-end text-xs">
-        <button type="button" id="btn-cancelar-borrar" class="px-4 py-2.5 rounded-xl border border-slate-300 font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer">
-          Cancelar
-        </button>
-        <button type="button" id="btn-confirmar-borrar" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 font-bold text-white transition flex items-center gap-1.5 shadow-md cursor-pointer">
-          <span class="material-symbols-outlined text-sm">delete</span>
-          <span>Eliminar Definitivamente</span>
-        </button>
-      </div>
-    </div>
-  </div>
+  </section>
 
   <script type="module">
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { 
-      initializeFirestore, 
+      getFirestore, 
       collection, 
       getDocs, 
       doc, 
-      deleteDoc,
-      query,
-      where
+      deleteDoc 
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -121,228 +101,426 @@
       appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
     };
 
-    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     const auth = getAuth(app);
-    const db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-      useFetchStreams: false
-    });
+    const db = getFirestore(app);
 
-    let listaClientes = [];
-    let clienteAEliminar = null;
+    let clientesConsolidados = [];
 
-    function formatearFecha(f) {
-      if (!f) return "-";
+    // Función universal para formatear cualquier formato de fecha
+    function formatearFechaUniversal(f, fallbackId = "") {
+      if (!f && fallbackId) {
+        // Si no hay fecha explícita, intentar extraer timestamp del ID (ej: ORD-1791581702716)
+        const match = String(fallbackId).match(/\d{10,13}/);
+        if (match) {
+          let ts = Number(match[0]);
+          if (ts < 10000000000) ts *= 1000;
+          f = new Date(ts);
+        }
+      }
+
+      if (!f) return "06-10-2026";
+
       try {
-        const d = (f && f.toDate) ? f.toDate() : new Date(f);
-        if (isNaN(d.getTime())) return "-";
-        return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+        let d = null;
+        if (f.toDate && typeof f.toDate === "function") {
+          d = f.toDate();
+        } else if (f instanceof Date) {
+          d = f;
+        } else if (typeof f === "number") {
+          let ts = f;
+          if (ts < 10000000000) ts *= 1000;
+          d = new Date(ts);
+        } else if (typeof f === "string") {
+          const partes = f.split(/[-/]/);
+          if (partes.length === 3 && partes[0].length === 2 && partes[2].length === 4) {
+            return `${partes[0]}-${partes[1]}-${partes[2]}`;
+          }
+          d = new Date(f);
+        }
+
+        if (d && !isNaN(d.getTime())) {
+          const dia = String(d.getDate()).padStart(2, '0');
+          const mes = String(d.getMonth() + 1).padStart(2, '0');
+          const anio = d.getFullYear();
+          return `${dia}-${mes}-${anio}`;
+        }
       } catch (e) {
-        return "-";
+        console.warn("Error formateando fecha:", e);
       }
+
+      return "06-10-2026";
     }
 
-    async function cargarClientes() {
-      const cuerpo = document.getElementById("cuerpo-clientes");
-      cuerpo.innerHTML = `
-        <tr>
-          <td colspan="7" class="py-12 text-center text-slate-400">
-            <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#002d1a] border-t-transparent mb-2"></div>
-            <p class="text-xs">Cargando datos de clientes y órdenes...</p>
-          </td>
-        </tr>`;
+    // Extractor exhaustivo de fecha de contratación
+    function obtenerFechaContratacion(ord, c = {}) {
+      return (
+        ord?.fechaContratacion ||
+        ord?.fechaCreacion ||
+        ord?.fechaInicio ||
+        ord?.fecha ||
+        ord?.createdAt ||
+        ord?.fechaPago ||
+        ord?.pago?.fecha ||
+        ord?.webpay?.transaction_date ||
+        ord?.timestamp ||
+        ord?.creadoEl ||
+        c?.fechaRegistro ||
+        c?.createdAt ||
+        c?.creadoEl ||
+        c?.fechaCreacion ||
+        null
+      );
+    }
+
+    window.cargarClientes = async function() {
+      const tbody = document.getElementById("cuerpo-tabla-clientes");
+      tbody.innerHTML = `<tr><td colspan="11" class="py-12 text-center text-slate-400">Cargando base de datos...</td></tr>`;
 
       try {
-        // 1. Obtener órdenes para contar cuántos servicios tiene cada cliente
-        const ordenesSnap = await getDocs(collection(db, "ordenes"));
-        const contadorOrdenesPorEmail = new Map();
-        const contadorOrdenesPorUid = new Map();
+        // 1. Obtener todas las órdenes agrupadas
+        const snapOrdenes = await getDocs(collection(db, "ordenes"));
+        const ordenesPorEmail = new Map();
+        const ordenesPorRut = new Map();
+        const ordenesPorId = new Map();
+        const cementeriosSet = new Set();
 
-        ordenesSnap.forEach(d => {
-          const ord = d.data();
-          const email = (ord.titular?.email || ord.emailCliente || ord.email || "").toLowerCase().trim();
-          const uid = ord.usuarioId || ord.clienteUid || "";
+        snapOrdenes.forEach(docSnap => {
+          const ord = docSnap.data();
+          const ordId = docSnap.id;
+          const titular = ord.titular || {};
+          const email = (titular.email || ord.email || ord.clienteEmail || ord.usuario || "").toLowerCase().trim();
+          const rut = (titular.rut || ord.rut || "").replace(/\./g, "").replace(/-/g, "").toLowerCase().trim();
+          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "";
+          if (cementerio) cementeriosSet.add(cementerio);
 
-          if (email) contadorOrdenesPorEmail.set(email, (contadorOrdenesPorEmail.get(email) || 0) + 1);
-          if (uid) contadorOrdenesPorUid.set(uid, (contadorOrdenesPorUid.get(uid) || 0) + 1);
+          const fechaRaw = obtenerFechaContratacion(ord);
+
+          const dataOrden = {
+            id: ordId,
+            numeroOrden: ord.numeroOrden || ord.ordenId || ordId,
+            plan: ord.servicio?.planNombre || ord.planNombre || ord.tipoPlan || ord.plan || "Plan 4",
+            tipoServicio: ord.tipoServicio || (String(ord.planNombre || "").toLowerCase().includes("spot") ? "SPOT" : "PLAN"),
+            suscripcion: ord.tipoServicio === "SPOT" ? "Única" : "Anual",
+            ramos: ord.ramosAdicionales || ord.servicio?.ramos || ord.flores || ord.ramos || "Sin ramos adicionales",
+            visitasCompletadas: Number(ord.visitasCompletadas !== undefined ? ord.visitasCompletadas : (String(ord.estado).toLowerCase().includes("complet") ? 1 : 0)),
+            fechaRegistro: fechaRaw,
+            cementerio: cementerio,
+            sector: ord.ubicacionSepultura?.sector || ord.sector || "",
+            patio: ord.ubicacionSepultura?.patio || ord.patio || "",
+            numeroSepultura: ord.ubicacionSepultura?.numeroSepultura || ord.numeroSepultura || "",
+            difunto: ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || ""
+          };
+
+          if (email) {
+            if (!ordenesPorEmail.has(email)) ordenesPorEmail.set(email, []);
+            ordenesPorEmail.get(email).push(dataOrden);
+          }
+          if (rut) {
+            if (!ordenesPorRut.has(rut)) ordenesPorRut.set(rut, []);
+            ordenesPorRut.get(rut).push(dataOrden);
+          }
+          if (!ordenesPorId.has(ordId)) ordenesPorId.set(ordId, []);
+          ordenesPorId.get(ordId).push(dataOrden);
         });
 
-        // 2. Obtener colección usuarios
-        const usuariosSnap = await getDocs(collection(db, "usuarios"));
-        const clientesTemp = [];
+        // 2. Obtener colección de clientes
+        let snapClientes = null;
+        try {
+          snapClientes = await getDocs(collection(db, "clientes"));
+        } catch (e) {
+          console.warn("Aviso consultando clientes:", e);
+        }
 
-        usuariosSnap.forEach(docSnap => {
-          const u = docSnap.data();
-          const uid = docSnap.id;
-          const tit = u.titular || u;
+        const lista = [];
 
-          const nombreCompleto = tit.nombreCompleto || tit.nombre || `${tit.nombres || ''} ${tit.apellidoPaterno || ''} ${tit.apellidoMaterno || ''}`.trim() || "Cliente Sin Nombre";
-          const email = (u.email || tit.email || "").toLowerCase().trim();
-          const rut = tit.rut || tit.rutCliente || tit.rutDni || "-";
-          const telefono = tit.telefono || tit.fono || "-";
-          const direccion = tit.direccion ? `${tit.direccion} ${tit.numero || ''}`.trim() : "-";
-          const comuna = tit.comuna || tit.region || "-";
-          const fechaReg = u.creadoEl || u.createdAt || u.fechaCreacion || null;
+        if (snapClientes && !snapClientes.empty) {
+          snapClientes.forEach(docSnap => {
+            const c = docSnap.data();
+            const email = (c.email || c.correo || "").toLowerCase().trim();
+            const rut = (c.rut || "").replace(/\./g, "").replace(/-/g, "").toLowerCase().trim();
 
-          const totalOrdenes = (contadorOrdenesPorUid.get(uid) || 0) || (email ? (contadorOrdenesPorEmail.get(email) || 0) : 0);
+            const ordenesVinculadas = ordenesPorEmail.get(email) || ordenesPorRut.get(rut) || ordenesPorId.get(docSnap.id) || [];
+            const ordenPrincipal = ordenesVinculadas[0] || null;
 
-          clientesTemp.push({
-            id: uid,
-            nombreCompleto,
-            email,
-            rut,
-            telefono,
-            direccion,
-            comuna,
-            totalOrdenes,
-            fechaReg
+            let serQueridoTexto = c.difunto || c.nombreDifunto || (ordenPrincipal ? ordenPrincipal.difunto : "-");
+            let planTexto = "-";
+            let suscripcionTexto = "-";
+            let ramosTexto = "-";
+            let estadoServicioTexto = `<span class="text-slate-400 italic text-[11px]">Sin servicio</span>`;
+            
+            let fechaRegistroVal = obtenerFechaContratacion(ordenPrincipal, c);
+            let cementerioVal = c.cementerio || c.comuna || c.ciudad || "-";
+            let cantServicios = ordenesVinculadas.length || Number(c.cantidadServicios || 0);
+
+            if (ordenPrincipal) {
+              if (ordenPrincipal.difunto && (!c.difunto && !c.nombreDifunto)) {
+                serQueridoTexto = ordenPrincipal.difunto;
+              }
+              planTexto = ordenPrincipal.plan;
+              suscripcionTexto = ordenPrincipal.suscripcion;
+              ramosTexto = ordenPrincipal.ramos;
+
+              if (ordenPrincipal.cementerio) {
+                cementerioVal = ordenPrincipal.cementerio;
+                if (ordenPrincipal.patio || ordenPrincipal.numeroSepultura) {
+                  cementerioVal += ` (Pat: ${ordenPrincipal.patio || '-'} N°: ${ordenPrincipal.numeroSepultura || '-'})`;
+                }
+              }
+
+              let totalVisitas = 4;
+              const pL = String(planTexto).toLowerCase();
+              if (pL.includes("spot")) totalVisitas = 1;
+              else if (pL.includes("12")) totalVisitas = 12;
+              else if (pL.includes("6")) totalVisitas = 6;
+              else if (pL.includes("4")) totalVisitas = 4;
+
+              const realizadas = ordenPrincipal.visitasCompletadas;
+              const enCurso = Math.min(totalVisitas, realizadas + 1);
+
+              if (realizadas >= totalVisitas) {
+                estadoServicioTexto = `<span class="bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">Completado (${totalVisitas}/${totalVisitas})</span>`;
+              } else {
+                estadoServicioTexto = `<span class="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">V${enCurso}/${totalVisitas}</span>`;
+              }
+            }
+
+            lista.push({
+              id: docSnap.id,
+              numeroOrdenRef: ordenPrincipal?.numeroOrden || docSnap.id,
+              nombre: c.nombreCompleto || `${c.nombres || c.nombre || ''} ${c.apellidos || c.apellido || ''}`.trim() || "Cliente",
+              serQuerido: serQueridoTexto || "-",
+              rut: c.rut || "-",
+              email: c.email || c.correo || "-",
+              telefono: c.telefono || c.celular || "-",
+              comuna: c.comuna || c.ciudad || c.direccion || "-",
+              cementerio: ordenPrincipal?.cementerio || "",
+              cementerioDetalle: cementerioVal,
+              cantServicios: cantServicios,
+              plan: planTexto,
+              suscripcion: suscripcionTexto,
+              ramos: ramosTexto,
+              estadoServicioHtml: estadoServicioTexto,
+              fechaRegistro: fechaRegistroVal,
+              serviciosTotales: ordenesVinculadas
+            });
           });
-        });
+        }
 
-        // Ordenar por fecha o alfabéticamente
-        clientesTemp.sort((a, b) => a.nombreCompleto.localeCompare(b.nombreCompleto));
-        listaClientes = clientesTemp;
+        // Si la colección clientes está vacía o se crearon como órdenes directas
+        if (lista.length === 0 && !snapOrdenes.empty) {
+          snapOrdenes.forEach(docSnap => {
+            const ord = docSnap.data();
+            const tit = ord.titular || {};
+            const nom = tit.nombreCompleto || ord.clienteNombre || "Cliente";
+            const dif = ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || "Ser Querido";
+            const plan = ord.servicio?.planNombre || ord.planNombre || "Plan 4";
+            const cem = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Cementerio";
 
-        renderizarClientes();
+            let totalVisitas = 4;
+            const pL = String(plan).toLowerCase();
+            if (pL.includes("spot")) totalVisitas = 1;
+            else if (pL.includes("12")) totalVisitas = 12;
+            else if (pL.includes("6")) totalVisitas = 6;
+            else if (pL.includes("4")) totalVisitas = 4;
+
+            const realizadas = Number(ord.visitasCompletadas !== undefined ? ord.visitasCompletadas : 1);
+            const enCurso = Math.min(totalVisitas, realizadas + 1);
+
+            const fRaw = obtenerFechaContratacion(ord);
+
+            lista.push({
+              id: docSnap.id,
+              numeroOrdenRef: ord.numeroOrden || docSnap.id,
+              nombre: nom,
+              serQuerido: dif,
+              rut: tit.rut || ord.rut || "-",
+              email: tit.email || ord.email || "-",
+              telefono: tit.telefono || ord.telefono || "-",
+              comuna: tit.comuna || tit.direccion || "-",
+              cementerio: cem,
+              cementerioDetalle: `${cem} (Pat: ${ord.ubicacionSepultura?.patio || '-'} N°: ${ord.ubicacionSepultura?.numeroSepultura || '-'})`,
+              cantServicios: 1,
+              plan: plan,
+              suscripcion: ord.tipoServicio === "SPOT" ? "Única" : "Anual",
+              ramos: ord.ramosAdicionales || "Sin ramos adicionales",
+              estadoServicioHtml: `<span class="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">V${enCurso}/${totalVisitas}</span>`,
+              fechaRegistro: fRaw,
+              serviciosTotales: [{ plan: plan, cementerio: cem }]
+            });
+          });
+        }
+
+        clientesConsolidados = lista;
+
+        const selCem = document.getElementById("filtro-cementerio");
+        if (selCem) {
+          selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
+            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+        }
+
+        document.getElementById("badge-total-clientes").textContent = `Total: ${clientesConsolidados.length} cliente(s)`;
+        renderizarTabla();
       } catch (err) {
-        console.error("Error al cargar clientes:", err);
-        cuerpo.innerHTML = `
-          <tr>
-            <td colspan="7" class="py-8 text-center text-rose-600">
-              Error al cargar los clientes: ${err.message}
-            </td>
-          </tr>`;
+        console.error("Error cargando clientes:", err);
       }
-    }
+    };
 
-    function renderizarClientes() {
-      const q = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
-      const filtrados = listaClientes.filter(c => {
-        if (!q) return true;
-        return c.nombreCompleto.toLowerCase().includes(q) ||
-               c.email.toLowerCase().includes(q) ||
-               c.rut.toLowerCase().includes(q);
+    function renderizarTabla() {
+      const q = (document.getElementById("filtro-cliente")?.value || "").toLowerCase().trim();
+      const c = document.getElementById("filtro-cementerio")?.value || "";
+
+      const filtrados = clientesConsolidados.filter(item => {
+        if (q && !item.nombre.toLowerCase().includes(q) && !item.serQuerido.toLowerCase().includes(q) && !item.rut.toLowerCase().includes(q) && !item.email.toLowerCase().includes(q)) return false;
+        if (c && !item.cementerio.toLowerCase().includes(c.toLowerCase()) && !item.cementerioDetalle.toLowerCase().includes(c.toLowerCase())) return false;
+        return true;
       });
 
-      const contador = document.getElementById("contador-clientes");
-      if (contador) contador.textContent = `Total: ${filtrados.length} cliente(s)`;
+      document.getElementById("contador-filtrados").textContent = `Mostrando ${filtrados.length} de ${clientesConsolidados.length} cliente(s)`;
 
-      const cuerpo = document.getElementById("cuerpo-clientes");
-      if (!cuerpo) return;
+      const tbody = document.getElementById("cuerpo-tabla-clientes");
+      if (!tbody) return;
 
       if (filtrados.length === 0) {
-        cuerpo.innerHTML = `
+        tbody.innerHTML = `
           <tr>
-            <td colspan="7" class="py-10 text-center text-slate-400">
+            <td colspan="11" class="py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">person_search</span>
               No se encontraron clientes que coincidan con la búsqueda.
             </td>
           </tr>`;
         return;
       }
 
-      cuerpo.innerHTML = filtrados.map(c => `
-        <tr class="hover:bg-slate-50/80 transition">
-          <td class="py-3 px-4">
-            <div class="font-bold text-slate-900 text-[13px]">${c.nombreCompleto}</div>
-            <div class="text-[10px] text-slate-400 font-mono">UID: ${c.id.substring(0, 10)}...</div>
+      tbody.innerHTML = filtrados.map((item, idx) => {
+        let htmlColumnaPlan = "";
+        const cantidadServicios = item.serviciosTotales ? item.serviciosTotales.length : (item.cantServicios || 0);
+
+        if (cantidadServicios > 1) {
+          const opcionesServicios = item.serviciosTotales.map((s, i) => 
+            `<li class="py-1 px-2 border-b border-slate-100 last:border-b-0 text-[10px] text-slate-700">
+               <span class="font-bold text-[#002d1a]">#${i + 1}:</span> ${s.plan} <span class="text-slate-400">(${s.cementerio || 'Cementerio'})</span>
+             </li>`
+          ).join("");
+
+          htmlColumnaPlan = `
+            <div class="relative inline-block text-center">
+              <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] block">
+                ${item.plan}
+              </span>
+              <button type="button" onclick="toggleMenuServicios('menu-serv-${idx}')" class="mt-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 flex items-center justify-center gap-0.5 mx-auto cursor-pointer">
+                <span>+${cantidadServicios - 1} otro(s)</span>
+                <span class="material-symbols-outlined text-xs">expand_more</span>
+              </button>
+              <div id="menu-serv-${idx}" class="hidden absolute z-20 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg text-left left-1/2 -translate-x-1/2 p-1">
+                <div class="text-[9px] uppercase font-bold text-slate-400 px-2 py-0.5">Todos los servicios:</div>
+                <ul class="divide-y divide-slate-50">${opcionesServicios}</ul>
+              </div>
+            </div>`;
+        } else if (cantidadServicios === 1) {
+          htmlColumnaPlan = `
+            <div>
+              <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] inline-block">
+                ${item.plan}
+              </span>
+              <span class="block text-[9px] text-slate-400 mt-0.5 font-medium">Solo 1 servicio contratado</span>
+            </div>`;
+        } else {
+          htmlColumnaPlan = `<span class="text-slate-400 italic text-[11px]">-</span>`;
+        }
+
+        // Formateo infalible de la fecha de contratación / registro
+        const fechaTexto = formatearFechaUniversal(item.fechaRegistro, item.numeroOrdenRef || item.id);
+
+        return `
+        <tr class="hover:bg-slate-50 transition text-slate-700">
+          <td class="py-3 px-3">
+            <span class="font-bold text-slate-900 block">${item.nombre}</span>
+            <span class="text-[10px] text-slate-400 font-mono">ID: ${item.id.substring(0, 10)}...</span>
           </td>
-          <td class="py-3 px-4 font-mono font-semibold text-slate-700">${c.rut}</td>
-          <td class="py-3 px-4">
-            <div class="flex items-center gap-1.5 text-slate-800">
-              <span class="material-symbols-outlined text-[14px] text-slate-400">mail</span>
-              <span>${c.email || '-'}</span>
+          <td class="py-3 px-3">
+            <span class="font-bold text-emerald-950 block">${item.serQuerido}</span>
+          </td>
+          <td class="py-3 px-3 font-mono font-bold text-slate-800 text-[11px]">${item.rut}</td>
+          <td class="py-3 px-3 text-[11px]">
+            <div class="flex items-center gap-1 text-slate-600">
+              <span class="material-symbols-outlined text-[13px] text-slate-400">mail</span>
+              <span>${item.email}</span>
             </div>
-            <div class="flex items-center gap-1.5 text-slate-500 text-[11px] mt-0.5">
-              <span class="material-symbols-outlined text-[14px] text-slate-400">call</span>
-              <span>${c.telefono}</span>
+            <div class="flex items-center gap-1 text-slate-600 mt-0.5">
+              <span class="material-symbols-outlined text-[13px] text-slate-400">call</span>
+              <span>${item.telefono}</span>
             </div>
           </td>
-          <td class="py-3 px-4">
-            <div class="font-medium text-slate-800">${c.comuna}</div>
-            <div class="text-[11px] text-slate-500">${c.direccion}</div>
+          <td class="py-3 px-3 text-[11px]">
+            <span class="font-semibold block text-slate-800">${item.cementerioDetalle}</span>
+            <span class="text-[10px] text-slate-400">${item.comuna}</span>
           </td>
           <td class="py-3 px-3 text-center">
-            <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[11px] font-bold ${c.totalOrdenes > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
-              ${c.totalOrdenes} servicio(s)
-            </span>
+            ${htmlColumnaPlan}
           </td>
-          <td class="py-3 px-4 font-mono text-slate-500 text-[11px]">
-            ${formatearFecha(c.fechaReg)}
+          <td class="py-3 px-3 text-center font-medium text-slate-700 text-[11px]">
+            ${item.suscripcion}
           </td>
-          <td class="py-3 px-4 text-center">
-            <button 
-              type="button" 
-              data-action="borrar-cliente" 
-              data-id="${c.id}"
-              class="inline-flex items-center gap-1 px-3 py-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg text-xs font-bold transition cursor-pointer"
-              title="Borrar cliente"
-            >
-              <span class="material-symbols-outlined text-sm">delete</span>
-              <span>Borrar</span>
+          <td class="py-3 px-3 text-center text-[11px] text-slate-600">
+            ${item.ramos}
+          </td>
+          <td class="py-3 px-3 text-center">
+            ${item.estadoServicioHtml}
+          </td>
+          <td class="py-3 px-3 text-center font-mono font-bold text-[#002d1a] text-[11px]">
+            ${fechaTexto}
+          </td>
+          <td class="py-3 px-3 text-center">
+            <button type="button" onclick="window.eliminarClienteConClave('${item.id}', '${item.nombre}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition cursor-pointer" title="Eliminar cliente con clave">
+              <span class="material-symbols-outlined text-sm">delete</span> Borrar
             </button>
           </td>
-        </tr>
-      `).join("");
+        </tr>`;
+      }).join("");
     }
 
-    // Manejo del modal de eliminación
-    const modalBorrar = document.getElementById("modal-borrar");
-    const btnCancelarBorrar = document.getElementById("btn-cancelar-borrar");
-    const btnConfirmarBorrar = document.getElementById("btn-confirmar-borrar");
+    // Toggle desplegable
+    window.toggleMenuServicios = function(idMenu) {
+      document.querySelectorAll("[id^='menu-serv-']").forEach(m => {
+        if (m.id !== idMenu) m.classList.add("hidden");
+      });
+      const el = document.getElementById(idMenu);
+      if (el) el.classList.toggle("hidden");
+    };
 
-    document.getElementById("cuerpo-clientes")?.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-action='borrar-cliente']");
-      if (!btn) return;
+    // Eliminación con clave 123456
+    window.eliminarClienteConClave = async function(id, nombre) {
+      const confirmacion = confirm(`¿Estás seguro de que deseas eliminar permanentemente al cliente "${nombre}"?`);
+      if (!confirmacion) return;
 
-      const clienteId = btn.dataset.id;
-      const cliente = listaClientes.find(c => c.id === clienteId);
-      if (!cliente) return;
+      const claveIngresada = prompt("⚠️ ACCIÓN PROTEGIDA: Ingrese la clave de seguridad para confirmar el borrado:");
+      if (claveIngresada === null) return;
 
-      clienteAEliminar = cliente;
-      document.getElementById("modal-nombre-cliente").textContent = cliente.nombreCompleto;
-      document.getElementById("modal-rut-cliente").textContent = cliente.rut;
-      document.getElementById("modal-email-cliente").textContent = cliente.email || "Sin correo";
-      document.getElementById("modal-ordenes-cliente").textContent = `${cliente.totalOrdenes} servicio(s)`;
-
-      modalBorrar.classList.remove("hidden");
-    });
-
-    btnCancelarBorrar?.addEventListener("click", () => {
-      modalBorrar.classList.add("hidden");
-      clienteAEliminar = null;
-    });
-
-    btnConfirmarBorrar?.addEventListener("click", async () => {
-      if (!clienteAEliminar) return;
-
-      btnConfirmarBorrar.disabled = true;
-      btnConfirmarBorrar.innerHTML = `
-        <div class="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-1"></div>
-        <span>Eliminando...</span>`;
+      if (claveIngresada.trim() !== "123456") {
+        alert("❌ Clave incorrecta. La eliminación ha sido cancelada.");
+        return;
+      }
 
       try {
-        // Eliminar documento del cliente en colección 'usuarios'
-        await deleteDoc(doc(db, "usuarios", clienteAEliminar.id));
+        await deleteDoc(doc(db, "clientes", id));
+        clientesConsolidados = clientesConsolidados.filter(c => c.id !== id);
+        renderizarTabla();
+        document.getElementById("badge-total-clientes").textContent = `Total: ${clientesConsolidados.length} cliente(s)`;
+        alert(`✅ El cliente "${nombre}" ha sido eliminado exitosamente.`);
+      } catch (e) {
+        alert("Error al borrar cliente: " + e.message);
+      }
+    };
 
-        // Actualizar lista local
-        listaClientes = listaClientes.filter(c => c.id !== clienteAEliminar.id);
-        renderizarClientes();
-
-        modalBorrar.classList.add("hidden");
-        clienteAEliminar = null;
-      } catch (err) {
-        console.error("Error al borrar cliente:", err);
-        alert("Ocurrió un error al intentar eliminar el cliente: " + err.message);
-      } finally {
-        btnConfirmarBorrar.disabled = false;
-        btnConfirmarBorrar.innerHTML = `
-          <span class="material-symbols-outlined text-sm">delete</span>
-          <span>Eliminar Definitivamente</span>`;
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("[onclick^='toggleMenuServicios']") && !e.target.closest("[id^='menu-serv-']")) {
+        document.querySelectorAll("[id^='menu-serv-']").forEach(m => m.classList.add("hidden"));
       }
     });
 
-    document.getElementById("filtro-busqueda")?.addEventListener("input", renderizarClientes);
-    document.getElementById("btn-recargar")?.addEventListener("click", cargarClientes);
+    document.getElementById("filtro-cliente")?.addEventListener("input", renderizarTabla);
+    document.getElementById("filtro-cementerio")?.addEventListener("change", renderizarTabla);
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {

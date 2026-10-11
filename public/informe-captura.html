@@ -32,7 +32,8 @@
   <!-- Header -->
   <header class="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
     <div class="flex items-center gap-3">
-      <a href="portal.html#mis-trabajos" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition shadow-sm">
+      <!-- target="_top" evita que portal.html se cargue anidado dentro del iframe -->
+      <a href="portal.html#mis-trabajos" target="_top" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition shadow-sm">
         <span class="material-symbols-outlined text-lg">arrow_back</span>
       </a>
       <div>
@@ -263,7 +264,8 @@
 
     if (!ordenId) {
       alert("No se indicó una orden de trabajo válida.");
-      window.location.href = "portal.html#mis-trabajos";
+      // Redirige la ventana completa superior para evitar iframe anidado
+      window.top.location.href = "portal.html#mis-trabajos";
     }
 
     // Identificador único por visita para evitar sobreescritura de informes
@@ -436,7 +438,8 @@
 
         if (!snap.exists()) {
           alert("La orden no existe en Firestore.");
-          window.location.href = "portal.html#mis-trabajos";
+          // Redirige la ventana completa superior para evitar iframe anidado
+          window.top.location.href = "portal.html#mis-trabajos";
           return;
         }
 
@@ -546,7 +549,8 @@
         });
 
         alert(`✓ Informe de Visita ${visitaIndex} enviado a revisión exitosamente.`);
-        window.location.href = "portal.html#mis-trabajos";
+        // Redirige la ventana completa superior para evitar iframe anidado
+        window.top.location.href = "portal.html#mis-trabajos";
 
       } catch (err) {
         console.error("Error al enviar informe:", err);
@@ -561,7 +565,7 @@
 
     onAuthStateChanged(auth, (user) => {
       if (!user) {
-        window.location.replace("/login.html");
+        window.top.location.replace("login-ops.html");
         return;
       }
       usuarioActual = user;

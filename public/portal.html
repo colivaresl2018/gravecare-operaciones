@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="data:,">
   <title>Portal de Operaciones | GraveCare</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/apple-touch-icon.png">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -20,7 +21,7 @@
 
     /* Barra lateral */
     .sidebar {
-      width: 250px;
+      width: 260px;
       background-color: #002d1a;
       color: #ffffff;
       display: flex;
@@ -57,7 +58,7 @@
       border-radius: 8px;
       color: #cbd5e1;
       text-decoration: none;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 500;
       background: none;
       border: none;
@@ -191,7 +192,7 @@
 
   <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-  <!-- Barra lateral única -->
+  <!-- Barra lateral única con la nueva pestaña agregada -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <i class="fa-solid fa-leaf"></i>
@@ -206,6 +207,12 @@
       <li class="admin-only" style="display: none;">
         <button class="nav-btn" id="btn-todos-los-trabajos" onclick="cargarModulo('todos-los-trabajos')">
           <i class="fa-solid fa-list-check"></i> Todos los Trabajos
+        </button>
+      </li>
+      <!-- NUEVA PESTAÑA SOLICITADA -->
+      <li class="admin-only" style="display: none;">
+        <button class="nav-btn" id="btn-trabajos-terminados" onclick="cargarModulo('trabajos-terminados')">
+          <i class="fa-solid fa-clipboard-check text-emerald-400"></i> Órdenes de Servicios Terminadas
         </button>
       </li>
       <li class="admin-only" style="display: none;">
@@ -230,7 +237,7 @@
       </li>
       <li class="admin-only" style="display: none;">
         <button class="nav-btn" id="btn-informe-revision" onclick="cargarModulo('informe-revision')">
-          <i class="fa-solid fa-clipboard-check"></i> Revisión Informes
+          <i class="fa-solid fa-clipboard-question"></i> Revisión Informes
         </button>
       </li>
       <li class="admin-only" style="display: none;">
@@ -300,11 +307,12 @@
     const titulosModulos = {
       "mis-trabajos": { title: "Mis Trabajos", icon: "fa-solid fa-briefcase" },
       "todos-los-trabajos": { title: "Todos los Trabajos", icon: "fa-solid fa-list-check" },
+      "trabajos-terminados": { title: "Órdenes de Servicios Terminadas", icon: "fa-solid fa-clipboard-check text-emerald-600" },
       "planificacion": { title: "Planificación & Carta Gantt", icon: "fa-solid fa-calendar-days" },
       "ordenes": { title: "Órdenes de Servicio", icon: "fa-solid fa-file-invoice" },
       "mapa": { title: "Mapa de Operaciones", icon: "fa-solid fa-map-location-dot" },
       "gastos-ingresos": { title: "Gastos e Ingresos", icon: "fa-solid fa-wallet" },
-      "informe-revision": { title: "Revisión de Informes", icon: "fa-solid fa-clipboard-check" },
+      "informe-revision": { title: "Revisión de Informes", icon: "fa-solid fa-clipboard-question" },
       "clientes": { title: "Gestión de Clientes", icon: "fa-solid fa-address-book" },
       "admin-usuarios": { title: "Gestión de Usuarios", icon: "fa-solid fa-users-gear" }
     };

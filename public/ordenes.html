@@ -1,656 +1,441 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Asignación de Órdenes | Portal de Operaciones GraveCare</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asignación de Órdenes | GraveCare Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <style>
-    .breadcrumb {
-      background-color: var(--color-bg-white, #ffffff);
-      border-bottom: 1px solid var(--color-border, #e2e8f0);
-      padding: 0.75rem 0;
-      font-size: 0.875rem;
-    }
-    .breadcrumb span { color: var(--color-text-light, #64748b); }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
-    .toolbar input { flex: 1; min-width: 16rem; padding: 0.6rem 1rem; border: 1px solid var(--color-border, #cbd5e1); border-radius: 6px; }
-    .toolbar select { width: auto; min-width: 12rem; padding: 0.6rem 1rem; border: 1px solid var(--color-border, #cbd5e1); border-radius: 6px; }
-    .table-wrap { overflow-x: auto; }
-    .paginacion {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.75rem 1rem;
-      border-top: 1px solid var(--color-border, #e2e8f0);
-      font-size: 0.875rem;
-      color: var(--color-text-light, #64748b);
-    }
-    .paginacion-actual {
-      padding: 0.375rem 0.75rem;
-      border-radius: 0.5rem;
-      background-color: var(--color-primary-dark, #002d1a);
-      color: white;
-      font-weight: 700;
-    }
-    .btn-pag {
-      padding: 0.375rem 0.75rem;
-      border-radius: 0.5rem;
-      border: 1px solid var(--color-border, #cbd5e1);
-      background: white;
-      font-size: 0.875rem;
-      cursor: pointer;
-    }
-    .btn-pag:hover { background-color: var(--color-bg-light, #f8fafc); }
-    .btn-pag:disabled { opacity: 0.4; cursor: not-allowed; }
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 50;
-      display: flex; align-items: center; justify-content: center;
-      padding: 1rem;
-    }
-    .modal-panel { max-width: 36rem; width: 100%; max-height: 85vh; overflow-y: auto; background: white; border-radius: 12px; padding: 1.5rem; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .modal-close { background: none; border: none; font-size: 1.25rem; line-height: 1; cursor: pointer; color: var(--color-text-light, #64748b); }
-    .detalle-fila { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--color-border, #e2e8f0); font-size: 0.875rem; }
-    .detalle-fila span:first-child { color: var(--color-text-light, #64748b); }
-    .hidden { display: none !important; }
-    .badge-fecha {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #fde68a;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.78rem;
-      display: inline-block;
-    }
-    .badge-visita {
-      background: #e0e7ff;
-      color: #3730a3;
-      font-weight: 800;
-      font-size: 0.75rem;
-      padding: 2px 7px;
-      border-radius: 4px;
-      margin-left: 4px;
-    }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
   </style>
 </head>
-<body>
+<body class="p-4 md:p-8">
 
-  <header class="gravecare-header">
-    <div class="gravecare-header__content">
-      <a href="portal.html" class="gravecare-header__logo">GraveCare</a>
-      <button id="btn-logout" class="btn-secondary">Cerrar Sesión</button>
-    </div>
+  <!-- Encabezado de Sección -->
+  <header class="mb-6">
+    <p class="text-xs text-slate-400 font-medium mb-1">Inicio / Gestión y Asignación de Órdenes</p>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-[#002d1a] tracking-tight">Asignación de Órdenes</h1>
+    <p class="text-xs text-slate-500 mt-1">Distribución y asignación manual de cada visita proyectada pendiente del plan de mantenimiento.</p>
   </header>
 
-  <div class="breadcrumb">
-    <div class="container">
-      <a href="portal.html">Inicio</a> <span>/</span> <span>Gestión y Asignación de Órdenes</span>
-    </div>
-  </div>
-
-  <main class="container mt-8 mb-8">
-    <h2 class="mb-2">Asignación de Órdenes</h2>
-    <p class="mb-6">Distribución y asignación manual de cada visita proyectada del plan de mantenimiento.</p>
-
-    <div class="toolbar">
-      <input id="buscador" type="text" placeholder="Buscar por cliente, N° de orden, difunto o cementerio...">
-      <select id="filtro-estado">
-        <option value="">Todos los estados</option>
-        <option value="pendiente">Pendiente</option>
-        <option value="asignada">Asignada</option>
-        <option value="en proceso">En Proceso</option>
-        <option value="completada">Completada</option>
-      </select>
-    </div>
-
-    <div class="card" style="padding: 0; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
-      <div class="table-wrap">
-        <table class="table" style="width: 100%; text-align: left; border-collapse: collapse;">
-          <thead>
-            <tr style="border-bottom: 2px solid #e2e8f0;">
-              <th style="padding: 0.75rem 1rem;">ID Orden / Visita</th>
-              <th style="padding: 0.75rem 1rem;">Difunto</th>
-              <th style="padding: 0.75rem 1rem;">Cliente</th>
-              <th style="padding: 0.75rem 1rem;">Sepultura</th>
-              <th style="padding: 0.75rem 1rem;">Plan</th>
-              <th style="padding: 0.75rem 1rem;">Fecha Estimada</th>
-              <th style="padding: 0.75rem 1rem;">Estado</th>
-              <th style="padding: 0.75rem 1rem;">Operador Asignado</th>
-              <th style="padding: 0.75rem 1rem; text-align: right;">Asignar</th>
-            </tr>
-          </thead>
-          <tbody id="ordenes-tbody">
-            <tr><td colspan="9" style="color: var(--color-text-light, #64748b); text-align: center; padding: 2rem 0;">Cargando visitas proyectadas...</td></tr>
-          </tbody>
-        </table>
+  <!-- Filtros -->
+  <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex flex-wrap gap-3 items-center flex-1">
+      <div class="w-full sm:w-80">
+        <input type="text" id="filtro-busqueda" placeholder="Buscar por cliente, N° de orden, difunto o cementerio..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
       </div>
-      <div class="paginacion">
-        <span id="paginacion-resumen">—</span>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <button id="btn-pagina-anterior" class="btn-pag">Anterior</button>
-          <span id="paginacion-actual" class="paginacion-actual">1</span>
-          <button id="btn-pagina-siguiente" class="btn-pag">Siguiente</button>
-        </div>
+      <div class="w-full sm:w-56">
+        <select id="filtro-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-48">
+        <select id="filtro-estado" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los estados pendientes</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="asignado">Asignado</option>
+        </select>
       </div>
     </div>
-  </main>
+    <div class="text-xs font-semibold text-slate-600" id="contador-ordenes">Cargando visitas...</div>
+  </section>
 
-  <!-- Modal Detalle y Asignación de Visita -->
-  <div id="modal-detalle" class="modal-overlay hidden">
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h3 style="margin-bottom: 0;">Asignación Manual de Visita</h3>
-        <button id="btn-cerrar-modal" class="modal-close">✕</button>
+  <!-- Tabla de Asignación de Órdenes (Solo Pendientes) -->
+  <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-[#002d1a] text-white font-bold text-[11px] uppercase tracking-wider">
+            <th class="py-3.5 px-4">ID Orden / Visita</th>
+            <th class="py-3.5 px-4">Difunto</th>
+            <th class="py-3.5 px-4">Cliente</th>
+            <th class="py-3.5 px-4">Sepultura</th>
+            <th class="py-3.5 px-3 text-center">Plan</th>
+            <th class="py-3.5 px-3 text-center">Fecha Estimada</th>
+            <th class="py-3.5 px-3 text-center">Estado</th>
+            <th class="py-3.5 px-4">Operador Asignado</th>
+            <th class="py-3.5 px-4 text-center">Asignar</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-tabla-ordenes" class="divide-y divide-slate-100">
+          <tr>
+            <td colspan="9" class="py-12 text-center text-slate-400">
+              <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#002d1a] border-t-transparent mb-2"></div>
+              <p>Consultando visitas pendientes...</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MODAL DE ASIGNACIÓN MANUAL -->
+  <div id="modal-asignar-op" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-100">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-[#002d1a] flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-emerald-600">person_add</span> Asignar Operador
+        </h3>
+        <button type="button" id="btn-cerrar-modal" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <span class="material-symbols-outlined text-lg">close</span>
+        </button>
       </div>
-      
-      <div id="modal-detalle-body" class="mb-6"></div>
 
-      <div style="border-top: 1px solid var(--color-border, #e2e8f0); padding-top: 1rem;">
-        <div style="margin-bottom: 1rem;">
-          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Fecha Estimada / Programada</label>
-          <input type="date" id="modal-input-fecha" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: white;">
+      <div class="space-y-3 text-xs mb-5">
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase font-bold">Visita Seleccionada:</span>
+          <div id="modal-info-visita" class="font-bold text-slate-800 text-sm">...</div>
+          <div id="modal-info-difunto" class="text-slate-600 font-medium">...</div>
         </div>
-        <div style="margin-bottom: 1rem;">
-          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Seleccionar Operador de Terreno</label>
-          <select id="modal-select-operador" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.9rem; background: white;"></select>
-        </div>
-        <div style="margin-bottom: 1rem;">
-          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 0.3rem;">Estado de la Visita</label>
-          <select id="modal-select-estado" style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: white;">
-            <option value="pendiente">Pendiente</option>
-            <option value="asignada">Asignada</option>
-            <option value="en proceso">En Proceso</option>
-            <option value="completada">Completada</option>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Seleccionar Operador:</label>
+          <select id="modal-select-operador" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-[#002d1a] bg-slate-50 font-medium">
+            <option value="Sin asignar">Sin asignar</option>
           </select>
         </div>
-        <button id="btn-guardar-asignacion" style="width: 100%; display: flex; justify-content: center; padding: 0.75rem; background: #002d1a; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-          Confirmar Asignación
-        </button>
-        <p id="asignacion-msg" class="hidden" style="margin-top: 0.5rem; font-size: 0.85rem; text-align: center; font-weight: bold;"></p>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="button" id="btn-cancelar-modal" class="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition text-xs cursor-pointer">Cancelar</button>
+        <button type="button" id="btn-guardar-modal" class="flex-1 py-2 rounded-lg bg-[#002d1a] text-white font-bold hover:bg-[#003d24] transition text-xs cursor-pointer">Confirmar</button>
       </div>
     </div>
   </div>
 
   <script type="module">
-    import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
-    import { db } from "./js/firebaseConfig.js";
-    import {
-      collection, getDocs, doc, getDoc, updateDoc, setDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-    const PAGE_SIZE = 12;
-    let todasLasVisitas = [];
-    let visitasFiltradas = [];
-    let paginaActual = 1;
-    let listaOperadores = [];
-    let visitaSeleccionada = null;
-    let cargandoVisitas = false;
+    const firebaseConfig = {
+      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
+      authDomain: "gravecare-2e8d2.firebaseapp.com",
+      projectId: "gravecare-2e8d2",
+      storageBucket: "gravecare-2e8d2.firebasestorage.app",
+      messagingSenderId: "160012946248",
+      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
+    };
 
-    function formatFecha(ts) {
-      if (!ts) return "—";
-      const fecha = ts.toDate ? ts.toDate() : new Date(ts);
-      if (isNaN(fecha.getTime())) return "—";
-      return fecha.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let listaVisitasPendientes = [];
+    let listaStaffOperadores = [];
+    let itemEditando = null;
+
+    function formatearFechaChile(f) {
+      if (!f) return "Por coordinar";
+      const d = f.toDate ? f.toDate() : new Date(f);
+      if (isNaN(d.getTime())) return String(f);
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const anio = d.getFullYear();
+      return `${dia}-${mes}-${anio}`;
     }
 
-    function formatFechaInput(ts) {
-      if (!ts) return "";
-      const fecha = ts.toDate ? ts.toDate() : new Date(ts);
-      if (isNaN(fecha.getTime())) return "";
-      const y = fecha.getFullYear();
-      const m = String(fecha.getMonth() + 1).padStart(2, '0');
-      const d = String(fecha.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
+    function parseAFecha(f) {
+      if (!f) return null;
+      if (f.toDate) return f.toDate();
+      if (typeof f === "string") {
+        const d = new Date(f);
+        if (!isNaN(d.getTime())) return d;
+      }
+      if (f instanceof Date && !isNaN(f.getTime())) return f;
+      return null;
     }
 
-    function badgeEstado(estado) {
-      const normalizado = (estado || "pendiente").toLowerCase();
-      const estilos = {
-        "pendiente": "background: #f1f5f9; color: #475569;",
-        "confirmado": "background: #dcfce7; color: #15803d;",
-        "asignada": "background: #e0f2fe; color: #0369a1;",
-        "en proceso": "background: #fef3c7; color: #b45309;",
-        "completada": "background: #dcfce7; color: #15803d;"
-      };
-      return `<span style="padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; ${estilos[normalizado] || estilos['pendiente']}">${estado || 'Pendiente'}</span>`;
-    }
-
-    function textoSepultura(ubi) {
-      if (!ubi) return "Sin especificar";
-      const partes = [];
-      if (ubi.cementerio) partes.push(ubi.cementerio);
-      if (ubi.sector) partes.push("Sec. " + ubi.sector);
-      if (ubi.patio) partes.push("Patio " + ubi.patio);
-      if (ubi.numeroSepultura || ubi.numero) partes.push("N°" + (ubi.numeroSepultura || ubi.numero));
-      return partes.length ? partes.join(", ") : "Sin especificar";
-    }
-
-    async function cargarOrdenesYProyectarVisitas() {
-      if (cargandoVisitas) return;
-      cargandoVisitas = true;
-
-      const tbody = document.getElementById("ordenes-tbody");
-      if (tbody && todasLasVisitas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="color: var(--color-text-light, #64748b); text-align: center; padding: 2rem 0;">Consultando órdenes y proyectando visitas...</td></tr>';
+    async function cargarOperadores() {
+      listaStaffOperadores = [];
+      try {
+        const snapUsers = await getDocs(collection(db, "staff"));
+        snapUsers.forEach(d => {
+          const s = d.data();
+          if (s.activo !== false) {
+            listaStaffOperadores.push({
+              id: d.id,
+              nombre: s.nombre || s.email || "Operador " + d.id.substring(0, 4)
+            });
+          }
+        });
+      } catch (e) {
+        console.warn("Aviso consultando staff:", e);
       }
 
+      const modalOp = document.getElementById("modal-select-operador");
+      if (modalOp) {
+        modalOp.innerHTML = '<option value="Sin asignar">Sin asignar</option>' + 
+          listaStaffOperadores.map(o => `<option value="${o.nombre}">${o.nombre}</option>`).join("");
+      }
+    }
+
+    async function cargarVisitasPendientes() {
+      await cargarOperadores();
+
       try {
-        const informesList = [];
-        try {
-          const snapInf = await getDocs(collection(db, "informes"));
-          snapInf.forEach(d => {
-            const inf = d.data();
-            let f = inf.fechaCaptura || inf.createdAt;
-            if (f?.toDate) f = f.toDate();
-            else if (f) f = new Date(f);
-            else f = new Date();
+        const snapOrdenes = await getDocs(collection(db, "ordenes"));
+        const visitas = [];
+        const cementeriosSet = new Set();
 
-            informesList.push({
-              id: d.id,
-              numeroOrden: inf.numeroOrden || inf.ordenId || d.id,
-              difunto: String(inf.difunto || inf.nombreDifunto || "").toLowerCase().trim(),
-              operador: inf.operador || inf.tecnico || null,
-              fecha: f
-            });
-          });
-        } catch(e) {
-          console.warn("Informes warning:", e);
-        }
+        snapOrdenes.forEach(docSnap => {
+          const d = docSnap.data();
+          const estadoGlobal = (d.estado || d.estadoServicio || "").toLowerCase().trim();
 
-        const snap = await getDocs(collection(db, "ordenes"));
-        const listaDesglosada = [];
+          // Si toda la orden está completada, se omite por completo
+          if (estadoGlobal === "completada" || estadoGlobal === "completado" || estadoGlobal === "terminada" || estadoGlobal === "finalizada") {
+            return;
+          }
 
-        snap.docs.forEach((docSnap) => {
-          const o = docSnap.data();
-          const ordId = docSnap.id;
-          const numOrd = o.numeroOrden || ordId;
-          const planStr = String(o.planNombre || o.servicio?.planNombre || o.plan || "Plan 6").toLowerCase();
+          const tit = d.titular || d;
+          const dif = d.difunto || {};
+          const nomCliente = tit.nombreCompleto || tit.nombreCliente || d.clienteNombre || d.usuario || "Cliente";
+          const nomDifunto = dif.nombreCompleto || dif.nombre || d.nombreCompletoDifunto || d.difuntoNombre || "Ser Querido";
+          const cem = d.ubicacionSepultura?.cementerio || d.cementerio || "Cementerio";
+          cementeriosSet.add(cem);
 
-          let totalVisitas = 6;
-          let intervaloMeses = 2;
+          const sec = d.ubicacionSepultura?.sector || d.sector || "-";
+          const pat = d.ubicacionSepultura?.patio || d.patio || "-";
+          const num = d.ubicacionSepultura?.numeroSepultura || d.numeroSepultura || "-";
+          const sepulturaTexto = `${cem}, Sec. ${sec}, Patio ${pat}, N°${num}`;
 
-          if (planStr.includes("spot")) {
+          const plan = d.servicio?.planNombre || d.planNombre || "Plan 4";
+          const planL = String(plan).toLowerCase();
+          const tipoServicio = String(d.tipoServicio || "").toUpperCase();
+
+          let totalVisitas = 1;
+          let intervaloMeses = 3;
+
+          if (tipoServicio === "SPOT" || planL.includes("spot")) {
             totalVisitas = 1;
             intervaloMeses = 0;
-          } else if (planStr.includes("12") || planStr.includes("mensual")) {
+          } else if (planL.includes("12")) {
             totalVisitas = 12;
             intervaloMeses = 1;
-          } else if (planStr.includes("6") || planStr.includes("bimestral")) {
+          } else if (planL.includes("6")) {
             totalVisitas = 6;
             intervaloMeses = 2;
-          } else if (planStr.includes("4") || planStr.includes("trimestral")) {
+          } else if (planL.includes("4")) {
             totalVisitas = 4;
             intervaloMeses = 3;
           }
 
-          let fBase = new Date();
-          if (o.createdAt?.toDate) fBase = o.createdAt.toDate();
-          else if (o.creadoEl?.toDate) fBase = o.creadoEl.toDate();
-          else if (o.fecha) fBase = new Date(o.fecha);
+          let fInicioDate = new Date(2026, 9, 6);
+          const rawInicio = d.fechaCreacion || d.createdAt || d.fechaInicio || d.fecha;
+          if (rawInicio?.toDate) fInicioDate = rawInicio.toDate();
+          else if (rawInicio) fInicioDate = new Date(rawInicio);
 
-          const difuntoNorm = String(o.difunto?.nombre || o.nombreDifunto || "").toLowerCase().trim();
-          const informesDeOrden = informesList.filter(inf => 
-            inf.numeroOrden === ordId || 
-            inf.numeroOrden === numOrd || 
-            (difuntoNorm && inf.difunto && inf.difunto.includes(difuntoNorm))
-          );
-          informesDeOrden.sort((a, b) => a.fecha - b.fecha);
+          // Fechas guardadas
+          let fechasGuardadas = [];
+          if (Array.isArray(d.fechasProgramadas) && d.fechasProgramadas.length > 0) {
+            fechasGuardadas = d.fechasProgramadas.map(f => parseAFecha(f)).filter(Boolean);
+          } else if (d.proximaVisita || d.fechaProgramada) {
+            const fUnica = parseAFecha(d.proximaVisita || d.fechaProgramada);
+            if (fUnica) fechasGuardadas.push(fUnica);
+          }
 
-          const progMap = o.programacionVisitas || {};
+          while (fechasGuardadas.length < totalVisitas) {
+            const base = fechasGuardadas[fechasGuardadas.length - 1] || fInicioDate;
+            const nueva = new Date(base.getFullYear(), base.getMonth() + (intervaloMeses || 1), base.getDate(), 10, 0, 0);
+            fechasGuardadas.push(nueva);
+          }
 
-          for (let v = 1; v <= totalVisitas; v++) {
-            const numVisita = v;
-            const esRealizada = numVisita <= informesDeOrden.length;
+          // Visitas ya completadas en esta orden
+          const visitasCompletadasCount = Number(d.visitasCompletadas !== undefined ? d.visitasCompletadas : 0);
+          const operadoresPorVisita = d.operadoresPorVisita || {};
 
-            let fechaEstimada;
-            let estadoVisita = "pendiente";
-            let operadorVisita = null;
-            let operadorId = null;
+          // REGLA: RECORRER Y MOSTRAR ÚNICAMENTE LAS VISITAS NO COMPLETADAS
+          for (let idx = 0; idx < totalVisitas; idx++) {
+            const numeroVisita = idx + 1;
+            const claveVisita = `V${numeroVisita}`;
 
-            if (esRealizada) {
-              const inf = informesDeOrden[numVisita - 1];
-              fechaEstimada = inf.fecha;
-              estadoVisita = "completada";
-              operadorVisita = inf.operador || o.operadorAsignadoNombre || "Christian Olivares Lizama";
-            } else {
-              if (informesDeOrden.length > 0) {
-                const ultFecha = new Date(informesDeOrden[informesDeOrden.length - 1].fecha);
-                const salto = (numVisita - informesDeOrden.length) * intervaloMeses;
-                fechaEstimada = new Date(ultFecha.getFullYear(), ultFecha.getMonth() + salto, ultFecha.getDate());
-              } else {
-                const salto = (numVisita - 1) * intervaloMeses;
-                fechaEstimada = new Date(fBase.getFullYear(), fBase.getMonth() + salto, fBase.getDate());
-              }
-
-              const progVisita = progMap[`v_${numVisita}`] || o[`programacionVisitas.v_${numVisita}`];
-              if (progVisita) {
-                if (progVisita.fecha) fechaEstimada = new Date(progVisita.fecha);
-                if (progVisita.operadorNombre && progVisita.operadorNombre !== "Sin asignar") {
-                  operadorVisita = progVisita.operadorNombre;
-                  operadorId = progVisita.operadorId || null;
-                }
-                if (progVisita.estado) estadoVisita = progVisita.estado;
-              }
+            // ⚡ FILTRO ESTRICTO: Si esta visita ya está completada, NO se muestra en esta pantalla
+            if (idx < visitasCompletadasCount) {
+              continue;
             }
 
-            listaDesglosada.push({
-              _docId: ordId,
-              ordenId: ordId,
-              numeroOrden: numOrd,
-              visitaIndex: numVisita,
+            const fechaDeEstaVisita = fechasGuardadas[idx] || fechasGuardadas[0];
+            const operadorAsignado = operadoresPorVisita[claveVisita] || "Sin asignar";
+            const estadoVisita = operadorAsignado !== "Sin asignar" ? "asignado" : "pendiente";
+
+            visitas.push({
+              ordenDocId: docSnap.id,
+              numeroOrden: d.numeroOrden || d.ordenId || docSnap.id,
+              claveVisita: claveVisita,
+              idVisitaCompleto: `${d.numeroOrden || d.ordenId || docSnap.id}-${claveVisita}`,
+              badgeFraccion: `${numeroVisita}/${totalVisitas}`,
+              numeroVisita: numeroVisita,
               totalVisitas: totalVisitas,
-              idVisitaVisual: `${numOrd}-V${numVisita}`,
-              difunto: o.difunto || { nombre: o.nombreDifunto || o.nombreFallecido },
-              titular: o.titular || { nombre: o.nombreTitular || o.cliente },
-              ubicacionSepultura: o.ubicacionSepultura || {
-                cementerio: o.cementerio,
-                sector: o.sector,
-                patio: o.patio,
-                numeroSepultura: o.numeroSepultura
-              },
-              planNombre: o.planNombre || o.servicio?.planNombre || `Plan ${totalVisitas}`,
-              fechaEstimada: fechaEstimada,
+              difunto: nomDifunto,
+              cliente: nomCliente,
+              sepultura: sepulturaTexto,
+              cementerio: cem,
+              plan: plan,
+              fechaEstimada: fechaDeEstaVisita,
               estado: estadoVisita,
-              operadorAsignadoNombre: operadorVisita || "Sin asignar",
-              operadorAsignadoId: operadorId,
-              telefono: o.titular?.telefono || o.telefono || "—"
+              operadorAsignado: operadorAsignado,
+              operadoresPorVisita: { ...operadoresPorVisita }
             });
           }
         });
 
-        listaDesglosada.sort((a, b) => new Date(a.fechaEstimada) - new Date(b.fechaEstimada));
+        // Ordenar por fecha estimada
+        visitas.sort((a, b) => {
+          const tA = a.fechaEstimada ? a.fechaEstimada.getTime() : 0;
+          const tB = b.fechaEstimada ? b.fechaEstimada.getTime() : 0;
+          return tA - tB;
+        });
 
-        todasLasVisitas = listaDesglosada;
-        visitasFiltradas = todasLasVisitas;
-        renderTabla();
-      } catch (e) {
-        console.error("Error cargando visitas:", e);
-        if (tbody) {
-          tbody.innerHTML = `<tr><td colspan="9" style="color: #dc2626; text-align: center; padding: 2rem 0;">Error al cargar visitas: ${e.message}</td></tr>`;
+        listaVisitasPendientes = visitas;
+
+        const selCem = document.getElementById("filtro-cementerio");
+        if (selCem) {
+          selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
+            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
         }
-      } finally {
-        cargandoVisitas = false;
+
+        renderizarTabla();
+      } catch (err) {
+        console.error("Error al cargar visitas:", err);
       }
     }
 
-    function renderTabla() {
-      const tbody = document.getElementById("ordenes-tbody");
-      if (!tbody) return;
-      const inicio = (paginaActual - 1) * PAGE_SIZE;
-      const pagina = visitasFiltradas.slice(inicio, inicio + PAGE_SIZE);
+    function renderizarTabla() {
+      const q = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
+      const c = document.getElementById("filtro-cementerio")?.value || "";
+      const est = document.getElementById("filtro-estado")?.value || "";
 
-      if (visitasFiltradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="color: #64748b; text-align: center; padding: 2rem 0;">No se encontraron visitas registradas.</td></tr>';
-      } else {
-        tbody.innerHTML = pagina.map((v, idx) => {
-          let difuntoNombre = "—";
-          if (v.difunto) {
-            difuntoNombre = v.difunto.nombreCompleto || v.difunto.nombre || `${v.difunto.nombres || ''} ${v.difunto.apellidoPaterno || ''}`.trim();
-          }
-
-          let titularNombre = "—";
-          if (v.titular) {
-            titularNombre = v.titular.nombreCompleto || v.titular.nombre || `${v.titular.nombres || ''} ${v.titular.apellidoPaterno || ''}`.trim();
-          }
-
-          const fechaEstimadaTxt = formatFecha(v.fechaEstimada);
-          const indexAbsoluto = inicio + idx;
-          const tieneOperador = v.operadorAsignadoNombre && v.operadorAsignadoNombre !== "Sin asignar";
-
-          return `
-            <tr style="cursor:pointer; border-bottom: 1px solid #f1f5f9;" data-abrir="${indexAbsoluto}">
-              <td style="padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8rem; font-weight: bold;">
-                ${v.idVisitaVisual}
-                <span class="badge-visita">${v.visitaIndex}/${v.totalVisitas}</span>
-              </td>
-              <td style="padding: 0.75rem 1rem; font-weight:600;">${difuntoNombre}</td>
-              <td style="padding: 0.75rem 1rem;">${titularNombre}</td>
-              <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">${textoSepultura(v.ubicacionSepultura)}</td>
-              <td style="padding: 0.75rem 1rem; font-size: 0.85rem; font-weight: 600;">${v.planNombre}</td>
-              <td style="padding: 0.75rem 1rem;">
-                <span class="badge-fecha">📅 ${fechaEstimadaTxt}</span>
-              </td>
-              <td style="padding: 0.75rem 1rem;">${badgeEstado(v.estado)}</td>
-              <td style="padding: 0.75rem 1rem;">
-                ${tieneOperador ? `<strong>${v.operadorAsignadoNombre}</strong>` : '<span style="color: #94a3b8; font-style: italic;">Sin asignar</span>'}
-              </td>
-              <td style="padding: 0.75rem 1rem; text-align: right;">
-                <button type="button" class="btn-gestionar" data-abrir="${indexAbsoluto}" style="background: none; border: none; color: #002d1a; font-weight:700; font-size:0.85rem; cursor: pointer;">
-                  Asignar →
-                </button>
-              </td>
-            </tr>
-          `;
-        }).join("");
-      }
-
-      const total = visitasFiltradas.length;
-      const desde = total === 0 ? 0 : inicio + 1;
-      const hasta = Math.min(inicio + PAGE_SIZE, total);
-      document.getElementById("paginacion-resumen").textContent = `Mostrando ${desde}-${hasta} de ${total} visitas del plan`;
-      document.getElementById("paginacion-actual").textContent = String(paginaActual);
-      document.getElementById("btn-pagina-anterior").disabled = paginaActual <= 1;
-      document.getElementById("btn-pagina-siguiente").disabled = hasta >= total;
-    }
-
-    function aplicarFiltros() {
-      const texto = document.getElementById("buscador").value.trim().toLowerCase();
-      const estado = document.getElementById("filtro-estado").value.toLowerCase();
-
-      visitasFiltradas = todasLasVisitas.filter((v) => {
-        if (estado && (v.estado || "pendiente").toLowerCase() !== estado) return false;
-        if (texto) {
-          const dif = v.difunto ? `${v.difunto.nombres || ''} ${v.difunto.apellidoPaterno || ''} ${v.difunto.nombreCompleto || v.difunto.nombre || ''}` : "";
-          const tit = v.titular ? `${v.titular.nombres || ''} ${v.titular.apellidoPaterno || ''} ${v.titular.nombre || v.titular.nombreCompleto || ''}` : "";
-          const cem = v.ubicacionSepultura?.cementerio || "";
-          const num = v.idVisitaVisual || v.numeroOrden || "";
-          const campo = `${dif} ${tit} ${cem} ${num}`.toLowerCase();
-          if (!campo.includes(texto)) return false;
-        }
+      const filtradas = listaVisitasPendientes.filter(item => {
+        if (q && !item.cliente.toLowerCase().includes(q) && !item.difunto.toLowerCase().includes(q) && !item.idVisitaCompleto.toLowerCase().includes(q) && !item.cementerio.toLowerCase().includes(q)) return false;
+        if (c && item.cementerio !== c) return false;
+        if (est && item.estado !== est) return false;
         return true;
       });
-      paginaActual = 1;
-      renderTabla();
+
+      const contador = document.getElementById("contador-ordenes");
+      if (contador) contador.textContent = `Mostrando ${filtradas.length} visita(s) pendiente(s)`;
+
+      const tbody = document.getElementById("cuerpo-tabla-ordenes");
+      if (!tbody) return;
+
+      if (filtradas.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-12 text-center text-slate-400">
+              <span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">task_alt</span>
+              No hay visitas pendientes por asignar en este momento.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtradas.map((item, index) => {
+        const badgeColor = item.operadorAsignado !== "Sin asignar" 
+          ? "bg-emerald-100 text-emerald-800" 
+          : "bg-slate-100 text-slate-600";
+        
+        const textoOperador = item.operadorAsignado !== "Sin asignar"
+          ? `<span class="font-bold text-slate-800">${item.operadorAsignado}</span>`
+          : `<span class="text-slate-400 italic">Sin asignar</span>`;
+
+        return `
+          <tr class="hover:bg-slate-50 transition text-slate-700">
+            <td class="py-3.5 px-4">
+              <span class="font-mono font-bold text-slate-800 block text-[11px]">${item.idVisitaCompleto}</span>
+              <span class="inline-block mt-1 text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                ${item.badgeFraccion}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 font-bold text-slate-900">${item.difunto}</td>
+            <td class="py-3.5 px-4 font-medium text-slate-700">${item.cliente}</td>
+            <td class="py-3.5 px-4 text-[11px] text-slate-600">${item.sepultura}</td>
+            <td class="py-3.5 px-3 text-center">
+              <span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold text-[11px]">${item.plan}</span>
+            </td>
+            <td class="py-3.5 px-3 text-center">
+              <span class="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-900 font-mono font-bold px-2.5 py-1 rounded-md text-[11px]">
+                <span class="material-symbols-outlined text-[13px] text-amber-600">calendar_today</span>
+                ${formatearFechaChile(item.fechaEstimada)}
+              </span>
+            </td>
+            <td class="py-3.5 px-3 text-center">
+              <span class="inline-block capitalize px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">
+                ${item.estado}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-xs">${textoOperador}</td>
+            <td class="py-3.5 px-4 text-center">
+              <button type="button" onclick="window.abrirModalAsignar('${item.idVisitaCompleto}')" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline cursor-pointer text-xs">
+                Asignar <span class="material-symbols-outlined text-sm">arrow_forward</span>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
     }
 
-    async function abrirModal(index) {
-      visitaSeleccionada = visitasFiltradas[index];
-      if (!visitaSeleccionada) return;
+    // ABRIR MODAL PARA ASIGNAR OPERADOR MANUALMENTE
+    window.abrirModalAsignar = function(idVisitaCompleto) {
+      itemEditando = listaVisitasPendientes.find(v => v.idVisitaCompleto === idVisitaCompleto);
+      if (!itemEditando) return;
 
-      const v = visitaSeleccionada;
-      const body = document.getElementById("modal-detalle-body");
-      const difunto = v.difunto?.nombreCompleto || v.difunto?.nombre || "Carlos Gardel";
-      const titular = v.titular?.nombreCompleto || v.titular?.nombre || "Hector Olivares";
-      const ubi = v.ubicacionSepultura;
-
-      const filas = [
-        ["Identificador", `${v.idVisitaVisual} (Visita ${v.visitaIndex} de ${v.totalVisitas})`],
-        ["Ser Querido / Difunto", difunto],
-        ["Cliente Titular", titular],
-        ["Teléfono Titular", v.telefono],
-        ["Cementerio", ubi?.cementerio || "—"],
-        ["Sector y Patio", `${ubi?.sector || 'S/S'} · Patio ${ubi?.patio || 'S/P'}`],
-        ["N° Sepultura", ubi?.numeroSepultura || ubi?.numero || "—"],
-        ["Plan Contratado", v.planNombre],
-        ["Fecha Estimada", formatFecha(v.fechaEstimada)]
-      ];
-
-      body.innerHTML = filas.map(([l, val]) => `
-        <div class="detalle-fila"><span>${l}</span><strong>${val}</strong></div>
-      `).join("");
-
-      document.getElementById("modal-input-fecha").value = formatFechaInput(v.fechaEstimada);
-
-      const selectOp = document.getElementById("modal-select-operador");
-      selectOp.innerHTML = '<option value="">Cargando operadores...</option>';
-
-      try {
-        const snapStaff = await getDocs(collection(db, "staff"));
-        listaOperadores = [];
-
-        snapStaff.forEach((d) => {
-          const data = d.data();
-          if (data.activo !== false) {
-            listaOperadores.push({
-              id: d.id,
-              nombre: data.nombre || data.email || d.id,
-              email: data.email || "",
-              rol: (data.rol || "operador").toUpperCase()
-            });
-          }
-        });
-
-        selectOp.innerHTML = '<option value="">-- Sin Asignar (Pendiente) --</option>';
-        listaOperadores.forEach((op) => {
-          const option = document.createElement("option");
-          option.value = op.id;
-          option.textContent = `${op.nombre} (${op.rol})`;
-          if (op.id === v.operadorAsignadoId || op.nombre === v.operadorAsignadoNombre) {
-            option.selected = true;
-          }
-          selectOp.appendChild(option);
-        });
-      } catch (err) {
-        selectOp.innerHTML = '<option value="">Error cargando operadores</option>';
-      }
-
-      document.getElementById("modal-select-estado").value = (v.estado || "pendiente").toLowerCase();
-      document.getElementById("asignacion-msg").classList.add("hidden");
-      document.getElementById("modal-detalle").classList.remove("hidden");
-    }
-
-    document.getElementById("btn-guardar-asignacion").addEventListener("click", async () => {
-      const btnGuardar = document.getElementById("btn-guardar-asignacion");
-      const msgEl = document.getElementById("asignacion-msg");
-
-      if (!visitaSeleccionada) return;
-
-      const v = visitaSeleccionada;
-      const operadorId = document.getElementById("modal-select-operador").value;
-      const fechaVal = document.getElementById("modal-input-fecha").value;
-      let estado = document.getElementById("modal-select-estado").value;
-      const operador = listaOperadores.find((op) => op.id === operadorId);
-
-      if (operador && estado === "pendiente") {
-        estado = "asignada";
-      } else if (!operador && estado === "asignada") {
-        estado = "pendiente";
-      }
-
-      btnGuardar.disabled = true;
-      btnGuardar.textContent = "Guardando asignación...";
-
-      try {
-        const docRef = doc(db, "ordenes", String(v.ordenId).trim());
-
-        let isoFecha = v.fechaEstimada;
-        if (fechaVal) {
-          const partes = fechaVal.split("-");
-          isoFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0).toISOString();
-        }
-
-        const snapDoc = await getDoc(docRef);
-        const dataActual = snapDoc.exists() ? snapDoc.data() : {};
-        const programacionActual = dataActual.programacionVisitas || {};
-
-        programacionActual[`v_${v.visitaIndex}`] = {
-          visitaNumero: v.visitaIndex,
-          fecha: isoFecha,
-          operadorId: operador ? operador.id : null,
-          operadorNombre: operador ? operador.nombre : null,
-          estado: estado,
-          actualizadoEl: new Date().toISOString()
-        };
-
-        const updatePayload = {
-          programacionVisitas: programacionActual,
-          updatedAt: serverTimestamp()
-        };
-
-        if (v.visitaIndex === 2 && operador) {
-          updatePayload.operadorAsignadoId = operador.id;
-          updatePayload.operadorAsignadoNombre = operador.nombre;
-          updatePayload.fechaProgramada = isoFecha;
-          updatePayload.proximaVisita = isoFecha;
-        }
-
-        await setDoc(docRef, updatePayload, { merge: true });
-
-        msgEl.textContent = "✓ Visita asignada y guardada correctamente.";
-        msgEl.style.color = "#16a34a";
-        msgEl.classList.remove("hidden");
-
-        await cargarOrdenesYProyectarVisitas();
-        aplicarFiltros();
-
-        setTimeout(() => {
-          document.getElementById("modal-detalle").classList.add("hidden");
-          btnGuardar.disabled = false;
-          btnGuardar.textContent = "Confirmar Asignación";
-        }, 600);
-
-      } catch (err) {
-        console.error("Error guardando asignación:", err);
-        msgEl.textContent = "❌ Error: " + err.message;
-        msgEl.style.color = "#dc2626";
-        msgEl.classList.remove("hidden");
-        btnGuardar.disabled = false;
-        btnGuardar.textContent = "Confirmar Asignación";
-      }
-    });
-
-    document.getElementById("ordenes-tbody").addEventListener("click", (e) => {
-      const elemento = e.target.closest("[data-abrir]");
-      if (elemento) {
-        const idx = elemento.getAttribute("data-abrir");
-        abrirModal(Number(idx));
-      }
-    });
-
-    document.getElementById("btn-cerrar-modal").addEventListener("click", () => {
-      document.getElementById("modal-detalle").classList.add("hidden");
-    });
-
-    document.getElementById("buscador").addEventListener("input", aplicarFiltros);
-    document.getElementById("filtro-estado").addEventListener("change", aplicarFiltros);
-    document.getElementById("btn-pagina-anterior").addEventListener("click", () => { if (paginaActual > 1) { paginaActual--; renderTabla(); } });
-    document.getElementById("btn-pagina-siguiente").addEventListener("click", () => { paginaActual++; renderTabla(); });
-
-    wireLogoutButton("btn-logout");
-
-    // Inicialización resiliente: arranca sin depender del bloqueo de iframe
-    let inicializado = false;
-    const inicializarModulo = async () => {
-      if (inicializado) return;
-      inicializado = true;
-      await cargarOrdenesYProyectarVisitas();
+      document.getElementById("modal-info-visita").textContent = `${itemEditando.idVisitaCompleto} (${itemEditando.badgeFraccion})`;
+      document.getElementById("modal-info-difunto").textContent = `Difunto: ${itemEditando.difunto} - ${itemEditando.plan}`;
+      document.getElementById("modal-select-operador").value = itemEditando.operadorAsignado || "Sin asignar";
+      
+      document.getElementById("modal-asignar-op").classList.remove("hidden");
     };
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", inicializarModulo);
-    } else {
-      inicializarModulo();
+    function cerrarModal() {
+      document.getElementById("modal-asignar-op").classList.add("hidden");
+      itemEditando = null;
     }
 
-    try {
-      requireStaffAccess(async (user, staffProfile) => {
-        const rol = (staffProfile?.rol || "").toLowerCase();
-        if (rol === "operador") {
-          window.location.replace("mis-trabajos.html");
-          return;
-        }
-        if (!todasLasVisitas || todasLasVisitas.length === 0) {
-          await cargarOrdenesYProyectarVisitas();
-        }
-      });
-    } catch(e) {
-      console.warn("requireStaffAccess en iframe omitido o diferido:", e);
-    }
+    document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModal);
+    document.getElementById("btn-cancelar-modal")?.addEventListener("click", cerrarModal);
+
+    // GUARDAR ASIGNACIÓN MANUAL EN FIRESTORE
+    document.getElementById("btn-guardar-modal")?.addEventListener("click", async () => {
+      if (!itemEditando) return;
+      const opSeleccionado = document.getElementById("modal-select-operador").value;
+
+      const btn = document.getElementById("btn-guardar-modal");
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+
+      try {
+        itemEditando.operadorAsignado = opSeleccionado;
+        itemEditando.operadoresPorVisita[itemEditando.claveVisita] = opSeleccionado;
+        itemEditando.estado = opSeleccionado !== "Sin asignar" ? "asignado" : "pendiente";
+
+        // Persistencia exclusiva por visita en Firestore
+        await updateDoc(doc(db, "ordenes", itemEditando.ordenDocId), {
+          [`operadoresPorVisita.${itemEditando.claveVisita}`]: opSeleccionado
+        });
+
+        renderizarTabla();
+        cerrarModal();
+      } catch (err) {
+        alert("Error al asignar operador: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Confirmar";
+      }
+    });
+
+    document.getElementById("filtro-busqueda")?.addEventListener("input", renderizarTabla);
+    document.getElementById("filtro-cementerio")?.addEventListener("change", renderizarTabla);
+    document.getElementById("filtro-estado")?.addEventListener("change", renderizarTabla);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.replace("login-ops.html");
+        return;
+      }
+      await cargarVisitasPendientes();
+    });
   </script>
 </body>
 </html>
