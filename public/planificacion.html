@@ -85,6 +85,15 @@
           <option value="">Todos los Operadores</option>
         </select>
       </div>
+      <div class="w-full sm:w-44">
+        <select id="filtro-control" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los controles</option>
+          <option value="atrasada">Atrasadas (más de 3 días)</option>
+          <option value="sinOperador">Sin operador</option>
+          <option value="proximaVencer">Próximas a vencer (7 días)</option>
+          <option value="sinFecha">Sin fecha (históricas)</option>
+        </select>
+      </div>
 
       <!-- Selector de Escala -->
       <div id="selector-escala-container" class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
@@ -220,6 +229,8 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
+    import { transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
+    import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { 
       getFirestore, 
       collection, 
@@ -508,6 +519,8 @@
 
             // Operador asignado exclusivamente a esta visita (por defecto "Sin asignar")
             const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || "Sin asignar";
+            const estadoGuardado = (ord.estadosPorVisita || {})[claveVisita] || null; // spec 041
+            const tieneFechaGuardada = Boolean((Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
 
             lista.push({
               id: ordId,
@@ -521,6 +534,9 @@
               difunto,
               plan,
               operadorAsignado: operadorDeEstaVisita,
+              estadoPersistido: estadoGuardado,
+              estado: estadoGuardado || (operadorDeEstaVisita !== "Sin asignar" ? "asignado" : "pendiente"),
+              tieneFechaGuardada,
               operadoresPorVisita: { ...operadoresPorVisita },
               fInicio: fInicioDate,
               fTermino: fTerminoDate,
@@ -553,15 +569,30 @@
       }
     }
 
+    // spec 041: etiquetas de control. Sin fecha guardada no se clasifica por fecha (las fechas de relleno no cuentan).
+    function etiquetasDe(item) {
+      return clasificarVisita({ estado: item.estado, fechaProgramada: item.tieneFechaGuardada ? item.proximaVisita : null, operador: item.operadorAsignado });
+    }
+
+    // spec 041: si la visita ya estaba asignada o en ejecución, al cambiar su fecha pasa a reprogramada (con auditoría).
+    // Las visitas pendientes conservan su flujo natural: no cambian de estado.
+    async function reprogramarSiCorresponde(item) {
+      if (!item || !["asignado", "en_ejecucion"].includes(item.estado)) return;
+      await guardarEstadoVisita({ actualizar: updateDoc, referencia: (id) => doc(db, "ordenes", id), ordenDocId: item.id, claveVisita: item.claveVisita, estadoAnterior: item.estado, estadoNuevo: "reprogramada", uidOperador: auth.currentUser?.uid || "" });
+      item.estado = "reprogramada";
+    }
+
     function renderizarTodo() {
       const q = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
       const c = document.getElementById("filtro-cementerio")?.value || "";
       const op = document.getElementById("filtro-operador")?.value || "";
+      const ctrl = document.getElementById("filtro-control")?.value || "";
 
       const filtrados = datosConsolidados.filter(item => {
         if (q && !item.titular.toLowerCase().includes(q) && !item.difunto.toLowerCase().includes(q) && !item.numeroOrden.toLowerCase().includes(q)) return false;
         if (c && item.cementerio !== c) return false;
         if (op && item.operadorAsignado !== op) return false;
+        if (!cumpleFiltro(etiquetasDe(item), ctrl)) return false; // spec 041
         return true;
       });
 
@@ -590,6 +621,7 @@
       const diaElegido = partes[2] ? Number(partes[2]) : 15;
       let nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, diaElegido, 10, 0, 0);
 
+      const fechaPreviaMover = item.proximaVisita;
       item.proximaVisita = nuevaFecha;
       item.fechasProyectadas = [nuevaFecha];
       item.fechasProyectadasCompletas[item.indexVisita] = nuevaFecha;
@@ -606,11 +638,35 @@
           proximaVisita: isoString,
           fechasProgramadas: timestamps
         });
+        if (fechaPreviaMover && nuevaFecha.getTime() !== new Date(fechaPreviaMover).getTime()) await reprogramarSiCorresponde(item);
       } catch (err) {
         console.error("Error al actualizar fecha en Firestore:", err);
         alert("Error al guardar en base de datos: " + err.message);
         await cargarDatos();
       }
+    }
+
+    // spec 041: tarjeta del Gantt para visitas con estado distinto de pendiente. Mantiene el mismo data-action (clic y doble clic).
+    function tarjetaDeEstado(item, fechaAttr) {
+      const MAPA = {
+        asignado: ["bg-violet-50 border-violet-300 text-violet-800", "person", "Asignada"],
+        en_ejecucion: ["bg-sky-50 border-sky-300 text-sky-800", "engineering", "En ejecución"],
+        completada: ["bg-emerald-100 border-emerald-400 text-emerald-900", "task_alt", "Completada"],
+        reprogramada: ["bg-orange-50 border-orange-300 text-orange-800", "event_repeat", "Reprogramada"],
+      };
+      const [clases, icono, texto] = MAPA[item.estado];
+      const activa = ordenSeleccionadaId === item.subId ? "tarjeta-activa" : "";
+      return `
+              <div 
+                data-action="tarjeta-amarilla" 
+                data-sub-id="${item.subId}"
+                data-fecha-origen="${fechaAttr}"
+                class="${activa} ${clases} border p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                title="${texto}. Clic para mover o Doble Clic para editar fecha exacta."
+              >
+                <span class="material-symbols-outlined text-[13px] pointer-events-none">${icono}</span>
+                <span class="pointer-events-none">${texto}</span>
+              </div>`;
     }
 
     function renderizarGantt(lista) {
@@ -661,6 +717,8 @@
                 <span class="material-symbols-outlined text-[13px] text-emerald-600">check_circle</span>
                 <span>Realizada</span>
               </div>`;
+          } else if (tieneProgramada && item.estado && item.estado !== "pendiente") {
+            contenido = tarjetaDeEstado(item, fechaProgEncontrada ? toKeyYMD(fechaProgEncontrada) : col.key);
           } else if (tieneProgramada) {
             const esEstaTarjetaActiva = esFilaSeleccionada;
             const activa = esEstaTarjetaActiva ? "tarjeta-activa" : "";
@@ -790,7 +848,9 @@
         const isoFecha = nuevaFecha.toISOString();
 
         const item = datosConsolidados.find(d => d.subId === subIdEditando);
+        let fechaPrevia = null;
         if (item) {
+          fechaPrevia = item.proximaVisita;
           item.proximaVisita = nuevaFecha;
           item.fechasProyectadas = [nuevaFecha];
           item.fechasProyectadasCompletas[indexVisitaEditando] = nuevaFecha;
@@ -800,12 +860,14 @@
 
         const timestamps = item ? item.fechasProyectadasCompletas.map(f => Timestamp.fromDate(f)) : [];
 
+        // spec 041: solo la clave de esta visita en operadoresPorVisita (no se reemplaza el mapa completo)
         await updateDoc(doc(db, "ordenes", ordenEditandoId), {
           fechaProgramada: isoFecha,
           proximaVisita: isoFecha,
           fechasProgramadas: timestamps,
-          operadoresPorVisita: item ? item.operadoresPorVisita : {}
+          ...(item ? { [`operadoresPorVisita.${item.claveVisita}`]: opVal } : {})
         });
+        if (item && fechaPrevia && nuevaFecha.getTime() !== fechaPrevia.getTime()) await reprogramarSiCorresponde(item);
 
         renderizarTodo();
         cerrarModal();
@@ -926,6 +988,7 @@
           const iso = nuevaFecha.toISOString();
           
           const item = datosConsolidados.find(d => d.subId === subId);
+          const fechaPreviaTabla = item ? item.proximaVisita : null; // spec 041
           if (item) {
             item.proximaVisita = nuevaFecha;
             item.fechasProyectadas = [nuevaFecha];
@@ -940,6 +1003,7 @@
             fechasProgramadas: timestamps
           });
           
+          if (item && fechaPreviaTabla && nuevaFecha.getTime() !== new Date(fechaPreviaTabla).getTime()) await reprogramarSiCorresponde(item); // spec 041
           renderizarTodo();
         } catch (err) {
           alert("Error al actualizar fecha: " + err.message);
