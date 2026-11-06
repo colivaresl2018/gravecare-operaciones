@@ -43,3 +43,12 @@ test('041 · cada color del Gantt corresponde a un estado y las pendientes conse
   for (const e of ['asignado', 'en_ejecucion', 'completada', 'reprogramada']) assert.match(src, new RegExp(`${e}: \\[`));
   assert.match(src, /item\.estado && item\.estado !== "pendiente"/);
 });
+
+test('041 · la visita realizada inventada del 9 de octubre de 2026 ya no existe', () => {
+  assert.doesNotMatch(src, /new Date\(2026, 9, 9\)/);
+});
+
+test('041 · las visitas realizadas salen solo de informes APROBADOS', () => {
+  assert.match(src, /collection\(db, "informes"\), where\("estado", "==", "aprobado"\)/);
+  assert.match(src, /const visitasHechas = realizadasOrden\.map\(r => r\.f\)/);
+});

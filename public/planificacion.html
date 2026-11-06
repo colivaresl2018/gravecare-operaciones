@@ -237,7 +237,9 @@
       getDocs, 
       doc, 
       updateDoc,
-      Timestamp 
+      Timestamp,
+      query,
+      where
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -456,6 +458,25 @@
     }
 
     // CARGA DE DATOS CON ASIGNACIÓN MANUAL E INDIVIDUAL POR VISITA
+    // spec 041: visitas realizadas = informes APROBADOS. Sin informe aprobado, la visita no aparece como realizada.
+    async function cargarVisitasRealizadas() {
+      const mapa = new Map();
+      try {
+        const snap = await getDocs(query(collection(db, "informes"), where("estado", "==", "aprobado")));
+        snap.forEach(d => {
+          const i = d.data();
+          const f = parseAFecha(i.fechaCaptura);
+          const n = Number(i.visitaNumero);
+          if (!i.ordenId || !f || !Number.isFinite(n)) return;
+          if (!mapa.has(i.ordenId)) mapa.set(i.ordenId, []);
+          mapa.get(i.ordenId).push({ n, f });
+        });
+      } catch (e) {
+        console.warn("No se pudieron leer los informes aprobados:", e && e.code ? e.code : "ERROR");
+      }
+      return mapa;
+    }
+
     async function cargarDatos() {
       generarColumnasGantt();
       await cargarOperadores();
@@ -465,6 +486,7 @@
         const lista = [];
         const cementeriosSet = new Set();
 
+        const mapaRealizadas = await cargarVisitasRealizadas(); // spec 041
         snapOrdenes.forEach(docSnap => {
           const ord = docSnap.data();
           const ordId = docSnap.id;
@@ -489,8 +511,9 @@
           else if (planL.includes("6")) totalVisitas = 6;
           else if (planL.includes("4")) totalVisitas = 4;
 
-          const cantRealizadas = Number(ord.visitasCompletadas !== undefined ? ord.visitasCompletadas : 1);
-          const visitasHechas = [new Date(2026, 9, 9)];
+          const realizadasOrden = (mapaRealizadas.get(ordId) || []).sort((a, b) => a.n - b.n); // spec 041
+          const cantRealizadas = ord.visitasCompletadas !== undefined ? Number(ord.visitasCompletadas) : realizadasOrden.length;
+          const visitasHechas = realizadasOrden.map(r => r.f); // spec 041: solo fechas de informes aprobados
           const cantPendientes = Math.max(0, totalVisitas - cantRealizadas);
 
           // Cargar arreglo de fechas programadas
@@ -543,7 +566,7 @@
               montoPagado: ord.montoTotal || ord.monto || ord.precioNumerico || 259960,
               cantRealizadas,
               cantPendientes,
-              ultimaVisita: visitasHechas[0],
+              ultimaVisita: visitasHechas[visitasHechas.length - 1] || null,
               proximaVisita: fechaDeEstaVisita,
               fechasProyectadas: [fechaDeEstaVisita],
               fechasProyectadasCompletas: fechasProyectadas,
