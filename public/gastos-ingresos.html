@@ -7,6 +7,8 @@
   <title>Control Contable y Tributario | GraveCare</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- PDF.js para lectura de Facturas en PDF en cliente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -62,6 +64,55 @@
     .btn-primary { background: #002d1a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
     .btn-primary:hover { background: #1a432f; }
     .btn-secondary { background: #e2e8f0; color: #334155; border: none; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .btn-upload {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.2s;
+    }
+    .btn-upload:hover { background: #0369a1; }
+    .btn-adjunto {
+      background: #0f766e;
+      color: white;
+      text-decoration: none;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: background 0.2s;
+    }
+    .btn-adjunto:hover { background: #115e59; }
+    .btn-subir-accion {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #0f766e;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-subir-accion:hover {
+      background: #f0fdf4;
+      border-color: #0f766e;
+      box-shadow: 0 1px 3px rgba(15, 118, 110, 0.15);
+    }
     .table-container { background: white; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
     th { background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #475569; padding: 0.85rem 1rem; font-weight: 700; }
@@ -148,7 +199,6 @@
 
     <!-- Gráfico y Resumen de IVA Mensual -->
     <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-      <!-- Gráfico -->
       <section class="card" style="margin-bottom: 0;">
         <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 1rem 0;">Evolución de Ingresos y Gastos (Valores Netos)</h3>
         <div style="position: relative; height: 260px;">
@@ -156,7 +206,6 @@
         </div>
       </section>
 
-      <!-- Tabla Resumen de IVA por Mes (Año en curso) -->
       <section class="card" style="margin-bottom: 0; display: flex; flex-direction: column;">
         <h3 style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 0.75rem 0;">Liquidación Mensual de IVA</h3>
         <div style="overflow-y: auto; max-height: 250px; font-size: 0.8rem;">
@@ -177,15 +226,29 @@
       </section>
     </div>
 
-    <!-- Formulario Registro -->
+    <!-- Formulario Registro con Botón para Subir Factura -->
     <section class="card" style="margin-bottom: 1.5rem;">
-      <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0 0 1rem 0;">Registro de Comprobante / Movimiento</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+        <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: #334155; margin: 0;">Registro de Comprobante / Movimiento</h3>
+        
+        <input type="file" id="input-archivo-factura" accept=".xml,.pdf" style="display: none;">
+        <button type="button" id="btn-subir-factura" class="btn-upload">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+          </svg>
+          Subir Factura (XML / PDF)
+        </button>
+      </div>
+
+      <div id="alerta-archivo-factura" style="display: none; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: #0369a1;">
+      </div>
+
       <form id="form-movimiento" class="form-grid">
 
         <div class="campo">
           <label for="form-tipo">Flujo Contable *</label>
           <select id="form-tipo" required>
-            <option value="Gasto">Gasto / Egreso</option>
+            <option value="Gasto" selected>Gasto / Egreso</option>
             <option value="Ingreso">Ingreso / Venta</option>
           </select>
         </div>
@@ -253,15 +316,15 @@
         <div class="tax-box">
           <div class="campo">
             <label for="form-monto-neto">Monto Neto ($ CLP) *</label>
-            <input type="number" id="form-monto-neto" min="0" step="1" placeholder="0" required>
+            <input type="text" id="form-monto-neto" placeholder="$ 0" required>
           </div>
           <div class="campo">
             <label for="form-impuesto" id="label-impuesto">IVA (19%)</label>
-            <input type="number" id="form-impuesto" min="0" step="1" placeholder="0" required>
+            <input type="text" id="form-impuesto" placeholder="$ 0" required>
           </div>
           <div class="campo">
             <label for="form-total">Total Bruto ($ CLP)</label>
-            <input type="number" id="form-total" min="0" step="1" placeholder="0" readonly style="background: #e2e8f0; font-weight: 700; cursor: not-allowed;">
+            <input type="text" id="form-total" placeholder="$ 0" readonly style="background: #e2e8f0; font-weight: 700; cursor: not-allowed;">
           </div>
         </div>
 
@@ -316,7 +379,7 @@
       </div>
     </section>
 
-    <!-- Tabla de Comprobantes -->
+    <!-- Tabla de Comprobantes con Columna de Respaldo y Acciones -->
     <div class="table-container">
       <div style="overflow-x: auto;">
         <table>
@@ -330,44 +393,55 @@
               <th style="text-align: right;">IVA / Ret.</th>
               <th style="text-align: right;">Total</th>
               <th style="text-align: right;">Origen</th>
+              <th style="text-align: center;">Documento / Respaldo</th>
               <th style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-movimientos">
-            <tr><td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">Consolidando datos contables...</td></tr>
+            <tr><td colspan="10" style="text-align: center; padding: 2rem; color: #64748b;">Consolidando datos contables...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </main>
 
-  <!-- Script con Motor Tributario y Cálculo Automático de IVA por Mes -->
+  <!-- Input Oculto para Subir Archivos a Filas de la Tabla -->
+  <input type="file" id="input-subir-archivo-tabla" accept=".pdf,.xml,.jpg,.jpeg,.png" style="display: none;">
+
   <script type="module">
+    import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { 
       getFirestore, 
       collection, 
       getDocs, 
       addDoc, 
+      updateDoc,
       deleteDoc, 
       doc, 
       serverTimestamp 
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { 
+      getStorage, 
+      ref, 
+      uploadBytes, 
+      getDownloadURL 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
-      authDomain: "gravecare-2e8d2.firebaseapp.com",
-      projectId: "gravecare-2e8d2",
-      storageBucket: "gravecare-2e8d2.firebasestorage.app",
-      messagingSenderId: "160012946248",
-      appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
-    };
+    const firebaseConfig = FIREBASE_CONFIG;
 
     const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
     let todosLosMovimientos = [];
     let graficoInstancia = null;
+    let archivoFacturaFormulario = null;
+    let idDocumentoParaSubidaFila = null;
+    let origenDocumentoParaSubida = "Manual";
 
     const NOMBRES_MESES = [
       "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -376,6 +450,12 @@
 
     function formatearDinero(num) {
       return "$ " + Math.round(Number(num || 0)).toLocaleString("es-CL");
+    }
+
+    function desformatearDinero(str) {
+      if (!str) return 0;
+      const num = String(str).replace(/[^\d]/g, "");
+      return Number(num) || 0;
     }
 
     function extraerFechaDate(f) {
@@ -389,39 +469,371 @@
       return new Date();
     }
 
-    // Cálculo automático del impuesto en el formulario
+    function normalizarFormatoRut(r) {
+      if (!r) return "";
+      let limpio = String(r).replace(/[^0-9kK]/g, "").toUpperCase();
+      if (limpio.length < 2) return r;
+      const cuerpo = limpio.slice(0, -1);
+      const dv = limpio.slice(-1);
+      const cuerpoConPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return `${cuerpoConPuntos}-${dv}`;
+    }
+
     const inputNeto = document.getElementById("form-monto-neto");
     const inputImpuesto = document.getElementById("form-impuesto");
     const inputTotal = document.getElementById("form-total");
     const selectDte = document.getElementById("form-dte");
 
     function recalcularImpuestoFormulario() {
-      const neto = Number(inputNeto.value || 0);
+      const neto = desformatearDinero(inputNeto.value);
       const dte = selectDte.value;
 
       if (dte === "Factura Afecta" || dte === "Boleta Venta") {
         const iva = Math.round(neto * 0.19);
-        inputImpuesto.value = iva;
-        inputTotal.value = neto + iva;
+        inputImpuesto.value = formatearDinero(iva);
+        inputTotal.value = formatearDinero(neto + iva);
       } else if (dte === "Boleta Honorarios") {
         const ret = Math.round(neto * 0.1525);
-        inputImpuesto.value = ret;
-        inputTotal.value = neto - ret;
+        inputImpuesto.value = formatearDinero(ret);
+        inputTotal.value = formatearDinero(neto - ret);
       } else {
-        inputImpuesto.value = 0;
-        inputTotal.value = neto;
+        inputImpuesto.value = formatearDinero(0);
+        inputTotal.value = formatearDinero(neto);
       }
     }
 
-    inputNeto?.addEventListener("input", recalcularImpuestoFormulario);
+    inputNeto?.addEventListener("input", (e) => {
+      const val = desformatearDinero(e.target.value);
+      e.target.value = val > 0 ? formatearDinero(val) : "";
+      recalcularImpuestoFormulario();
+    });
+
+    inputImpuesto?.addEventListener("input", (e) => {
+      const val = desformatearDinero(e.target.value);
+      e.target.value = val > 0 ? formatearDinero(val) : "";
+      const neto = desformatearDinero(inputNeto.value);
+      inputTotal.value = formatearDinero(neto + val);
+    });
+
     selectDte?.addEventListener("change", recalcularImpuestoFormulario);
 
-    // Cargar movimientos desde Firestore y órdenes
+    // =========================================================================
+    // PARSER EXACTO DE FACTURAS CHILENAS (XML Y PDF)
+    // =========================================================================
+    const btnSubirFactura = document.getElementById("btn-subir-factura");
+    const inputArchivoFactura = document.getElementById("input-archivo-factura");
+    const alertaFactura = document.getElementById("alerta-archivo-factura");
+
+    btnSubirFactura?.addEventListener("click", () => {
+      inputArchivoFactura.click();
+    });
+
+    inputArchivoFactura?.addEventListener("change", async (e) => {
+      const archivo = e.target.files?.[0];
+      if (!archivo) return;
+
+      archivoFacturaFormulario = archivo;
+      alertaFactura.style.display = "block";
+      alertaFactura.style.background = "#e0f2fe";
+      alertaFactura.style.borderColor = "#7dd3fc";
+      alertaFactura.style.color = "#0369a1";
+      alertaFactura.textContent = `Analizando factura: ${archivo.name}...`;
+
+      try {
+        const nombreExt = archivo.name.toLowerCase();
+
+        if (nombreExt.endsWith(".xml")) {
+          const textoXml = await archivo.text();
+          procesarFacturaXml(textoXml, archivo.name);
+        } else if (nombreExt.endsWith(".pdf")) {
+          const buffer = await archivo.arrayBuffer();
+          await procesarFacturaPdf(buffer, archivo.name);
+        } else {
+          throw new Error("Formato no soportado. Por favor sube un archivo XML del SII o PDF.");
+        }
+      } catch (err) {
+        console.error("Error al procesar factura:", err);
+        alertaFactura.style.background = "#fee2e2";
+        alertaFactura.style.borderColor = "#f87171";
+        alertaFactura.style.color = "#991b1b";
+        alertaFactura.textContent = "Error al leer factura: " + err.message;
+      }
+    });
+
+    // 1. Parser XML oficial DTE SII
+    function procesarFacturaXml(xmlStr, nombreArchivo) {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+
+      function buscarTag(nombres) {
+        for (const n of nombres) {
+          const els = xmlDoc.getElementsByTagName(n);
+          if (els && els.length > 0 && els[0].textContent) {
+            return els[0].textContent.trim();
+          }
+        }
+        return "";
+      }
+
+      const tagFolio = buscarTag(["Folio", "folio", "FOLIO"]);
+      const tagRznSoc = buscarTag(["RznSoc", "RznSocEmisor", "rznSoc", "RazonSocial"]);
+      const tagRUTEmisor = buscarTag(["RUTEmisor", "rutEmisor", "RUT"]);
+      const tagGiroEmis = buscarTag(["GiroEmis", "giroEmis", "Giro"]);
+      const tagFchEmis = buscarTag(["FchEmis", "fchEmis", "FechaEmision", "FECHA"]);
+      
+      const tagMntNeto = buscarTag(["MntNeto", "mntNeto", "Neto", "NETO"]) || "0";
+      const tagIVA = buscarTag(["IVA", "iva", "Iva"]) || "0";
+      const tagMntTotal = buscarTag(["MntTotal", "mntTotal", "Total", "TOTAL"]) || "0";
+
+      let neto = Number(tagMntNeto.replace(/[^\d]/g, "")) || 0;
+      let iva = Number(tagIVA.replace(/[^\d]/g, "")) || 0;
+      let total = Number(tagMntTotal.replace(/[^\d]/g, "")) || 0;
+
+      if (neto === 0 && total > 0) {
+        neto = Math.round(total / 1.19);
+        iva = total - neto;
+      }
+
+      asignarCamposFacturaRescatada({
+        folio: tagFolio,
+        rut: normalizarFormatoRut(tagRUTEmisor),
+        proveedor: tagRznSoc,
+        giro: tagGiroEmis,
+        fecha: tagFchEmis,
+        neto: neto,
+        iva: iva,
+        total: total,
+        nombreArchivo: nombreArchivo,
+        tipo: "XML DTE SII"
+      });
+    }
+
+    // 2. Parser PDF mediante PDF.js con lógica chilena exacta
+    async function procesarFacturaPdf(arrayBuffer, nombreArchivo) {
+      if (typeof pdfjsLib === "undefined") {
+        throw new Error("El motor PDF.js no se ha cargado. Verifica la conexión.");
+      }
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+
+      let textoCompleto = "";
+      for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const textPage = textContent.items.map(item => item.str).join(" ");
+        textoCompleto += "\n" + textPage;
+      }
+
+      // A. Extraer Folio / N° Factura (Prioridad al recuadro del SII)
+      let folio = "";
+      const matchFolioOficial = textoCompleto.match(/FACTURA\s+ELECTR[OÓ]NICA[^\d]{1,30}N[°º\s.:]*([0-9]{1,10})/i);
+      if (matchFolioOficial && matchFolioOficial[1]) {
+        folio = matchFolioOficial[1].trim();
+      } else {
+        const matchFolioAlt = textoCompleto.match(/(?:FOLIO|FACTURA)[^\d\n]{0,20}N[°º\s.:]*([0-9]{1,10})/i);
+        if (matchFolioAlt && matchFolioAlt[1]) {
+          folio = matchFolioAlt[1].trim();
+        }
+      }
+
+      // B. Extraer RUT del Proveedor / Emisor con formato estricto
+      let rut = "";
+      const matchRutsConEtiqueta = textoCompleto.match(/RUT\s*[:\s|]\s*(\d{1,2}\.?\d{3}\.?\d{3}\-?[\dkK])/gi) || [];
+      for (const item of matchRutsConEtiqueta) {
+        const valorRut = item.replace(/RUT\s*[:\s|]\s*/i, "").trim();
+        if (!valorRut.includes("78498653") && !valorRut.includes("78.498.653") && !valorRut.startsWith("9922")) {
+          rut = normalizarFormatoRut(valorRut);
+          break;
+        }
+      }
+
+      if (!rut) {
+        const rutsGenerales = textoCompleto.match(/\b\d{1,2}\.?\d{3}\.?\d{3}\-[\dkK]\b/gi) || [];
+        for (const r of rutsGenerales) {
+          if (!r.includes("78498653") && !r.includes("78.498.653") && !r.startsWith("9922")) {
+            rut = normalizarFormatoRut(r);
+            break;
+          }
+        }
+      }
+
+      // C. Extraer Razón Social del Proveedor
+      let proveedor = "";
+      const provMatch = textoCompleto.match(/(?:ASESORIAS[^\n]+|EMISOR[^\n]+|SOCIEDAD[^\n]+|VIVERO[^\n]+|[A-Z0-9\s]{4,40}\s+(?:S\.?P\.?A\.?|LTDA\.?|S\.?A\.?))/i);
+      if (provMatch) {
+        proveedor = provMatch[0].replace(/Giro:.*$/i, "").replace(/AV\..*$/i, "").trim();
+      }
+
+      // D. Extraer Giro de la Empresa
+      let giro = "";
+      const giroMatch = textoCompleto.match(/Giro\s*[:\s|]\s*([A-Za-z0-9\s\.\-]{5,60})/i);
+      if (giroMatch && giroMatch[1]) {
+        giro = giroMatch[1].split(/\n|Direcci|AV\.|Fono/i)[0].trim();
+      }
+
+      // E. Extraer Fecha de Emisión (Texto o numérico)
+      let fecha = "";
+      const mesesDic = {
+        "enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
+        "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
+        "septiembre": "09", "setiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12"
+      };
+
+      const fechaTextoMatch = textoCompleto.match(/(\d{1,2})\s+de\s+([a-zA-Z]+)\s+de\s+(\d{4})/i);
+      if (fechaTextoMatch) {
+        const dia = String(fechaTextoMatch[1]).padStart(2, '0');
+        const mesNombre = fechaTextoMatch[2].toLowerCase();
+        const anio = fechaTextoMatch[3];
+        const mes = mesesDic[mesNombre] || "01";
+        fecha = `${anio}-${mes}-${dia}`;
+      } else {
+        const fechaNumMatch = textoCompleto.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if (fechaNumMatch) {
+          fecha = `${fechaNumMatch[3]}-${String(fechaNumMatch[2]).padStart(2, '0')}-${String(fechaNumMatch[1]).padStart(2, '0')}`;
+        }
+      }
+
+      // F. Extraer Montos (Neto, IVA, Total)
+      function extraerMonto(patron) {
+        try {
+          const reg = new RegExp(patron + "\\s*[:$|\\s]*([\\d\\.,]{3,15})", "i");
+          const m = textoCompleto.match(reg);
+          if (m && m[1]) {
+            const limpio = String(m[1]).replace(/[^\d]/g, "");
+            const val = Number(limpio);
+            return isNaN(val) ? 0 : val;
+          }
+        } catch (e) {}
+        return 0;
+      }
+
+      let total = extraerMonto("MONTO\\s*TOTAL|TOTAL\\s*A\\s*PAGAR");
+      let neto = extraerMonto("Monto\\s*Neto|MONTO\\s*NETO|SUBTOTAL");
+      let iva = extraerMonto("19%\\s*IVA|IVA\\s*\\(?19\%?\\)?");
+
+      if (total === 0) total = extraerMonto("TOTAL");
+      if (neto === 0 && total > 0) {
+        neto = Math.round(total / 1.19);
+        iva = total - neto;
+      } else if (neto > 0 && total === 0) {
+        iva = Math.round(neto * 0.19);
+        total = neto + iva;
+      }
+
+      asignarCamposFacturaRescatada({
+        folio: folio,
+        rut: rut,
+        proveedor: proveedor,
+        giro: giro,
+        fecha: fecha,
+        neto: neto,
+        iva: iva,
+        total: total,
+        nombreArchivo: nombreArchivo,
+        tipo: "PDF"
+      });
+    }
+
+    // Volcar datos al formulario con formato moneda pesos
+    function asignarCamposFacturaRescatada(datos) {
+      document.getElementById("form-tipo").value = "Gasto";
+      document.getElementById("form-dte").value = "Factura Afecta";
+
+      if (datos.folio) document.getElementById("form-folio").value = datos.folio;
+      if (datos.rut) document.getElementById("form-rut").value = datos.rut;
+      if (datos.proveedor) document.getElementById("form-concepto").value = datos.proveedor;
+      if (datos.fecha) document.getElementById("form-fecha").value = datos.fecha;
+
+      const netoFinal = Number(datos.neto) || 0;
+      const totalFinal = Number(datos.total) || 0;
+      const ivaFinal = Number(datos.iva) || (netoFinal > 0 ? Math.round(netoFinal * 0.19) : 0);
+
+      document.getElementById("form-monto-neto").value = formatearDinero(netoFinal);
+      document.getElementById("form-impuesto").value = formatearDinero(ivaFinal);
+      document.getElementById("form-total").value = formatearDinero(totalFinal > 0 ? totalFinal : (netoFinal + ivaFinal));
+
+      let desc = `Factura proveedor: ${datos.proveedor || ''}`;
+      if (datos.giro) desc += ` | Giro: ${datos.giro}`;
+      desc += ` | Archivo: ${datos.nombreArchivo}`;
+      document.getElementById("form-descripcion").value = desc;
+
+      alertaFactura.style.background = "#dcfce7";
+      alertaFactura.style.borderColor = "#86efac";
+      alertaFactura.style.color = "#166534";
+      alertaFactura.innerHTML = `
+        <strong>✓ Factura procesada exitosamente (${datos.tipo}):</strong><br>
+        Proveedor: <strong>${datos.proveedor || datos.rut || "Identificado"}</strong> | 
+        RUT: <strong>${datos.rut || "S/R"}</strong> | 
+        Folio: <strong>#${datos.folio || "S/F"}</strong><br>
+        Giro: <em>${datos.giro || "Asesorías / Servicios"}</em> | 
+        Total: <strong>${formatearDinero(totalFinal)}</strong>.<br>
+        <span style="font-size: 0.75rem;">Revisa los campos y pulsa <em>"Registrar Movimiento en el Libro Contable"</em> para guardar en Firebase.</span>
+      `;
+    }
+
+    // =========================================================================
+    // SUBIDA DE DOCUMENTOS A FIREBASE STORAGE
+    // =========================================================================
+    const inputSubirFila = document.getElementById("input-subir-archivo-tabla");
+
+    inputSubirFila?.addEventListener("change", async (e) => {
+      const archivo = e.target.files?.[0];
+      if (!archivo || !idDocumentoParaSubidaFila) return;
+
+      const btnActivador = document.querySelector(`button[data-upload-id="${idDocumentoParaSubidaFila}"]`);
+      if (btnActivador) {
+        btnActivador.textContent = "Subiendo...";
+        btnActivador.disabled = true;
+      }
+
+      try {
+        const ext = archivo.name.split('.').pop();
+        const rutaStorage = `comprobantes_tributarios/${idDocumentoParaSubidaFila}_${Date.now()}.${ext}`;
+        const storageRef = ref(storage, rutaStorage);
+
+        await uploadBytes(storageRef, archivo);
+        const urlDescarga = await getDownloadURL(storageRef);
+
+        if (origenDocumentoParaSubida === "Webpay") {
+          await updateDoc(doc(db, "ordenes", idDocumentoParaSubidaFila), {
+            archivoUrl: urlDescarga,
+            comprobanteUrl: urlDescarga,
+            archivoNombre: archivo.name,
+            actualizadoEl: serverTimestamp()
+          });
+        } else {
+          await updateDoc(doc(db, "gastos_ingresos", idDocumentoParaSubidaFila), {
+            archivoUrl: urlDescarga,
+            archivoNombre: archivo.name,
+            actualizadoEl: serverTimestamp()
+          });
+        }
+
+        await cargarDatosContables();
+        alert("Documento tributario subido y guardado exitosamente en Firebase.");
+
+      } catch (err) {
+        console.error("Error al subir a Firebase Storage:", err);
+        alert("No se pudo subir el archivo: " + err.message);
+        if (btnActivador) {
+          btnActivador.textContent = "+ Cargar Factura/Boleta";
+          btnActivador.disabled = false;
+        }
+      } finally {
+        inputSubirFila.value = "";
+        idDocumentoParaSubidaFila = null;
+      }
+    });
+
+    // =========================================================================
+    // CARGA DE DATOS CONTABLES Y FIRESTORE
+    // =========================================================================
     async function cargarDatosContables() {
       try {
         const lista = [];
 
-        // 1. Cargar gastos e ingresos registrados en la colección contable
         const snap = await getDocs(collection(db, "gastos_ingresos"));
         snap.forEach(d => {
           const m = d.data();
@@ -439,17 +851,17 @@
             neto: Number(m.neto || 0),
             impuesto: Number(m.impuesto || m.iva || 0),
             total: Number(m.total || 0),
-            descripcion: m.descripcion || ""
+            descripcion: m.descripcion || "",
+            archivoUrl: m.archivoUrl || "",
+            archivoNombre: m.archivoNombre || ""
           });
         });
 
-        // 2. Cargar ingresos automáticos de las órdenes formalizadas
         const snapOrd = await getDocs(collection(db, "ordenes"));
         snapOrd.forEach(d => {
           const ord = d.data();
           const totalBruto = Number(ord.montoTotal || ord.total || ord.precioNumerico || 0);
           if (totalBruto > 0) {
-            // En ventas con IVA 19% chileno: Neto = Total / 1.19, IVA = Total - Neto
             const neto = Math.round(totalBruto / 1.19);
             const ivaDebito = totalBruto - neto;
             const f = extraerFechaDate(ord.creadoEl || ord.createdAt || ord.fechaPago);
@@ -468,7 +880,9 @@
               neto: neto,
               impuesto: ivaDebito,
               total: totalBruto,
-              descripcion: ord.planNombre || "Servicio GraveCare"
+              descripcion: ord.planNombre || "Servicio GraveCare",
+              archivoUrl: ord.archivoUrl || ord.comprobanteUrl || ord.urlContrato || "",
+              archivoNombre: ord.archivoNombre || (ord.urlContrato ? "Contrato/Comprobante" : "")
             });
           }
         });
@@ -482,7 +896,6 @@
       }
     }
 
-    // MOTOR TRIBUTARIO: Cálculo del IVA mensual y acumulado
     function recalcularLiquidacionTributaria() {
       const mesFiltro = Number(document.getElementById("periodo-tributario-mes").value);
       const anioFiltro = Number(document.getElementById("periodo-tributario-anio").value);
@@ -492,11 +905,9 @@
       let totalIvaDebito = 0;
       let totalIvaCredito = 0;
 
-      // Variables para el mes seleccionado
       let debitoMesSeleccionado = 0;
       let creditoMesSeleccionado = 0;
 
-      // Acumulador de los 12 meses del año para la tabla resumen y el gráfico
       const mesesData = Array.from({ length: 12 }, () => ({
         ingresosNetos: 0,
         gastosNetos: 0,
@@ -512,7 +923,6 @@
         const esIngreso = m.tipo === "Ingreso";
         const esAfecto = m.dte === "Factura Afecta" || m.dte === "Boleta Venta";
 
-        // Totales generales
         if (esIngreso) {
           totalIngresosNetos += m.neto;
           if (esAfecto) totalIvaDebito += m.impuesto;
@@ -521,13 +931,11 @@
           if (esAfecto) totalIvaCredito += m.impuesto;
         }
 
-        // Datos del mes y año seleccionado
         if (anio === anioFiltro && mes === mesFiltro) {
           if (esIngreso && esAfecto) debitoMesSeleccionado += m.impuesto;
           if (!esIngreso && esAfecto) creditoMesSeleccionado += m.impuesto;
         }
 
-        // Si corresponde al año en curso, agregar al acumulador de meses
         if (anio === anioFiltro) {
           if (esIngreso) {
             mesesData[mes].ingresosNetos += m.neto;
@@ -539,7 +947,6 @@
         }
       });
 
-      // 1. Actualizar Tarjetas Generales
       document.getElementById("resumen-ingresos-neto").textContent = formatearDinero(totalIngresosNetos);
       document.getElementById("resumen-gastos-neto").textContent = formatearDinero(totalGastosNetos);
       
@@ -547,20 +954,17 @@
       document.getElementById("resumen-iva").textContent = formatearDinero(balanceIvaGeneral);
       document.getElementById("resumen-balance").textContent = formatearDinero(totalIngresosNetos - totalGastosNetos);
 
-      // 2. ACTUALIZAR TARJETA: IVA DEL MES (F29)
       const ivaDiferenciaMes = debitoMesSeleccionado - creditoMesSeleccionado;
       const elemIvaMes = document.getElementById("resumen-iva-mes");
       const badgeEstado = document.getElementById("badge-estado-iva");
       const elemSub = document.getElementById("detalle-sub-iva");
 
       if (ivaDiferenciaMes > 0) {
-        // Débito > Crédito: Se paga IVA
         elemIvaMes.textContent = formatearDinero(ivaDiferenciaMes);
         elemIvaMes.style.color = "#b91c1c";
         badgeEstado.textContent = "A Pagar (F29)";
         badgeEstado.className = "tag-iva tag-iva-pagar";
       } else if (ivaDiferenciaMes < 0) {
-        // Crédito > Débito: Remanente a favor
         elemIvaMes.textContent = formatearDinero(Math.abs(ivaDiferenciaMes));
         elemIvaMes.style.color = "#16a34a";
         badgeEstado.textContent = "Remanente a Favor";
@@ -574,10 +978,7 @@
 
       elemSub.textContent = `Débito: ${formatearDinero(debitoMesSeleccionado)} | Crédito: ${formatearDinero(creditoMesSeleccionado)}`;
 
-      // 3. Renderizar Tabla de Liquidación Mensual del Año
       renderizarTablaIvaMensual(mesesData, mesFiltro);
-
-      // 4. Actualizar Gráfico
       actualizarGrafico(mesesData);
     }
 
@@ -659,7 +1060,7 @@
       if (!tbody) return;
 
       if (datos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #94a3b8;">No hay movimientos registrados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem; color: #94a3b8;">No hay movimientos registrados.</td></tr>`;
         return;
       }
 
@@ -667,6 +1068,38 @@
         const esIngreso = m.tipo === "Ingreso";
         const colorTipo = esIngreso ? "#16a34a" : "#dc2626";
         const fechaStr = m.fecha.toLocaleDateString("es-CL", { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        // Columna Documento / Respaldo
+        let celdaRespaldo = "";
+        if (m.archivoUrl) {
+          celdaRespaldo = `
+            <a href="${m.archivoUrl}" target="_blank" rel="noopener noreferrer" class="btn-adjunto" title="Abrir documento adjunto">
+              <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              Ver Documento
+            </a>
+          `;
+        } else {
+          celdaRespaldo = `<span style="color: #94a3b8; font-size: 0.75rem;">Sin Respaldo</span>`;
+        }
+
+        // Columna Acciones: Botón de Cargar/Cambiar Factura o Boleta
+        const tieneDoc = Boolean(m.archivoUrl);
+        const textoBoton = tieneDoc ? "Cambiar DTE" : "+ Cargar Factura/Boleta";
+
+        const botonSubir = `
+          <button type="button" data-upload-id="${m.id}" data-origen="${m.origen}" class="btn-subir-accion" title="Cargar y asociar factura o boleta electrónica">
+            <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            ${textoBoton}
+          </button>
+        `;
+
+        const botonEliminar = m.origen === 'Manual' ? `
+          <button type="button" data-del-id="${m.id}" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+            Eliminar
+          </button>
+        ` : '';
 
         return `
           <tr>
@@ -688,19 +1121,21 @@
                 ${m.origen}
               </span>
             </td>
-            <td style="text-align: right;">
-              ${m.origen === 'Manual' ? `
-                <button type="button" data-del-id="${m.id}" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 0.8rem;">
-                  Eliminar
-                </button>
-              ` : `<span style="color: #cbd5e1; font-size: 0.75rem;">Protegido</span>`}
+            <td style="text-align: center;">
+              ${celdaRespaldo}
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              <div style="display: inline-flex; align-items: center; gap: 0.4rem; justify-content: flex-end;">
+                ${botonSubir}
+                ${botonEliminar}
+              </div>
             </td>
           </tr>
         `;
       }).join("");
     }
 
-    // Guardar nuevo comprobante en Firestore
+    // Guardar nuevo comprobante
     document.getElementById("form-movimiento")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("btn-guardar");
@@ -708,28 +1143,46 @@
       btn.textContent = "Registrando en Firestore...";
 
       try {
+        let archivoUrl = "";
+        let archivoNombre = "";
+
+        if (archivoFacturaFormulario) {
+          btn.textContent = "Subiendo archivo a Firebase Storage...";
+          const ext = archivoFacturaFormulario.name.split('.').pop();
+          const rutaStorage = `comprobantes_tributarios/${Date.now()}_${archivoFacturaFormulario.name}`;
+          const storageRef = ref(storage, rutaStorage);
+
+          await uploadBytes(storageRef, archivoFacturaFormulario);
+          archivoUrl = await getDownloadURL(storageRef);
+          archivoNombre = archivoFacturaFormulario.name;
+        }
+
         const payload = {
           tipo: document.getElementById("form-tipo").value,
           dte: document.getElementById("form-dte").value,
           folio: document.getElementById("form-folio").value.trim(),
-          rut: document.getElementById("form-rut").value.trim(),
+          rut: normalizarFormatoRut(document.getElementById("form-rut").value.trim()),
           concepto: document.getElementById("form-concepto").value.trim(),
           fecha: document.getElementById("form-fecha").value,
           categoria: document.getElementById("form-categoria").value,
           clasificacionF22: document.getElementById("form-clasificacion-f22").value,
           descripcion: document.getElementById("form-descripcion").value.trim(),
-          neto: Number(document.getElementById("form-monto-neto").value || 0),
-          impuesto: Number(document.getElementById("form-impuesto").value || 0),
-          total: Number(document.getElementById("form-total").value || 0),
+          neto: desformatearDinero(document.getElementById("form-monto-neto").value),
+          impuesto: desformatearDinero(document.getElementById("form-impuesto").value),
+          total: desformatearDinero(document.getElementById("form-total").value),
+          archivoUrl: archivoUrl,
+          archivoNombre: archivoNombre,
           createdAt: serverTimestamp()
         };
 
         await addDoc(collection(db, "gastos_ingresos"), payload);
 
         e.target.reset();
+        archivoFacturaFormulario = null;
         recalcularImpuestoFormulario();
+        alertaFactura.style.display = "none";
         await cargarDatosContables();
-        alert("Comprobante registrado exitosamente en el libro contable.");
+        alert("Comprobante y archivo registrados exitosamente en el libro contable.");
 
       } catch (err) {
         alert("Error al registrar movimiento: " + err.message);
@@ -739,7 +1192,7 @@
       }
     });
 
-    // Eliminar comprobante manual
+    // Delegación de eventos en la tabla (Eliminar y Cargar Factura/Boleta)
     document.getElementById("tabla-movimientos")?.addEventListener("click", async (e) => {
       const delId = e.target.getAttribute("data-del-id");
       if (delId && confirm("¿Deseas eliminar este comprobante del libro contable?")) {
@@ -749,10 +1202,17 @@
         } catch(err) {
           alert("Error: " + err.message);
         }
+        return;
+      }
+
+      const btnUpload = e.target.closest("button[data-upload-id]");
+      if (btnUpload) {
+        idDocumentoParaSubidaFila = btnUpload.getAttribute("data-upload-id");
+        origenDocumentoParaSubida = btnUpload.getAttribute("data-origen") || "Manual";
+        inputSubirFila.click();
       }
     });
 
-    // Filtros de fecha y categorías en la tabla
     function aplicarFiltrosTabla() {
       const tipo = document.getElementById("filtro-tipo").value;
       const cat = document.getElementById("filtro-categoria").value;
@@ -786,18 +1246,21 @@
       renderizarTabla(todosLosMovimientos);
     });
 
-    // Eventos del Selector del Período Tributario F29
     document.getElementById("periodo-tributario-mes")?.addEventListener("change", recalcularLiquidacionTributaria);
     document.getElementById("periodo-tributario-anio")?.addEventListener("change", recalcularLiquidacionTributaria);
 
-    // Inicializar al cargar
-    document.addEventListener("DOMContentLoaded", () => {
-      // Fijar fecha de hoy en el formulario
+    onAuthStateChanged(auth, async (user) => {
+      if (!(await exigirStaff(auth, user))) return; // spec 040: exige staffActivo
+      if (!user) {
+        window.location.replace("login-ops.html");
+        return;
+      }
+      
       const hoy = new Date().toISOString().split("T")[0];
       const campoFecha = document.getElementById("form-fecha");
       if (campoFecha) campoFecha.value = hoy;
 
-      cargarDatosContables();
+      await cargarDatosContables();
     });
   </script>
 </body>
