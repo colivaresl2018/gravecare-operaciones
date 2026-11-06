@@ -128,6 +128,11 @@
     alertBox.innerHTML = `<div class="alert alert-error">${msg}</div>`;
   }
 
+  // Spec 040: la barrera de staff cerró la sesión porque la cuenta no tiene el claim staffActivo.
+  if (new URLSearchParams(window.location.search).get("sinAcceso") === "1") {
+    showError("Acceso denegado: su cuenta no cuenta con permisos de staff activo. Pida acceso al dueño.");
+  }
+
   // Redirección limpia gestionada únicamente por el observador de sesión
   onAuthStateChanged(auth, (user) => {
     if (user) {
