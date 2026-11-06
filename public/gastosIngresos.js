@@ -1,14 +1,8 @@
+import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAthgIWiVPDuscljVjQRAX-vIeUYLbrSC0",
-  authDomain: "gravecare-2e8d2.firebaseapp.com",
-  projectId: "gravecare-2e8d2",
-  storageBucket: "gravecare-2e8d2.firebasestorage.app",
-  messagingSenderId: "160012946248",
-  appId: "1:160012946248:web:8c3e73100f1e92c485c17d"
-};
+const firebaseConfig = FIREBASE_CONFIG;
 
 const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
 const db = getFirestore(app);
