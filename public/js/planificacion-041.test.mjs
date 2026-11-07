@@ -52,3 +52,28 @@ test('041 · las visitas realizadas salen solo de informes APROBADOS', () => {
   assert.match(src, /collection\(db, "informes"\), where\("estado", "==", "aprobado"\)/);
   assert.match(src, /const visitasHechas = realizadasOrden\.map\(r => r\.f\)/);
 });
+
+test('041 · ninguna escritura persiste el arreglo fechasProgramadas (ni en planificación ni en órdenes)', () => {
+  for (const archivo of ['public/planificacion.html', 'public/ordenes.html']) {
+    const s = readFileSync(archivo, 'utf8').replace(/\r\n/g, '\n');
+    assert.doesNotMatch(s, /fechasProgramadas: timestamps/, archivo);
+    const llamadas = [...s.matchAll(/updateDoc\(([\s\S]*?)\}\);/g)].map((m) => m[1]);
+    for (const l of llamadas) assert.doesNotMatch(l, /fechasProgramadas\s*:/, archivo);
+  }
+});
+
+test('041 · las tres escrituras de fecha (mover, modal, tabla) tocan solo la clave de su visita', () => {
+  const n = (src.match(/\.\.\.(\(item \? )?construirActualizacionFecha\(\{ clave: item\.claveVisita/g) || []).length;
+  assert.equal(n, 3);
+});
+
+test('041 · planificación lee fechasPorVisita antes que cualquier respaldo', () => {
+  assert.match(src, /import \{[^}]*fechaGuardadaVisita[^}]*\} from "\.\/js\/fechas-visita\.js"/);
+  assert.match(src, /fechaGuardadaVisita\(ord, claveVisita\) \|\| fechasProyectadas\[vIdx\]/);
+});
+
+test('041 · órdenes lee fechasPorVisita antes del respaldo (misma fuente que planificación)', () => {
+  const o = readFileSync('public/ordenes.html', 'utf8').replace(/\r\n/g, '\n');
+  assert.match(o, /from "\.\/js\/fechas-visita\.js"/);
+  assert.match(o, /fechaGuardadaVisita\(d, claveVisita\) \|\| fechasGuardadas\[idx\]/);
+});
