@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "gravecare-2e8d2"
+    "prod": "gravecare-2e8d2",
+    "qa": "gravecare-qa"
   },
   "targets": {
     "gravecare-2e8d2": {
