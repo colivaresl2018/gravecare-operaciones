@@ -8,7 +8,7 @@
 
 export const ESTADOS = Object.freeze(['pendiente', 'asignado', 'en_ejecucion', 'completada', 'reprogramada']);
 export const TOLERANCIA_ATRASO_DIAS = 3;      // spec 041: más de 3 días calendario desde la fecha programada
-export const VENTANA_PROXIMA_DIAS = 7;        // supuesto: «próximas a vencer» = dentro de 7 días (pendiente de confirmar)
+export const VENTANA_PROXIMA_DIAS = 7;        // spec 041 (aprobada por el dueño, 2026-11-06): «próximas a vencer» = dentro de 7 días
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
