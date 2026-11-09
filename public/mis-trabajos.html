@@ -107,7 +107,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
-    import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
+    import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -301,6 +301,7 @@
                 totalVisitas: totalVisitas,
                 difunto: nomDifunto,
                 cliente: nomCliente,
+                esPrueba: esOrdenDePrueba(d), // B-1: orden de integración
                 sepultura: sepulturaTexto,
                 cementerio: cem,
                 plan: plan,
@@ -355,7 +356,7 @@
             </span>
           </td>
           <td class="py-3 px-4 font-bold text-slate-900">
-            ${item.difunto}
+            ${item.difunto}${item.esPrueba ? INSIGNIA_PRUEBA : ""}
             <span class="block font-normal text-[10px] text-slate-500">${item.sepultura}</span>
           </td>
           <td class="py-3 px-4 font-medium text-slate-800">${item.cementerio}</td>
@@ -374,7 +375,7 @@
             </button>
           </td>
           <td class="py-3 px-4 text-center">
-            <a href="revision-informe.html?ordenId=${item.ordenDocId}&visita=${item.numeroVisita}" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline text-xs">
+            <a href="informe-captura.html?ordenId=${item.ordenDocId}&v=${item.numeroVisita}" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline text-xs">
               <span class="material-symbols-outlined text-sm">photo_camera</span> Reportar
             </a>
           </td>
