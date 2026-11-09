@@ -1,0 +1,15 @@
+{
+  "name": "gravecare-operaciones",
+  "private": true,
+  "description": "Backoffice de GraveCare (sitio de Hosting gravecare-ops). Este package.json solo sirve para pruebas y el entorno local; no se publica.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/ public/js/",
+    "local:servidor": "node scripts/local/servidor-emuladores.mjs",
+    "local:sembrar": "node scripts/local/sembrar-emulador.mjs",
+    "test:e2e": "node --test tests/e2e/b2-pagadas.e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}
