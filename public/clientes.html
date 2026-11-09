@@ -85,6 +85,8 @@
     import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
+    import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
     import { 
       getFirestore, 
       collection, 
@@ -181,6 +183,7 @@
 
         snapOrdenes.forEach(docSnap => {
           const ord = docSnap.data();
+          if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
           const ordId = docSnap.id;
           const titular = ord.titular || {};
           const email = (titular.email || ord.email || ord.clienteEmail || ord.usuario || "").toLowerCase().trim();
@@ -305,6 +308,7 @@
         if (lista.length === 0 && !snapOrdenes.empty) {
           snapOrdenes.forEach(docSnap => {
             const ord = docSnap.data();
+            if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
             const tit = ord.titular || {};
             const nom = tit.nombreCompleto || ord.clienteNombre || "Cliente";
             const dif = ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || "Ser Querido";
@@ -483,28 +487,10 @@
       if (el) el.classList.toggle("hidden");
     };
 
-    // Eliminación con clave 123456
-    window.eliminarClienteConClave = async function(id, nombre) {
-      const confirmacion = confirm(`¿Estás seguro de que deseas eliminar permanentemente al cliente "${nombre}"?`);
-      if (!confirmacion) return;
-
-      const claveIngresada = prompt("⚠️ ACCIÓN PROTEGIDA: Ingrese la clave de seguridad para confirmar el borrado:");
-      if (claveIngresada === null) return;
-
-      if (claveIngresada.trim() !== "123456") {
-        alert("❌ Clave incorrecta. La eliminación ha sido cancelada.");
-        return;
-      }
-
-      try {
-        await deleteDoc(doc(db, "clientes", id));
-        clientesConsolidados = clientesConsolidados.filter(c => c.id !== id);
-        renderizarTabla();
-        document.getElementById("badge-total-clientes").textContent = `Total: ${clientesConsolidados.length} cliente(s)`;
-        alert(`✅ El cliente "${nombre}" ha sido eliminado exitosamente.`);
-      } catch (e) {
-        alert("Error al borrar cliente: " + e.message);
-      }
+    // N193 (B-2): se retiró la clave fija que protegía el borrado desde el navegador (era visible para cualquiera).
+    // Las reglas publicadas no permiten borrar clientes/{id}; un borrado real necesita su propia spec con regla para staff con claim.
+    window.eliminarClienteConClave = function(id, nombre) {
+      alert(`⚠️ El borrado de clientes está deshabilitado por seguridad. El cliente "${nombre}" no se eliminó.\nSi necesitas eliminarlo, solicítalo al administrador.`);
     };
 
     document.addEventListener("click", (e) => {
@@ -521,6 +507,7 @@
         window.location.replace("login-ops.html");
         return;
       }
+      if (!(await exigirStaff(auth, user))) return; // B-13: exige staffActivo
       await cargarClientes();
     });
   </script>
