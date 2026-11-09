@@ -144,6 +144,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
+    import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
     import { ESTADOS, transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura)
@@ -263,6 +264,7 @@
 
         snapOrdenes.forEach(docSnap => {
           const d = docSnap.data();
+          if (!esOrdenPagada(d)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
           const estadoGlobal = (d.estado || d.estadoServicio || "").toLowerCase().trim();
 
           // Si toda la orden está completada, se omite por completo
