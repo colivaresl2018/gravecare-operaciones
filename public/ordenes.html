@@ -144,7 +144,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
-    import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
+    import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { ESTADOS, transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura)
@@ -352,6 +352,7 @@
               totalVisitas: totalVisitas,
               difunto: nomDifunto,
               cliente: nomCliente,
+              esPrueba: esOrdenDePrueba(d), // B-1: orden de integración
               sepultura: sepulturaTexto,
               cementerio: cem,
               plan: plan,
@@ -455,7 +456,7 @@
               </span>
             </td>
             <td class="py-3.5 px-4 font-bold text-slate-900">${item.difunto}</td>
-            <td class="py-3.5 px-4 font-medium text-slate-700">${item.cliente}</td>
+            <td class="py-3.5 px-4 font-medium text-slate-700">${item.cliente}${item.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
             <td class="py-3.5 px-4 text-[11px] text-slate-600">${item.sepultura}</td>
             <td class="py-3.5 px-3 text-center">
               <span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold text-[11px]">${item.plan}</span>
