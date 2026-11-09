@@ -32,6 +32,19 @@ for (const pagina of LISTAS) {
     // Solo debe haber una lectura de la colección completa por página (la que se filtra).
     assert.equal(h.split('getDocs(collection(db, "ordenes"))').length - 1, 1);
   });
+
+  test(`${pagina}: TODOS los recorridos de la lectura de órdenes filtran con esOrdenPagada`, () => {
+    const h = lee(pagina);
+    const variable = h.match(/const (\w+) = await getDocs\(collection\(db, "ordenes"\)\)/)[1];
+    const recorridos = [...h.matchAll(new RegExp(`\\b${variable}\\.(forEach|docs)\\b`, 'g'))];
+    assert.ok(recorridos.length >= 1);
+    for (const r of recorridos) {
+      const tramo = h.slice(r.index, r.index + 400);
+      const iFiltro = tramo.search(/if \(!esOrdenPagada\((d|ord)\)\) return;/);
+      const iUso = tramo.search(/\.push\(|\.set\(|cementeriosSet\.add\(/);
+      assert.ok(iFiltro > 0 && (iUso < 0 || iFiltro < iUso), `el recorrido en la posición ${r.index} filtra antes de usar la orden`);
+    }
+  });
 }
 
 test('gastos-ingresos.html: el ingreso exige cuentaComoIngreso y toma la fecha de fechaPago', () => {

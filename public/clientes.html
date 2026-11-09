@@ -308,6 +308,7 @@
         if (lista.length === 0 && !snapOrdenes.empty) {
           snapOrdenes.forEach(docSnap => {
             const ord = docSnap.data();
+            if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
             const tit = ord.titular || {};
             const nom = tit.nombreCompleto || ord.clienteNombre || "Cliente";
             const dif = ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || "Ser Querido";
