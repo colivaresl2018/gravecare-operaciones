@@ -260,6 +260,7 @@
             <option value="Factura Exenta">Factura Electrónica Exenta</option>
             <option value="Boleta Honorarios">Boleta de Honorarios (Retención 15.25%)</option>
             <option value="Boleta Venta">Boleta Electrónica de Venta</option>
+            <option value="Nota de Crédito Electrónica">Nota de Crédito Electrónica</option>
             <option value="Voucher/Comprobante">Comprobante de Pago / Voucher</option>
           </select>
         </div>
@@ -311,6 +312,73 @@
         <div class="campo">
           <label for="form-descripcion">Descripción / Glosa</label>
           <input type="text" id="form-descripcion" placeholder="Detalle adicional del servicio o compra">
+        </div>
+
+        <!-- B-3: campos de la nota de crédito. Solo se ven al elegir «Nota de Crédito Electrónica». El portal registra los folios; no emite documentos tributarios. -->
+        <div id="bloque-nota-credito" style="display: none; grid-column: 1 / -1;">
+          <div class="form-grid">
+            <div class="campo" style="grid-column: 1 / -1;">
+              <label for="form-nc-boleta">Boleta de referencia *</label>
+              <select id="form-nc-boleta">
+                <option value="">Elige la boleta que compensa esta nota</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-folio-boleta">Folio de la boleta</label>
+              <input type="text" id="form-nc-folio-boleta" readonly style="background: #e2e8f0; cursor: not-allowed;">
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-fecha-boleta">Fecha de la boleta</label>
+              <input type="text" id="form-nc-fecha-boleta" readonly style="background: #e2e8f0; cursor: not-allowed;">
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-folio-sii">Folio SII de la boleta (opcional)</label>
+              <input type="text" id="form-nc-folio-sii" inputmode="numeric" placeholder="Ej: 4521">
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-codigo">Código de referencia *</label>
+              <select id="form-nc-codigo">
+                <option value="">Elige el código</option>
+                <option value="1">1 · Anula documento</option>
+                <option value="3">3 · Corrige montos</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-medio">Medio de devolución *</label>
+              <select id="form-nc-medio">
+                <option value="">Elige el medio</option>
+                <option value="Reversa Transbank">Reversa Transbank</option>
+                <option value="Transferencia bancaria">Transferencia bancaria</option>
+              </select>
+            </div>
+
+            <div class="campo" style="grid-column: 1 / -1;">
+              <label for="form-nc-motivo">Motivo de la nota *</label>
+              <input type="text" id="form-nc-motivo" placeholder="Ej: Devolución proporcional por 6 visitas no realizadas del Plan Anual">
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-visitas-contratadas">Visitas contratadas (opcional)</label>
+              <input type="number" id="form-nc-visitas-contratadas" min="0" step="1" placeholder="Ej: 12">
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-visitas-ejecutadas">Visitas ejecutadas (opcional)</label>
+              <input type="number" id="form-nc-visitas-ejecutadas" min="0" step="1" placeholder="Ej: 6">
+            </div>
+
+            <div class="campo">
+              <label for="form-nc-termino">Término del servicio (opcional)</label>
+              <input type="date" id="form-nc-termino">
+            </div>
+
+            <div id="nc-avisos" style="display: none; grid-column: 1 / -1; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem; color: #92400e;"></div>
+          </div>
         </div>
 
         <div class="tax-box">
@@ -414,6 +482,8 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { cuentaComoIngreso, fechaDelIngreso } from "./js/orden-pagada.js"; // N80: ingreso solo de órdenes pagadas (B-2)
+    import { TIPO_DTE_NOTA, esBoletaCreditable, notasDeBoleta, saldoDeBoleta, validarNotaCredito, avisosNotaCredito, filaDeNota, desglosarBruto, folioSiiDeBoleta } from "./js/notas-credito.js"; // B-3: notas de crédito
+    import { calcularLiquidacion } from "./js/liquidacion-tributaria.js"; // B-3: cálculo extraído de esta página (misma lógica)
     import { 
       getFirestore, 
       collection, 
@@ -439,6 +509,7 @@
     const storage = getStorage(app);
 
     let todosLosMovimientos = [];
+    let notasGuardadas = []; // B-3: documentos de «notasCredito» (con id), para validar saldos y mostrar compensaciones
     let graficoInstancia = null;
     let archivoFacturaFormulario = null;
     let idDocumentoParaSubidaFila = null;
@@ -489,7 +560,7 @@
       const neto = desformatearDinero(inputNeto.value);
       const dte = selectDte.value;
 
-      if (dte === "Factura Afecta" || dte === "Boleta Venta") {
+      if (dte === "Factura Afecta" || dte === "Boleta Venta" || dte === TIPO_DTE_NOTA) {
         const iva = Math.round(neto * 0.19);
         inputImpuesto.value = formatearDinero(iva);
         inputTotal.value = formatearDinero(neto + iva);
@@ -741,6 +812,7 @@
     function asignarCamposFacturaRescatada(datos) {
       document.getElementById("form-tipo").value = "Gasto";
       document.getElementById("form-dte").value = "Factura Afecta";
+      document.getElementById("form-dte").dispatchEvent(new Event("change")); // B-3: si estaba en modo nota, vuelve al formulario normal
 
       if (datos.folio) document.getElementById("form-folio").value = datos.folio;
       if (datos.rut) document.getElementById("form-rut").value = datos.rut;
@@ -874,6 +946,7 @@
               tipo: "Ingreso",
               dte: "Boleta Venta",
               folio: ord.numeroOrden || d.id.substring(0, 8),
+              folioSii: ord.folioBoleta ? String(ord.folioBoleta) : "", // B-3: solo lectura; el campo lo define la web (si existe)
               rut: ord.titular?.rut || ord.rut || "-",
               concepto: ord.titular?.nombreCompleto || ord.cliente || "Cliente Webpay",
               fecha: f,
@@ -889,9 +962,24 @@
           }
         });
 
+        // B-3: notas de crédito (colección aditiva «notasCredito»). Si la lectura falla (p. ej. reglas aún sin publicar), el libro
+        // sigue mostrándose como antes y solo se avisa en la consola.
+        notasGuardadas = [];
+        try {
+          const snapNotas = await getDocs(collection(db, "notasCredito"));
+          snapNotas.forEach(d => {
+            const n = d.data();
+            notasGuardadas.push({ id: d.id, ...n });
+            lista.push(filaDeNota(d.id, n));
+          });
+        } catch (errNotas) {
+          console.warn("Aviso notasCredito:", errNotas.message);
+        }
+
         todosLosMovimientos = lista;
         recalcularLiquidacionTributaria();
         renderizarTabla(todosLosMovimientos);
+        if (selectDte.value === TIPO_DTE_NOTA) poblarBoletasNota();
 
       } catch (err) {
         console.error("Error al cargar datos contables:", err);
@@ -902,52 +990,11 @@
       const mesFiltro = Number(document.getElementById("periodo-tributario-mes").value);
       const anioFiltro = Number(document.getElementById("periodo-tributario-anio").value);
 
-      let totalIngresosNetos = 0;
-      let totalGastosNetos = 0;
-      let totalIvaDebito = 0;
-      let totalIvaCredito = 0;
-
-      let debitoMesSeleccionado = 0;
-      let creditoMesSeleccionado = 0;
-
-      const mesesData = Array.from({ length: 12 }, () => ({
-        ingresosNetos: 0,
-        gastosNetos: 0,
-        debito: 0,
-        credito: 0
-      }));
-
-      todosLosMovimientos.forEach(m => {
-        const fecha = m.fecha;
-        const anio = fecha.getFullYear();
-        const mes = fecha.getMonth();
-
-        const esIngreso = m.tipo === "Ingreso";
-        const esAfecto = m.dte === "Factura Afecta" || m.dte === "Boleta Venta";
-
-        if (esIngreso) {
-          totalIngresosNetos += m.neto;
-          if (esAfecto) totalIvaDebito += m.impuesto;
-        } else {
-          totalGastosNetos += m.neto;
-          if (esAfecto) totalIvaCredito += m.impuesto;
-        }
-
-        if (anio === anioFiltro && mes === mesFiltro) {
-          if (esIngreso && esAfecto) debitoMesSeleccionado += m.impuesto;
-          if (!esIngreso && esAfecto) creditoMesSeleccionado += m.impuesto;
-        }
-
-        if (anio === anioFiltro) {
-          if (esIngreso) {
-            mesesData[mes].ingresosNetos += m.neto;
-            if (esAfecto) mesesData[mes].debito += m.impuesto;
-          } else {
-            mesesData[mes].gastosNetos += m.neto;
-            if (esAfecto) mesesData[mes].credito += m.impuesto;
-          }
-        }
-      });
+      // B-3: el cálculo vive en js/liquidacion-tributaria.js (probado). Las notas de crédito entran con importes negativos.
+      const {
+        totalIngresosNetos, totalGastosNetos, totalIvaDebito, totalIvaCredito,
+        debitoMes: debitoMesSeleccionado, creditoMes: creditoMesSeleccionado, mesesData
+      } = calcularLiquidacion(todosLosMovimientos, anioFiltro, mesFiltro);
 
       document.getElementById("resumen-ingresos-neto").textContent = formatearDinero(totalIngresosNetos);
       document.getElementById("resumen-gastos-neto").textContent = formatearDinero(totalGastosNetos);
@@ -1068,7 +1115,7 @@
 
       tbody.innerHTML = datos.map(m => {
         const esIngreso = m.tipo === "Ingreso";
-        const colorTipo = esIngreso ? "#16a34a" : "#dc2626";
+        const colorTipo = (esIngreso && !m.esNota) ? "#16a34a" : "#dc2626"; // B-3: la nota (importes negativos) va en rojo
         const fechaStr = m.fecha.toLocaleDateString("es-CL", { day: '2-digit', month: '2-digit', year: 'numeric' });
 
         // Columna Documento / Respaldo
@@ -1088,7 +1135,8 @@
         const tieneDoc = Boolean(m.archivoUrl);
         const textoBoton = tieneDoc ? "Cambiar DTE" : "+ Cargar Factura/Boleta";
 
-        const botonSubir = `
+        // B-3: las notas no se editan (ni se les cambia el documento): solo se anulan con otra nota.
+        const botonSubir = m.esNota ? "" : `
           <button type="button" data-upload-id="${m.id}" data-origen="${m.origen}" class="btn-subir-accion" title="Cargar y asociar factura o boleta electrónica">
             <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
@@ -1096,6 +1144,21 @@
             ${textoBoton}
           </button>
         `;
+
+        // B-3: «Registrar nota de crédito» en la fila de una boleta con saldo por compensar (pre-llena la referencia).
+        const saldoBoleta = esBoletaCreditable(m) ? saldoDeBoleta(m, notasGuardadas) : 0;
+        const botonNota = saldoBoleta > 0 ? `
+          <button type="button" data-nc-origen="${esc(m.origen)}" data-nc-id="${esc(m.id)}" class="btn-subir-accion" title="Registrar una nota de crédito que compense esta boleta">
+            Registrar nota de crédito
+          </button>
+        ` : '';
+        let detalleNota = "";
+        if (m.esNota) {
+          const codigo = Number(m.codigoReferencia) === 3 ? "3 · Corrige montos" : "1 · Anula documento";
+          detalleNota = `<br><span title="Código ${codigo}. Motivo: ${esc(m.motivo)}" style="font-size: 0.72rem; color: #64748b;">Ref. boleta #${esc(m.refFolio)}${m.refFolioSii ? " (SII " + esc(m.refFolioSii) + ")" : ""}<br>Cód. ${Number(m.codigoReferencia) === 3 ? 3 : 1} · ${esc(m.medioDevolucion)}</span>`;
+        } else if (esBoletaCreditable(m) && notasDeBoleta(notasGuardadas, m).length > 0) {
+          detalleNota = `<br><span style="font-size: 0.72rem; color: #64748b;">${saldoBoleta > 0 ? "Con notas de crédito: saldo " + formatearDinero(saldoBoleta) : "Compensada con notas de crédito"}</span>`;
+        }
 
         const botonEliminar = m.origen === 'Manual' ? `
           <button type="button" data-del-id="${m.id}" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.4rem;">
@@ -1108,7 +1171,7 @@
             <td style="white-space: nowrap;">${fechaStr}</td>
             <td>
               <strong>${m.dte}</strong><br>
-              <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">Folio: #${m.folio}</span>
+              <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">Folio: #${m.folio}</span>${detalleNota}
             </td>
             <td>
               <strong>${m.concepto}</strong><br>
@@ -1128,6 +1191,7 @@
             </td>
             <td style="text-align: right; white-space: nowrap;">
               <div style="display: inline-flex; align-items: center; gap: 0.4rem; justify-content: flex-end;">
+                ${botonNota}
                 ${botonSubir}
                 ${botonEliminar}
               </div>
@@ -1137,6 +1201,153 @@
       }).join("");
     }
 
+    // =========================================================================
+    // NOTAS DE CRÉDITO (B-3). El portal solo REGISTRA los folios: la boleta y la nota las emite el dueño ante el SII.
+    // =========================================================================
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function aIso(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+
+    const selectBoletaNota = document.getElementById("form-nc-boleta");
+
+    function boletaSeleccionada() {
+      const [origen, ...resto] = (selectBoletaNota.value || "").split("|");
+      const id = resto.join("|");
+      if (!origen || !id) return null;
+      return todosLosMovimientos.find(x => x.origen === origen && x.id === id) || null;
+    }
+
+    function aplicarModoNota() {
+      const esNota = selectDte.value === TIPO_DTE_NOTA;
+      document.getElementById("bloque-nota-credito").style.display = esNota ? "block" : "none";
+      const tipo = document.getElementById("form-tipo");
+      if (esNota) tipo.value = "Ingreso"; // la nota compensa una boleta de venta: siempre es del lado del ingreso
+      tipo.disabled = esNota;
+      ["form-categoria", "form-clasificacion-f22"].forEach(id => {
+        document.getElementById(id).closest(".campo").style.display = esNota ? "none" : "";
+      });
+      if (esNota) {
+        poblarBoletasNota();
+        actualizarAvisosNota();
+      }
+    }
+
+    function poblarBoletasNota() {
+      const actual = selectBoletaNota.value;
+      const candidatas = todosLosMovimientos.filter(m => esBoletaCreditable(m) && saldoDeBoleta(m, notasGuardadas) > 0);
+      selectBoletaNota.innerHTML = '<option value="">Elige la boleta que compensa esta nota</option>' + candidatas.map(m => {
+        const fechaTxt = m.fecha.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+        return `<option value="${esc(m.origen)}|${esc(m.id)}">Boleta #${esc(m.folio)} · ${fechaTxt} · ${esc(m.concepto)} · saldo ${formatearDinero(saldoDeBoleta(m, notasGuardadas))}</option>`;
+      }).join("");
+      selectBoletaNota.value = actual;
+      if (selectBoletaNota.value !== actual) selectBoletaNota.value = "";
+    }
+
+    function fijarMontoBruto(bruto) {
+      const d = desglosarBruto(bruto);
+      inputNeto.value = d.neto > 0 ? formatearDinero(d.neto) : "";
+      inputImpuesto.value = formatearDinero(d.iva);
+      inputTotal.value = formatearDinero(d.total);
+    }
+
+    function alSeleccionarBoletaNota() {
+      const b = boletaSeleccionada();
+      document.getElementById("form-nc-folio-boleta").value = b ? String(b.folio) : "";
+      document.getElementById("form-nc-fecha-boleta").value = b ? b.fecha.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+      document.getElementById("form-nc-folio-sii").value = folioSiiDeBoleta(b);
+      if (b) {
+        if (b.rut && b.rut !== "-") document.getElementById("form-rut").value = b.rut;
+        if (b.concepto) document.getElementById("form-concepto").value = b.concepto;
+        fijarMontoBruto(saldoDeBoleta(b, notasGuardadas)); // por defecto compensa todo lo que falta; se puede bajar el monto
+      }
+      actualizarAvisosNota();
+    }
+
+    // Avisos NO bloqueantes (plazos en notas-credito.js): se muestran, pero nunca impiden guardar.
+    function actualizarAvisosNota() {
+      const caja = document.getElementById("nc-avisos");
+      if (!caja) return;
+      const b = selectDte.value === TIPO_DTE_NOTA ? boletaSeleccionada() : null;
+      const avisos = b ? avisosNotaCredito({
+        fechaBoleta: b.fecha,
+        fechaNota: document.getElementById("form-fecha").value,
+        fechaTerminoServicio: document.getElementById("form-nc-termino").value
+      }) : [];
+      caja.style.display = avisos.length ? "block" : "none";
+      caja.innerHTML = avisos.map(a => `<div>⚠ ${esc(a.texto)}</div>`).join("");
+    }
+
+    function leerYValidarNota() {
+      const boleta = boletaSeleccionada();
+      const entero = (id) => { const v = document.getElementById(id).value.trim(); return v === "" ? null : Number(v); };
+      const codigo = document.getElementById("form-nc-codigo").value;
+      const nota = {
+        folio: document.getElementById("form-folio").value.trim(),
+        fecha: document.getElementById("form-fecha").value,
+        montoBruto: desformatearDinero(inputTotal.value),
+        motivo: document.getElementById("form-nc-motivo").value.trim(),
+        codigoReferencia: codigo === "" ? undefined : Number(codigo),
+        medioDevolucion: document.getElementById("form-nc-medio").value,
+        refFolioSii: document.getElementById("form-nc-folio-sii").value.trim(),
+        visitasContratadas: entero("form-nc-visitas-contratadas"),
+        visitasEjecutadas: entero("form-nc-visitas-ejecutadas")
+      };
+      const r = validarNotaCredito(nota, { boleta, notas: notasGuardadas });
+      if (!r.ok) return r;
+      return {
+        ok: true,
+        errores: [],
+        datos: {
+          folio: nota.folio,
+          fecha: nota.fecha,
+          refOrigen: boleta.origen,
+          refId: boleta.id,
+          refFolio: String(boleta.folio),
+          refFecha: aIso(boleta.fecha),
+          refFolioSii: nota.refFolioSii,
+          refTotal: boleta.total,
+          rut: normalizarFormatoRut(document.getElementById("form-rut").value.trim()),
+          concepto: document.getElementById("form-concepto").value.trim(),
+          montoBruto: nota.montoBruto,
+          neto: desformatearDinero(inputNeto.value),
+          iva: desformatearDinero(inputImpuesto.value),
+          motivo: nota.motivo,
+          codigoReferencia: nota.codigoReferencia,
+          medioDevolucion: nota.medioDevolucion,
+          visitasContratadas: nota.visitasContratadas,
+          visitasEjecutadas: nota.visitasEjecutadas,
+          fechaTerminoServicio: document.getElementById("form-nc-termino").value || null,
+          descripcion: document.getElementById("form-descripcion").value.trim()
+        }
+      };
+    }
+
+    function abrirNotaDesdeBoleta(origen, id) {
+      selectDte.value = TIPO_DTE_NOTA;
+      aplicarModoNota();
+      selectBoletaNota.value = `${origen}|${id}`;
+      if (selectBoletaNota.value !== `${origen}|${id}`) return;
+      alSeleccionarBoletaNota();
+      const b = boletaSeleccionada();
+      // Compensación total ⇒ código 1 (anula); si ya hay notas parciales, lo que falta corrige montos ⇒ código 3.
+      document.getElementById("form-nc-codigo").value = b && saldoDeBoleta(b, notasGuardadas) === b.total ? "1" : "3";
+      document.getElementById("form-movimiento").scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("form-folio").focus();
+    }
+
+    selectDte?.addEventListener("change", aplicarModoNota);
+    selectBoletaNota?.addEventListener("change", alSeleccionarBoletaNota);
+    document.getElementById("form-nc-codigo")?.addEventListener("change", (e) => {
+      const b = boletaSeleccionada();
+      if (e.target.value === "1" && b) fijarMontoBruto(saldoDeBoleta(b, notasGuardadas));
+    });
+    document.getElementById("form-fecha")?.addEventListener("change", actualizarAvisosNota);
+    document.getElementById("form-nc-termino")?.addEventListener("change", actualizarAvisosNota);
+
     // Guardar nuevo comprobante
     document.getElementById("form-movimiento")?.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -1145,6 +1356,18 @@
       btn.textContent = "Registrando en Firestore...";
 
       try {
+        // B-3: una nota se valida ANTES de subir nada. Sin boleta de referencia, o si la suma de sus notas supera la boleta, no se guarda.
+        const esNota = selectDte.value === TIPO_DTE_NOTA;
+        let datosNota = null;
+        if (esNota) {
+          const v = leerYValidarNota();
+          if (!v.ok) {
+            alert("No se registró la nota de crédito:\n- " + v.errores.join("\n- "));
+            return;
+          }
+          datosNota = v.datos;
+        }
+
         let archivoUrl = "";
         let archivoNombre = "";
 
@@ -1177,14 +1400,26 @@
           createdAt: serverTimestamp()
         };
 
-        await addDoc(collection(db, "gastos_ingresos"), payload);
+        if (esNota) {
+          // Colección aditiva: la nota nunca se actualiza ni se borra desde el portal (se anula con otra nota).
+          await addDoc(collection(db, "notasCredito"), {
+            ...datosNota,
+            archivoUrl: archivoUrl,
+            archivoNombre: archivoNombre,
+            registradoPor: auth.currentUser?.uid || null,
+            createdAt: serverTimestamp()
+          });
+        } else {
+          await addDoc(collection(db, "gastos_ingresos"), payload);
+        }
 
         e.target.reset();
         archivoFacturaFormulario = null;
+        aplicarModoNota();
         recalcularImpuestoFormulario();
         alertaFactura.style.display = "none";
         await cargarDatosContables();
-        alert("Comprobante y archivo registrados exitosamente en el libro contable.");
+        alert(esNota ? "Nota de crédito registrada en el libro contable." : "Comprobante y archivo registrados exitosamente en el libro contable.");
 
       } catch (err) {
         alert("Error al registrar movimiento: " + err.message);
@@ -1196,7 +1431,19 @@
 
     // Delegación de eventos en la tabla (Eliminar y Cargar Factura/Boleta)
     document.getElementById("tabla-movimientos")?.addEventListener("click", async (e) => {
+      const btnNota = e.target.closest("button[data-nc-id]");
+      if (btnNota) {
+        abrirNotaDesdeBoleta(btnNota.getAttribute("data-nc-origen"), btnNota.getAttribute("data-nc-id"));
+        return;
+      }
+
       const delId = e.target.getAttribute("data-del-id");
+      // B-3: una boleta con notas de crédito no se elimina (la nota que la compensa quedaría sin referencia).
+      const movAEliminar = delId ? todosLosMovimientos.find(x => x.origen === "Manual" && x.id === delId) : null;
+      if (movAEliminar && notasDeBoleta(notasGuardadas, movAEliminar).length > 0) {
+        alert("No se puede eliminar esta boleta: tiene notas de crédito que la compensan.");
+        return;
+      }
       if (delId && confirm("¿Deseas eliminar este comprobante del libro contable?")) {
         try {
           await deleteDoc(doc(db, "gastos_ingresos", delId));
