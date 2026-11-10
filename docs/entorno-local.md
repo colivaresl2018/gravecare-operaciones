@@ -32,3 +32,13 @@ Alternativa usada el 2026-11-08 (porque la carpeta de la web tenía `functions/.
 - Sirve `public/` en `127.0.0.1` con las mismas reescrituras de `firebase.json`.
 - Al servir `.html`/`.js` cambia los módulos del SDK de gstatic por envoltorios locales que fuerzan `demo-gravecare` y conectan Auth, Firestore y Storage a los emuladores; Analytics queda inerte. **Las páginas no se modifican**; en Hosting real este servidor no existe, así que no hay nada que desactivar.
 - La prueba de navegador comprueba además que ninguna petición sale a servicios reales de Firebase.
+
+## Prueba de navegador de B-3 (notas de crédito)
+Usa un `GC_OFFSET` propio (> 0; la prueba se niega con 0), p. ej. 1300: sitio 6350, Firestore 9380, Auth 10399, Storage 10499. Los emuladores deben cargar las reglas de la web **más** la regla aditiva de `docs/entregas/reglas-notasCredito.md`; con las reglas publicadas de la web sin ella, las notas se rechazan.
+```powershell
+$env:GC_OFFSET=1300
+node scripts/local/sembrar-emulador.mjs
+node scripts/local/servidor-emuladores.mjs      # deja esta terminal abierta
+npm run test:e2e:b3                             # en otra terminal, con $env:GC_OFFSET=1300
+```
+Es repetible: antes de empezar borra las notas del emulador (con el token «owner», que solo existe en los emuladores).

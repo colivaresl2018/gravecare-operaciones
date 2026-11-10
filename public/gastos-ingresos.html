@@ -1149,9 +1149,9 @@
         let detalleNota = "";
         if (m.esNota) {
           const codigo = Number(m.codigoReferencia) === 3 ? "3 · Corrige montos" : "1 · Anula documento";
-          detalleNota = `<br><span style="font-size: 0.72rem; color: #64748b;">Ref. boleta #${esc(m.refFolio)} · Código ${codigo} · ${esc(m.medioDevolucion)}<br>Motivo: ${esc(m.motivo)}</span>`;
+          detalleNota = `<br><span title="Código ${codigo}. Motivo: ${esc(m.motivo)}" style="font-size: 0.72rem; color: #64748b;">Ref. boleta #${esc(m.refFolio)}<br>Cód. ${Number(m.codigoReferencia) === 3 ? 3 : 1} · ${esc(m.medioDevolucion)}</span>`;
         } else if (esBoletaCreditable(m) && notasDeBoleta(notasGuardadas, m).length > 0) {
-          detalleNota = `<br><span style="font-size: 0.72rem; color: #64748b;">Con notas de crédito: saldo por compensar ${formatearDinero(saldoBoleta)}</span>`;
+          detalleNota = `<br><span style="font-size: 0.72rem; color: #64748b;">${saldoBoleta > 0 ? "Con notas de crédito: saldo " + formatearDinero(saldoBoleta) : "Compensada con notas de crédito"}</span>`;
         }
 
         const botonEliminar = m.origen === 'Manual' ? `
