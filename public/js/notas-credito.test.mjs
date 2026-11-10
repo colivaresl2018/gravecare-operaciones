@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TIPO_DTE_NOTA, PLAZO_MESES_BOLETA_NOTA, PLAZO_DIAS_TERMINO_SERVICIO, CODIGOS_REFERENCIA, MEDIOS_DEVOLUCION,
-  desglosarBruto, esBoletaCreditable, notasDeBoleta, saldoDeBoleta, validarNotaCredito, avisosNotaCredito, filaDeNota,
+  desglosarBruto, esBoletaCreditable, notasDeBoleta, saldoDeBoleta, validarNotaCredito, avisosNotaCredito, filaDeNota, folioSiiDeBoleta,
 } from './notas-credito.js';
 import { calcularLiquidacion } from './liquidacion-tributaria.js';
 import { cuentaComoIngreso } from './orden-pagada.js';
@@ -105,6 +105,18 @@ test('validarNotaCredito: visitas opcionales; si se informan deben ser enteros �
   assert.equal(caso({ visitasEjecutadas: 1.5 }).ok, false);
 });
 
+test('validarNotaCredito: el folio SII de la boleta es opcional; si se informa debe ser numérico', () => {
+  const caso = (refFolioSii) => validarNotaCredito({ ...notaOk(), refFolioSii }, { boleta: boleta(), notas: [] });
+  assert.equal(caso(undefined).ok, true);
+  assert.equal(caso('').ok, true);
+  assert.equal(caso(null).ok, true);
+  assert.equal(caso('123456').ok, true);
+  assert.equal(caso(' 987 ').ok, true, 'se aceptan espacios alrededor');
+  assert.equal(caso('GC-1').ok, false);
+  assert.equal(caso('12.5').ok, false);
+  assert.match(caso('abc').errores.join(' '), /folio SII/i);
+});
+
 test('avisosNotaCredito: avisa (sin bloquear) si pasaron más de 6 meses entre la boleta y la nota', () => {
   const av = (b, n) => avisosNotaCredito({ fechaBoleta: fecha(b), fechaNota: fecha(n) });
   assert.deepEqual(av('2026-03-15', '2026-09-15'), [], 'exactamente 6 meses: sin aviso');
@@ -149,6 +161,22 @@ test('filaDeNota: fila del libro con importes en negativo (resta del ingreso y d
   assert.equal(f.clasificacionF22, 'Ingreso Bruto');
   assert.match(f.descripcion, /GC-1/);
   assert.match(f.descripcion, /Devolución/);
+});
+
+test('filaDeNota: lleva el folio SII de la boleta (si se registró) y lo cita en la descripción', () => {
+  const f = filaDeNota('n2', { folio: '5', fecha: '2026-10-20', montoBruto: 100, refFolio: 'GC-1', refFolioSii: '4521', motivo: 'x' });
+  assert.equal(f.refFolioSii, '4521');
+  assert.match(f.descripcion, /folio SII 4521/);
+  assert.equal(filaDeNota('n3', { folio: '6', fecha: '2026-10-20', montoBruto: 100, refFolio: 'GC-1' }).refFolioSii, '');
+});
+
+test('folioSiiDeBoleta: usa el folio guardado en la orden (folioBoleta); en boletas manuales el folio ya es el del SII', () => {
+  assert.equal(folioSiiDeBoleta({ origen: 'Webpay', folio: 'GC-1', folioSii: '4521' }), '4521');
+  assert.equal(folioSiiDeBoleta({ origen: 'Webpay', folio: 'GC-1', folioSii: '' }), '');
+  assert.equal(folioSiiDeBoleta({ origen: 'Webpay', folio: 'GC-1' }), '');
+  assert.equal(folioSiiDeBoleta({ origen: 'Manual', folio: '14502' }), '14502');
+  assert.equal(folioSiiDeBoleta({ origen: 'Manual', folio: '-' }), '');
+  assert.equal(folioSiiDeBoleta(null), '');
 });
 
 test('filaDeNota: si el documento no trae neto e IVA, los deduce del monto bruto', () => {

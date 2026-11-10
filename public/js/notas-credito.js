@@ -72,6 +72,17 @@ export function esBoletaCreditable(mov) {
   return Boolean(mov) && mov.tipo === 'Ingreso' && mov.dte === 'Boleta Venta' && mov.origen !== ORIGEN_NOTA && Number(mov.total) > 0;
 }
 
+/**
+ * Folio del SII de la boleta, si se conoce. En una boleta registrada a mano el folio del libro ya es el del SII.
+ * En una orden Webpay el libro muestra el `numeroOrden`; el folio del SII solo existe si la orden trae `folioBoleta`
+ * (campo del repo de la web: aquí SOLO se lee). Vacío si no se conoce.
+ */
+export function folioSiiDeBoleta(boleta) {
+  if (!boleta) return '';
+  if (boleta.origen === 'Manual') return boleta.folio && boleta.folio !== '-' ? String(boleta.folio) : '';
+  return boleta.folioSii ? String(boleta.folioSii) : '';
+}
+
 /** Notas guardadas que referencian esa boleta (mismo origen e id de documento). */
 export function notasDeBoleta(notas, boleta) {
   if (!boleta) return [];
@@ -115,6 +126,10 @@ export function validarNotaCredito(nota, { boleta, notas = [] } = {}) {
 
   const vc = opcionalEntero(nota?.visitasContratadas);
   const ve = opcionalEntero(nota?.visitasEjecutadas);
+  // Folio SII de la boleta: opcional (se puede conocer después), pero si se informa debe ser el número del SII.
+  const folioSii = String(nota?.refFolioSii ?? '').trim();
+  if (folioSii && !/^\d+$/.test(folioSii)) errores.push('El folio SII de la boleta debe ser un número (sin letras ni puntos).');
+
   if (vc.invalido) errores.push('Las visitas contratadas deben ser un número entero (0 o más).');
   if (ve.invalido) errores.push('Las visitas ejecutadas deben ser un número entero (0 o más).');
   if (vc.n !== undefined && ve.n !== undefined && ve.n > vc.n) errores.push('Las visitas ejecutadas no pueden superar a las contratadas.');
@@ -168,7 +183,8 @@ export function filaDeNota(id, d) {
   const porDefecto = desglosarBruto(bruto);
   const neto = d.neto !== undefined && d.neto !== null ? Number(d.neto) : porDefecto.neto;
   const iva = d.iva !== undefined && d.iva !== null ? Number(d.iva) : bruto - neto;
-  const refTxt = `boleta #${d.refFolio ?? '-'}${d.refFecha ? ' del ' + d.refFecha : ''}`;
+  const refFolioSii = d.refFolioSii ? String(d.refFolioSii) : '';
+  const refTxt = `boleta #${d.refFolio ?? '-'}${refFolioSii ? ' (folio SII ' + refFolioSii + ')' : ''}${d.refFecha ? ' del ' + d.refFecha : ''}`;
   return {
     id,
     origen: ORIGEN_NOTA,
@@ -190,6 +206,7 @@ export function filaDeNota(id, d) {
     refOrigen: d.refOrigen || '',
     refId: d.refId || '',
     refFolio: d.refFolio || '',
+    refFolioSii,
     codigoReferencia: d.codigoReferencia ?? null,
     medioDevolucion: d.medioDevolucion || '',
     motivo: d.motivo || '',

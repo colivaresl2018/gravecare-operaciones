@@ -18,7 +18,7 @@ test('el formulario ofrece «Nota de Crédito Electrónica» y conserva los tipo
 
 test('el formulario trae los campos de la nota: boleta de referencia, folio y fecha, código, medio, motivo, visitas y término', () => {
   for (const id of ['form-nc-boleta', 'form-nc-folio-boleta', 'form-nc-fecha-boleta', 'form-nc-codigo', 'form-nc-medio', 'form-nc-motivo',
-    'form-nc-visitas-contratadas', 'form-nc-visitas-ejecutadas', 'form-nc-termino', 'nc-avisos', 'bloque-nota-credito']) {
+    'form-nc-folio-sii', 'form-nc-visitas-contratadas', 'form-nc-visitas-ejecutadas', 'form-nc-termino', 'nc-avisos', 'bloque-nota-credito']) {
     assert.match(html, new RegExp(`id="${id}"`), `falta #${id}`);
   }
   assert.match(html, /<option value="1">1 · Anula documento<\/option>/);
@@ -55,6 +55,13 @@ test('de «ordenes» solo se lee (contrato con la web) y el ingreso sigue pasand
   // La única escritura a ordenes es la que ya existía: adjuntar el comprobante a una orden Webpay.
   assert.equal(html.split('updateDoc(doc(db, "ordenes"').length - 1, 1);
   assert.doesNotMatch(html, /addDoc\(collection\(db, "ordenes"\)|setDoc\(doc\(db, "ordenes"|deleteDoc\(doc\(db, "ordenes"/);
+});
+
+test('el folio SII de la orden (folioBoleta) solo se LEE de «ordenes»; la página no lo escribe', () => {
+  assert.match(html, /folioSii: ord\.folioBoleta \? String\(ord\.folioBoleta\) : ""/);
+  assert.doesNotMatch(html, /folioBoleta\s*:\s*(?!ord)/, 'ninguna escritura de folioBoleta');
+  const escrituraOrdenes = html.match(/updateDoc\(doc\(db, "ordenes"[^)]*\),\s*\{[^}]*\}/s)[0];
+  assert.doesNotMatch(escrituraOrdenes, /folio/i);
 });
 
 test('el guardado de la nota valida antes de subir archivos y los avisos de plazo no bloquean', () => {

@@ -31,14 +31,15 @@ REPORTE B-3 (backoffice) — 2026-11-09 — rama feat/b3-notas-credito (base: ta
 - **`ordenes`: solo lectura** (`pagoConfirmado`, `estado`, `modoPago`, montos, `numeroOrden`, `fechaPago`). La única escritura a `ordenes` sigue siendo la que ya existía (adjuntar comprobante); una prueba lo fija.
 - **`gastos_ingresos`: sin cambios** (ni un documento nuevo de nota ahí).
 - **Colección nueva y aditiva `notasCredito`** (documento con monto en positivo): `folio`, `fecha`, `refOrigen`, `refId`, `refFolio`, `refFecha`, `refTotal`, `rut`, `concepto`, `montoBruto`, `neto`, `iva`, `motivo`, `codigoReferencia`, `medioDevolucion`, `visitasContratadas`, `visitasEjecutadas`, `fechaTerminoServicio`, `descripcion`, `archivoUrl`, `archivoNombre`, `registradoPor`, `createdAt`. La web no la lee.
+- Campo opcional **`refFolioSii`** (folio SII de la boleta, solo dígitos): se propone con `ordenes.folioBoleta` si la orden lo trae (solo lectura) o con el folio de la boleta manual; se puede escribir o corregir a mano.
 - **⚠ REGLA DE FIRESTORE NUEVA (aditiva) que hay que replicar en el repo de la web** (este repo no la publica): `docs/entregas/reglas-notasCredito.md`. Lectura y creación solo con `staffActivo`; actualizar y borrar, nunca. **Sin ella no se pueden guardar notas** (el libro sigue cargando igual: la lectura de `notasCredito` está protegida con `try/catch`). Orden: regla primero, Hosting después.
 - `cuentaComoIngreso` no cambia (`estado === 'Confirmado'` y `modoPago !== 'integracion'`).
 
 ## 4. Pruebas
 | Prueba | Resultado |
 |---|---|
-| `node --test tests/ public/js/` (suite completa) | **136 / 136** (antes 106; +30) |
-| `npm run test:e2e:b3` (emuladores propios, `GC_OFFSET=1300`: sitio 6350, Firestore 9380, Auth 10399, Storage 10499) | **7 / 7**, repetida 3 veces |
+| `node --test tests/ public/js/` (suite completa) | **140 / 140** (antes 106; +34) |
+| `npm run test:e2e:b3` (emuladores propios, `GC_OFFSET=1300`: sitio 6350, Firestore 9380, Auth 10399, Storage 10499) | **8 / 8** |
 | `npm run test:e2e` (B-2, mismos emuladores) | **16 / 16** (sin regresión) |
 
 Criterios de aceptación cubiertos:
@@ -68,7 +69,7 @@ Abre `http://localhost:5050/login-ops.html`, entra con el staff de prueba, ve a 
 6. El monto se ingresa con los campos existentes (neto + IVA 19 % = total); al elegir la boleta se propone el saldo.
 
 ## 7. Lo que dejo sin hacer / abierto
-- **Folio SII de la boleta de una orden Webpay:** en el portal la boleta de una orden se identifica con su `numeroOrden` (no hay un folio del SII guardado en `ordenes`). La nota registra ese número como referencia. Si el dueño quiere el folio real del SII en la nota, hay que agregar un campo opcional (cambio chico, pendiente de su decisión).
+- **`ordenes.folioBoleta` (cambio del repo de la WEB, no hecho aquí):** la respuesta recibida el 2026-11-09 recomienda que la orden guarde el folio SII de la boleta. Ese campo lo escribe el servidor de la web al emitir, así que lo debe agregar el repo web (aditivo; actualizar `docs/10-contrato-de-datos.md`). Aquí solo se **lee**: si la orden trae `folioBoleta`, el formulario lo propone. Mientras no exista, el dueño puede escribir el folio SII a mano en la nota.
 - Fuera de B-3, como se pidió: datos bancarios del cliente y pantalla de liquidación/devolución; emitir ante el SII; anulación en Transbank; flujo de pago de la web; textos del contrato. No escribí textos legales para clientes. Los avisos son internos para el staff y no citan artículos.
 - **Tributario sin verificar:** solo el plazo de 6 meses se leyó en la BCN. Que se cuente desde la fecha de la boleta es criterio del contador (pendiente por escrito); régimen (Pro Pyme) y el plazo de 30 días en la práctica quedan a confirmar con el contador. Los plazos son constantes fáciles de cambiar.
 - Un pendiente menor de la página (preexistente): la fecha por defecto del formulario usa `toISOString()` (UTC), por lo que de noche puede salir un día adelantado. No se tocó.
@@ -79,3 +80,11 @@ Detalle en `docs/entregas/publicar-ops-3.md`.
 1. Publicar la regla `notasCredito` desde el repo de la web (`docs/entregas/reglas-notasCredito.md`).
 2. PR → merge → tag `ops-3` sobre `main` → clon limpio `C:\Despliegue\GravecareOps` → `firebase deploy --only hosting:gravecare-ops --project gravecare-2e8d2`; verificar con `node scripts/verificar-sitio-publicado.mjs ops-3`.
 3. **Reversa:** consola de Firebase → Hosting → `gravecare-ops` → versión anterior (la de `ops-2`) → Revertir. Las notas ya guardadas quedan en `notasCredito` sin afectar nada; la regla se puede dejar o quitar.
+
+## 9. Respuesta recibida el 2026-11-09 (folio SII, garantía de 6 meses, 30 días, régimen) y qué se hizo con ella
+- **Hecho:** campo opcional de folio SII en la nota (punto 1 de la respuesta), con lectura de `ordenes.folioBoleta` si existe. Pruebas: 3 unitarias, 1 estática, 1 de navegador.
+- **No hecho aquí:** agregar `folioBoleta` a `ordenes` y escribirlo al emitir la boleta (repo de la web; regla de oro 9 y contrato de datos).
+- **No cambia el aviso de 6 meses:** el punto 2 de la respuesta habla de la garantía legal de la Ley 19.496 (cuándo reclama el cliente), que es otra cosa que el plazo del D.L. 825 entre boleta y nota. El aviso del portal sigue siendo el tributario leído en la BCN.
+- **Los 30 días de la respuesta** (renovación automática, tarjetas rechazadas, F29) no son el plazo del art. 70 desde el término del servicio; el aviso de 30 días del portal queda como está.
+- **Régimen:** la respuesta describe las dos opciones Pro Pyme pero no confirma cuál tiene la empresa. Sigue pendiente la consulta en el SII (el dueño o el contador).
+- Las citas legales de esa respuesta siguen sin verificar en la fuente. Los datos personales y tributarios que traía no se copiaron a este repo.

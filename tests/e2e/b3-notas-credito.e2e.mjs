@@ -208,6 +208,30 @@ test('avisos NO bloqueantes: más de 6 meses entre la boleta y la nota, y más d
   assert.match(await filasDeNota().filter({ hasText: '#9007' }).innerText(), /Transferencia bancaria/);
 });
 
+test('folio SII de la boleta: se propone el folioBoleta de la orden si existe (solo lectura), es opcional, debe ser numérico y queda en la nota', async () => {
+  // Solo en el emulador: la orden 5 trae el folio que la web podría guardar en el futuro (campo `folioBoleta`).
+  const r = await fetch(`${FS}/ordenes/b2-pagada-5?updateMask.fieldPaths=folioBoleta`, { method: 'PATCH', headers: OWNER, body: JSON.stringify({ fields: { folioBoleta: { stringValue: '7788' } } }) });
+  assert.equal(r.status, 200);
+  await abrirLibro();
+  await fila('GC-B2-005').locator('button[data-nc-id]').click();
+  assert.equal(await pagina.inputValue('#form-nc-folio-sii'), '7788', 'propone el folio de la orden');
+  await pagina.fill('#form-nc-folio-sii', 'GC-5');
+  await llenarNota({ folio: '9008' });
+  assert.match(await guardar(), /folio SII de la boleta debe ser un número/);
+  await pagina.fill('#form-nc-folio-sii', '7788');
+  assert.match(await guardar(), /Nota de crédito registrada/);
+  await abrirLibro();
+  assert.match(await filasDeNota().filter({ hasText: '#9008' }).innerText(), /Ref\. boleta #GC-B2-005 \(SII 7788\)/);
+
+  // sin folio en la orden: el campo queda vacío y la nota se guarda igual (opcional)
+  await fila('GC-B2-003').locator('button[data-nc-id]').click();
+  assert.equal(await pagina.inputValue('#form-nc-folio-sii'), '');
+  await llenarNota({ folio: '9009' });
+  assert.match(await guardar(), /Nota de crédito registrada/);
+  await abrirLibro();
+  assert.doesNotMatch(await filasDeNota().filter({ hasText: '#9009' }).innerText(), /SII/);
+});
+
 test('reglas (propuesta aditiva): el staff crea notas, pero nadie las actualiza ni las borra; sin claim no se lee', async () => {
   const auth = `http://127.0.0.1:${P.auth}/identitytoolkit.googleapis.com/v1`;
   const { idToken } = await (await fetch(`${auth}/accounts:signInWithPassword?key=demo-api-key-local`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: STAFF_PRUEBA.email, password: STAFF_PRUEBA.password, returnSecureToken: true }) })).json();
