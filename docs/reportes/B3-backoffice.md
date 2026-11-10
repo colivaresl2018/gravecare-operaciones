@@ -88,3 +88,11 @@ Detalle en `docs/entregas/publicar-ops-3.md`.
 - **Los 30 días de la respuesta** (renovación automática, tarjetas rechazadas, F29) no son el plazo del art. 70 desde el término del servicio; el aviso de 30 días del portal queda como está.
 - **Régimen:** la respuesta describe las dos opciones Pro Pyme pero no confirma cuál tiene la empresa. Sigue pendiente la consulta en el SII (el dueño o el contador).
 - Las citas legales de esa respuesta siguen sin verificar en la fuente. Los datos personales y tributarios que traía no se copiaron a este repo.
+
+## 10. Cierre de la publicación de ops-3 (2026-11-10)
+- **Integración:** PR #3 fusionado en `main` (merge `8b4a1e3`, sin force) y tag `ops-3` sobre ese commit.
+- **Reglas:** la regla aditiva de `notasCredito` ya estaba publicada desde el repo de la web antes del Hosting (tag `release/cierre-2-reglas-050` del repo web, según lo informado en la sesión de la web).
+- **Despliegue del Hosting `gravecare-ops`:** hecho por el dueño desde `tags/ops-3`, con `--only hosting:gravecare-ops --project gravecare-2e8d2`. Según lo informado en la sesión de la web, la revisión de Gastos e ingresos con un staff real no mostró errores de permisos sobre `notasCredito`. Esta sesión no ejecutó ni observó el despliegue.
+- **Verificación por lectura hecha en esta sesión (solo GET de archivos públicos):** `node scripts/verificar-sitio-publicado.mjs ops-3` → 39 archivos de `public/` en ops-3, 0 distintos, 0 sin publicar o con error (sitio `https://gravecare-ops.web.app`).
+- **Pendiente fuera de este repo:** `ordenes.folioBoleta` (repo web) y las confirmaciones tributarias del apartado 7. Siguen abiertos.
+- **Limpieza:** rama `feat/b3-notas-credito` (local y remota) eliminada tras el merge; el contenido queda en `main` y en el tag `ops-3`.
