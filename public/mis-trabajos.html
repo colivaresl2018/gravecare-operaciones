@@ -282,8 +282,6 @@
           else if (planL.includes("6")) totalVisitas = 6;
           else if (planL.includes("4")) totalVisitas = 4;
 
-          const visitasCompletadasCount = Number(d.visitasCompletadas !== undefined ? d.visitasCompletadas : 0);
-
           let fechasGuardadas = [];
           if (Array.isArray(d.fechasProgramadas) && d.fechasProgramadas.length > 0) {
             fechasGuardadas = d.fechasProgramadas.map(f => parseAFecha(f)).filter(Boolean);
@@ -300,7 +298,7 @@
             const numVisita = idx + 1;
             const claveVisita = `V${numVisita}`;
 
-            if (idx < visitasCompletadasCount) continue;
+            // visitasCompletadas (contador posicional) ya no oculta visitas: solo cuenta el estado propio de la visita.
             if (esEstadoCompletada((d.estadosPorVisita || {})[claveVisita])) continue; // visita cerrada con el estado propio (el cierre ya no escribe el contador)
 
             const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || operadorGlobal || "";
