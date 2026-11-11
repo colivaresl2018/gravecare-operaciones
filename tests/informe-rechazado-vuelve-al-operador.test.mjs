@@ -42,3 +42,14 @@ test('al reenviar, el informe corregido deja de estar rechazado (estado de infor
   assert.ok(html.includes('estado: "pendiente_revision"'), 'el informe vuelve a revisión');
   assert.ok(html.includes('estado: "en revision"'), 'la visita vuelve a revisión');
 });
+
+test('al corregir, la captura abre con lo que el operador ya cargó (fotos, labores y observaciones), sin rehacer el informe', () => {
+  const html = leer('informe-captura.html');
+  assert.ok(html.includes('datosParaCorregir('), 'usa la regla que extrae los datos previos');
+  assert.ok(/getDoc\(doc\(db, "informes", informeDocId\)\)/.test(html), 'lee el informe de esta visita');
+  assert.ok(html.includes('function precargarFoto'), 'carga cada foto en su casilla');
+  assert.ok(html.includes('chkBronce') && html.includes('"Limpieza y pulido de piezas de bronce"'), 'marca las labores guardadas');
+  assert.ok(/getElementById\("observaciones"\)\.value\s*=\s*previo\.observaciones/.test(html), 'repone las observaciones');
+  // Solo cuando la visita fue rechazada (un informe nuevo parte vacío).
+  assert.ok(/if \(rechazo\.rechazada\) \{[\s\S]*datosParaCorregir\(/.test(html), 'solo en visitas rechazadas');
+});

@@ -59,3 +59,30 @@ test('el informe se encuentra también por numeroOrden y por el id antiguo sin s
   assert.equal(rechazoDeVisita(orden(), 1, { docId: 'ORD-1', indiceInformes: idx }).rechazada, true);
   assert.equal(rechazoDeVisita(orden(), 2, { docId: 'ORD-1', indiceInformes: idx }).rechazada, false);
 });
+
+// ---- datosParaCorregir: lo que ya cargó el operador, para que corrija sin rehacer el informe ----
+import { datosParaCorregir } from './informe-rechazado.js';
+
+test('datosParaCorregir: devuelve las 4 fotos, las labores y las observaciones del informe rechazado', () => {
+  const r = datosParaCorregir({
+    fotos: { inicial: 'data:A', finalizado: 'data:B', ornamentacion: 'data:C', panoramica: 'data:D' },
+    laboresEjecutadas: ['Riego y perfilado de terreno'], observaciones: ' Todo bien ',
+  });
+  assert.deepEqual(r.fotos, { 1: 'data:A', 2: 'data:B', 3: 'data:C', 4: 'data:D' });
+  assert.deepEqual(r.labores, ['Riego y perfilado de terreno']);
+  assert.equal(r.observaciones, 'Todo bien');
+});
+
+test('datosParaCorregir: usa antes/despues si faltan inicial/finalizado, y deja vacío lo que no hay', () => {
+  const r = datosParaCorregir({ fotos: { antes: 'data:A', despues: 'data:B' } });
+  assert.deepEqual(r.fotos, { 1: 'data:A', 2: 'data:B', 3: null, 4: null });
+  assert.deepEqual(r.labores, []);
+  assert.equal(r.observaciones, '');
+});
+
+test('datosParaCorregir: ignora valores que no son texto y un informe ausente', () => {
+  assert.deepEqual(datosParaCorregir(null), { fotos: { 1: null, 2: null, 3: null, 4: null }, labores: [], observaciones: '' });
+  const r = datosParaCorregir({ fotos: { inicial: 5, finalizado: '', ornamentacion: {}, panoramica: 'data:D' }, laboresEjecutadas: 'x' });
+  assert.deepEqual(r.fotos, { 1: null, 2: null, 3: null, 4: 'data:D' });
+  assert.deepEqual(r.labores, []);
+});

@@ -254,7 +254,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
-    import { rechazoDeVisita } from "./js/informe-rechazado.js"; // informe rechazado: muestra el motivo al operador
+    import { rechazoDeVisita, datosParaCorregir } from "./js/informe-rechazado.js"; // informe rechazado: muestra el motivo al operador
     import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -394,6 +394,30 @@
 
     document.getElementById("btnActualizarGps").addEventListener("click", capturarUbicacionGps);
 
+    // Informe rechazado: deja en su casilla la foto que el operador ya había cargado (puede reemplazarla con «borrar»).
+    function precargarFoto(num, dataUrl) {
+      if (!dataUrl) return;
+      fotosDataUrls[num] = dataUrl;
+      const preview = document.getElementById(`imgPreview${num}`);
+      preview.src = dataUrl;
+      preview.classList.remove("hidden");
+      document.getElementById(`phFoto${num}`).classList.add("hidden");
+      document.getElementById(`btnBorrar${num}`).classList.remove("hidden");
+      document.getElementById(`inputFoto${num}`).classList.add("pointer-events-none");
+      const statusSlot = document.getElementById(`statusSlot${num}`);
+      statusSlot.textContent = "✓ Lista";
+      statusSlot.className = "text-[11px] font-bold text-emerald-600";
+      actualizarContador();
+    }
+
+    const CHECK_POR_LABOR = {
+      "Limpieza profunda de lápida y placa": "chkLimpiezaLapida",
+      "Retiro de maleza y hojas secas": "chkRetiroMaleza",
+      "Ornamentación con flores frescas": "chkOrnamentacion",
+      "Riego y perfilado de terreno": "chkRiego",
+      "Limpieza y pulido de piezas de bronce": "chkBronce"
+    };
+
     [1, 2, 3, 4].forEach(num => {
       const input = document.getElementById(`inputFoto${num}`);
       const preview = document.getElementById(`imgPreview${num}`);
@@ -471,6 +495,18 @@
         if (rechazo.rechazada) {
           document.getElementById("avisoRechazoMotivo").textContent = rechazo.motivo ? `Motivo: ${rechazo.motivo}` : "";
           document.getElementById("avisoRechazo").classList.remove("hidden");
+          // El operador corrige sobre lo que ya había cargado: fotos, labores y observaciones vuelven al formulario.
+          try {
+            const snapInforme = await getDoc(doc(db, "informes", informeDocId));
+            if (snapInforme.exists()) {
+              const previo = datosParaCorregir(snapInforme.data());
+              [1, 2, 3, 4].forEach(n => precargarFoto(n, previo.fotos[n]));
+              previo.labores.forEach(l => { const el = CHECK_POR_LABOR[l] && document.getElementById(CHECK_POR_LABOR[l]); if (el) el.checked = true; });
+              document.getElementById("observaciones").value = previo.observaciones;
+            }
+          } catch (e) {
+            console.warn("No se pudo cargar el informe anterior para corregirlo:", e && e.code ? e.code : "ERROR");
+          }
         }
 
         capturarUbicacionGps();

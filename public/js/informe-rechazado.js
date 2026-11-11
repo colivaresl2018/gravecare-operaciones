@@ -51,3 +51,25 @@ export function rechazoDeVisita(orden, n, ctx = {}) {
   }
   return esRechazo(prog.estado) ? { rechazada: true, motivo: motivoVisita } : { rechazada: false, motivo: '' };
 }
+
+const FOTO_ES_TEXTO = (v) => (typeof v === 'string' && v.trim() !== '' ? v : null);
+
+/**
+ * Lo que el operador ya había cargado en el informe, para que al corregirlo no tenga que rehacerlo.
+ * Devuelve las 4 fotos (1 estado inicial, 2 finalizado, 3 ornamentación, 4 vista panorámica), las labores y las observaciones.
+ * @returns {{fotos:{1:?string,2:?string,3:?string,4:?string}, labores:string[], observaciones:string}}
+ */
+export function datosParaCorregir(informe) {
+  const i = informe && typeof informe === 'object' ? informe : {};
+  const f = i.fotos && typeof i.fotos === 'object' ? i.fotos : {};
+  return {
+    fotos: {
+      1: FOTO_ES_TEXTO(f.inicial) || FOTO_ES_TEXTO(f.antes),
+      2: FOTO_ES_TEXTO(f.finalizado) || FOTO_ES_TEXTO(f.despues),
+      3: FOTO_ES_TEXTO(f.ornamentacion),
+      4: FOTO_ES_TEXTO(f.panoramica),
+    },
+    labores: Array.isArray(i.laboresEjecutadas) ? i.laboresEjecutadas.filter((x) => typeof x === 'string') : [],
+    observaciones: texto(i.observaciones),
+  };
+}
