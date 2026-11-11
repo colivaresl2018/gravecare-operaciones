@@ -148,6 +148,8 @@
     import { ESTADOS, transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura)
+    import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -254,10 +256,34 @@
       }
     }
 
+    function estadoVisitaVigente(orden, clave) {
+      const e = (orden.estadosPorVisita || {})[clave] || null;
+      return esEstadoCompletada(e) ? null : e;
+    }
+
     async function cargarVisitasPendientes() {
       await cargarOperadores();
 
       try {
+        // Evidencia de visitas terminadas: informes por visita. Si no se pueden leer, ninguna visita se da por hecha.
+        let indiceInformes = crearIndiceInformes([]);
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          const entradas = [];
+          snapInf.forEach(i => entradas.push([i.id, i.data()]));
+          indiceInformes = crearIndiceInformes(entradas);
+        } catch (e) {
+          console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        }
+
+        // Respaldo del nombre del cliente: contratos (el staff puede leerlos). `usuarios/{uid}` solo lo lee su dueño (firestore.rules).
+        const contratosMap = await cargarContratos(async () => {
+          const sc = await getDocs(collection(db, "contratos"));
+          const l = [];
+          sc.forEach(c => l.push([c.id, c.data()]));
+          return l;
+        });
+
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         const visitas = [];
         const cementeriosSet = new Set();
@@ -274,7 +300,7 @@
 
           const tit = d.titular || d;
           const dif = d.difunto || {};
-          const nomCliente = tit.nombreCompleto || tit.nombreCliente || d.clienteNombre || d.usuario || "Cliente";
+          const nomCliente = nombreClienteParaMostrar(d, contratosDeOrden(contratosMap, d, docSnap.id));
           const nomDifunto = dif.nombreCompleto || dif.nombre || d.nombreCompletoDifunto || d.difuntoNombre || "Ser Querido";
           const cem = d.ubicacionSepultura?.cementerio || d.cementerio || "Cementerio";
           cementeriosSet.add(cem);
@@ -326,7 +352,8 @@
           }
 
           // Visitas ya completadas en esta orden
-          const visitasCompletadasCount = Number(d.visitasCompletadas !== undefined ? d.visitasCompletadas : 0);
+          // Visitas realmente terminadas (operador + evidencia + estado de esa visita); el contador posicional ya no oculta visitas.
+          const terminadas = numerosTerminados(d, { docId: docSnap.id, indiceInformes });
           const operadoresPorVisita = d.operadoresPorVisita || {};
 
           // Recorrer y mostrar únicamente las visitas no completadas
@@ -334,7 +361,7 @@
             const numeroVisita = idx + 1;
             const claveVisita = `V${numeroVisita}`;
 
-            if (idx < visitasCompletadasCount) {
+            if (terminadas.has(numeroVisita)) {
               continue;
             }
 
@@ -357,8 +384,10 @@
               cementerio: cem,
               plan: plan,
               fechaEstimada: fechaDeEstaVisita,
-              estado: (d.estadosPorVisita || {})[claveVisita] || estadoVisita,
-              estadoPersistido: (d.estadosPorVisita || {})[claveVisita] || null,
+              // Una visita que llega aquí NO está terminada según la regla (sin operador o sin evidencia): si su estado
+              // guardado dice «completada», no se muestra como completada ni se oculta de la lista.
+              estado: estadoVisitaVigente(d, claveVisita) || estadoVisita,
+              estadoPersistido: estadoVisitaVigente(d, claveVisita),
               tieneFechaGuardada: Boolean(fechaGuardadaVisita(d, claveVisita) || (d.fechasProgramadas && d.fechasProgramadas.length) || d.fechaProgramada || d.proximaVisita),
               operadorAsignado: operadorAsignado,
               operadoresPorVisita: { ...operadoresPorVisita }

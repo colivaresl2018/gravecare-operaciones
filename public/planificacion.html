@@ -233,7 +233,8 @@
     import { transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { construirActualizacionFecha, fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (sin arreglo completo)
-    import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor Ãºnico del nombre del cliente
     import { 
       getFirestore, 
       collection, 
@@ -498,6 +499,14 @@
       await cargarOperadores();
 
       try {
+        // Respaldo del nombre del cliente: contratos (el staff puede leerlos). `usuarios/{uid}` solo lo lee su dueño (firestore.rules).
+        const contratosMap = await cargarContratos(async () => {
+          const sc = await getDocs(collection(db, "contratos"));
+          const l = [];
+          sc.forEach(c => l.push([c.id, c.data()]));
+          return l;
+        });
+
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         const lista = [];
         const cementeriosSet = new Set();
@@ -511,7 +520,7 @@
           const numOrd = ord.numeroOrden || ord.nOrden || ordId;
 
           const plan = ord.planNombre || ord.servicio?.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Plan 4";
-          const titular = extraerTexto(ord.titular || ord.nombreTitular || ord.cliente || ord.usuario || ord.email, "Felipe Toledo Toledo");
+          const titular = nombreClienteParaMostrar(ord, contratosDeOrden(contratosMap, ord, ordId));
           const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Tulio Santana");
           const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo Padre Hurtado";
           cementeriosSet.add(cementerio);
@@ -565,7 +574,9 @@
 
             // Operador asignado exclusivamente a esta visita (por defecto "Sin asignar")
             const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || "Sin asignar";
-            const estadoGuardado = (ord.estadosPorVisita || {})[claveVisita] || null; // spec 041
+            // spec 041. Una visita pendiente aquí no está terminada según la regla: un «completada» guardado sin operador/evidencia no vale.
+            const estadoCrudo = (ord.estadosPorVisita || {})[claveVisita] || null;
+            const estadoGuardado = esEstadoCompletada(estadoCrudo) ? null : estadoCrudo;
             const tieneFechaGuardada = Boolean(fechaGuardadaVisita(ord, claveVisita) || (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
 
             lista.push({

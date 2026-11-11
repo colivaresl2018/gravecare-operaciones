@@ -2,30 +2,33 @@
  * servicio-terminado.js — regla única y estricta de «Servicio Terminado» por visita (corrección del bug de
  * visitas recién compradas que aparecían como «Completada» en trabajos-terminados.html).
  *
- * REGLA: una visita está terminada solo si cumple las DOS condiciones:
- *   1. Estado operativo explícito de completada, propio de ESA visita:
- *        - orden.estadosPorVisita.V{n}            (spec 041)
- *        - orden.visitas[n-1].estado              (arreglo histórico)
- *        - orden.programacionVisitas.v_{n}.estado (lo escribe la aprobación del informe)
- *   2. Evidencia real de ESA visita:
- *        - el informe de esa visita (informes/{ordenId}-V{n}, que no esté rechazado), o
- *        - una fecha de ejecución real propia de esa visita (ver fechaEjecucionReal).
+ * REGLA: una visita está terminada solo si cumple LAS TRES condiciones:
+ *   1. Operador asignado válido (no vacío ni «Sin asignar»).
+ *   2. Evidencia real de ESA visita: su informe con contenido (fotos, informeUrl, reporteFotografico o aprobado) o
+ *      evidencia propia en la visita (fotos / fotosDespues / evidencia / informeUrl / reporteFotografico /
+ *      informeAprobado === true). Un informe rechazado o vacío no es evidencia.
+ *   3. Estado explícito de finalizada, propio de ESA visita:
+ *        - orden.estadosPorVisita.V{n}                       (spec 041)
+ *        - orden.visitas[n-1].estado / .estadoOperativo       (arreglo histórico)
+ *        - orden.programacionVisitas.v_{n}.estado / .estadoOperativo (lo escribe la aprobación del informe)
+ *      Valores: completada, completado, terminada, finalizada, aprobado/aprobada.
+ *      NUNCA vale el estado de la orden («Confirmado», «pagado», «aprobado», «completada») ni pagoConfirmado.
  *
- * NUNCA se infiere de fechaPago, creadoEn/creadoEl/createdAt, actualizadoEn/updatedAt ni fechaEstimada: esas
- * fechas existen en cuanto se compra la orden y no prueban que se haya hecho nada.
+ * Fecha de ejecución: solo de campos de ejecución de ESA visita (fechaEjecucion, fechaRealizada, fechaTermino,
+ * fechaInforme y, del informe, fechaCaptura/createdAt, que es cuando se capturó). NUNCA de fechaPago,
+ * creadoEn/creadoEl/createdAt de la orden, actualizadoEn/updatedAt ni fechaEstimada.
  *
- * COMPATIBILIDAD (órdenes antiguas): el contador posicional `visitasCompletadas` (N) y el estado global de la orden
- * (completada/finalizada) se aceptan como estado SOLO de visitas que además tengan su informe real (no basta una fecha:
- * el contador arrastraba visitas anteriores y no distingue cuál se hizo). Sin informe, esas visitas quedan pendientes.
- * Así las órdenes viejas con informes reales no pierden lo ya terminado, y una orden recién comprada (sin estado,
- * sin informes) nunca aparece terminada, aunque traiga un contador o un estado erróneos.
+ * COMPATIBILIDAD (órdenes antiguas): el contador posicional `visitasCompletadas` (N) cuenta como estado de las
+ * visitas 1..N SOLO si esa visita además cumple operador y evidencia (el contador no distingue cuál se hizo). El
+ * estado global de la orden ya no cuenta como estado de ninguna visita. Una orden recién comprada (sin operador,
+ * sin informe) nunca aparece terminada, aunque traiga un contador o un estado erróneos.
  *
  * Solo LEE campos existentes (contrato de datos con la web). Sin Firebase ni DOM: se prueba con node --test.
  */
 
-const ESTADOS_COMPLETADA = ['completada', 'completado', 'terminada', 'finalizada'];
+const ESTADOS_FINALIZADA = ['completada', 'completado', 'terminada', 'finalizada', 'aprobado', 'aprobada'];
 
-/** Campos que jamás cuentan como fecha de término de una visita (se fijan en una prueba). */
+/** Campos de la orden que jamás cuentan como fecha de término de una visita (se fijan en una prueba). */
 export const CAMPOS_FECHA_PROHIBIDOS = Object.freeze([
   'fechaPago', 'creadoEn', 'creadoEl', 'createdAt', 'actualizadoEn', 'updatedAt', 'fechaEstimada',
   'fechaCompletado', 'ultimaVisitaCompletadaFecha',
@@ -33,9 +36,9 @@ export const CAMPOS_FECHA_PROHIBIDOS = Object.freeze([
 
 const norm = (s) => String(s == null ? '' : s).toLowerCase().trim();
 
-/** ¿El texto de estado significa «completada»? */
+/** ¿El texto de estado de una VISITA significa finalizada? («Confirmado», «pagado», «en revision» no.) */
 export function esEstadoCompletada(estado) {
-  return ESTADOS_COMPLETADA.includes(norm(estado));
+  return ESTADOS_FINALIZADA.includes(norm(estado));
 }
 
 /** Convierte Date, Timestamp de Firestore, {seconds}, ISO o milisegundos en Date; null si no es válido. */
@@ -87,9 +90,9 @@ export function crearIndiceInformes(entradas) {
 }
 
 /**
- * Informe válido de la visita n de la orden, o null. `identificadores` son los ids con que se puede conocer la
- * orden (id del documento, numeroOrden, ordenId). Un informe rechazado no es evidencia. El informe antiguo sin
- * sufijo (informes/{ordenId}) solo corresponde a la visita 1.
+ * Informe (no rechazado) de la visita n de la orden, o null. `identificadores` son los ids con que se puede conocer
+ * la orden (id del documento, numeroOrden, ordenId). El informe antiguo sin sufijo (informes/{ordenId}) solo
+ * corresponde a la visita 1. Que exista no basta para ser evidencia: ver informeTieneContenido.
  */
 export function informeDeVisita(indice, identificadores, n) {
   if (!indice) return null;
@@ -107,17 +110,77 @@ export function informeDeVisita(indice, identificadores, n) {
   return null;
 }
 
+/** ¿Hay algo real en este valor? (texto no vacío, arreglo con elementos, objeto con algún valor útil). */
+function hayContenido(v) {
+  if (v == null || v === false) return false;
+  if (typeof v === 'string') return v.trim() !== '';
+  if (Array.isArray(v)) return v.some(hayContenido);
+  if (typeof v === 'object') return Object.values(v).some(hayContenido);
+  return Boolean(v);
+}
+
+const CAMPOS_EVIDENCIA = ['fotos', 'fotosDespues', 'fotosAntes', 'evidencia', 'informeUrl', 'reporteFotografico',
+  'fotoAntes1', 'fotoAntes2', 'fotoDespues1', 'fotoDespues2', 'fotoAntes', 'fotoDespues'];
+
+/** ¿El objeto (informe o visita) trae evidencia real: fotos, enlace de informe, reporte o informe aprobado? */
+function tieneEvidenciaPropia(x) {
+  if (!x || typeof x !== 'object') return false;
+  if (x.informeAprobado === true) return true;
+  return CAMPOS_EVIDENCIA.some((c) => hayContenido(x[c]));
+}
+
+/** Un informe es evidencia si trae contenido o está aprobado. Un documento vacío o recién creado no lo es. */
+export function informeTieneContenido(informe) {
+  if (!informe || typeof informe !== 'object') return false;
+  return norm(informe.estado) === 'aprobado' || tieneEvidenciaPropia(informe);
+}
+
+const OPERADOR_VACIO = ['sin asignar', 'sin operador', 'sin asignación', 'no asignado', '-', '—', 'n/a', 'undefined', 'null'];
+
+function textoOperador(op) {
+  if (op && typeof op === 'object') return String(op.nombre || op.nombreCompleto || op.email || '').trim();
+  return String(op == null ? '' : op).trim();
+}
+
+/** ¿Es un operador válido? No vacío ni «Sin asignar» (ni marcas de relleno). */
+export function esOperadorValido(op) {
+  const t = textoOperador(op).toLowerCase();
+  return t !== '' && !OPERADOR_VACIO.includes(t);
+}
+
 /**
- * Fecha de ejecución real de la visita n: solo fuentes propias de esa visita (el informe y los datos de ejecución
- * de esa visita). Devuelve null si no hay ninguna: la pantalla muestra «—». Nunca usa CAMPOS_FECHA_PROHIBIDOS
- * de la orden.
+ * Operador de la visita n: primero el que hizo el informe, luego el de la visita, luego el mapa por visita y por
+ * último el de la orden. Devuelve el texto del primero válido, o null si ninguno lo es.
+ */
+export function operadorDeVisita(orden, n, informe) {
+  const o = orden || {};
+  const inf = informe || {};
+  const vis = (Array.isArray(o.visitas) && o.visitas[n - 1]) || {};
+  const prog = (o.programacionVisitas && o.programacionVisitas[`v_${n}`]) || {};
+  const porVisita = o.operadoresPorVisita && o.operadoresPorVisita[`V${n}`];
+  const candidatos = [inf.operador, inf.operadorNombre, vis.operadorNombre, vis.operador, vis.operadorAsignado, prog.operadorNombre,
+    prog.operador, porVisita, o.operadorAsignadoNombre, o.operadorNombre, o.operador];
+  for (const c of candidatos) if (esOperadorValido(c)) return textoOperador(c);
+  return null;
+}
+
+const CAMPOS_FECHA_VISITA = ['fechaEjecucion', 'fechaRealizada', 'fechaTermino', 'fechaInforme'];
+
+/**
+ * Fecha de ejecución real de la visita n: solo campos de ejecución de esa visita y el informe (fechaCaptura/createdAt
+ * del informe = cuándo se capturó). Devuelve null si no hay ninguna: la pantalla muestra «—». Nunca usa
+ * CAMPOS_FECHA_PROHIBIDOS de la orden.
  */
 export function fechaEjecucionReal(orden, n, informe) {
   const o = orden || {};
   const prog = (o.programacionVisitas && o.programacionVisitas[`v_${n}`]) || {};
   const vis = (Array.isArray(o.visitas) && o.visitas[n - 1]) || {};
   const inf = informe || {};
-  const candidatas = [inf.fechaCaptura, inf.createdAt, prog.fechaEjecucion, vis.fechaEjecucion, vis.fechaCompletado];
+  const candidatas = [
+    ...CAMPOS_FECHA_VISITA.map((c) => inf[c]), inf.fechaCaptura, inf.createdAt,
+    ...CAMPOS_FECHA_VISITA.map((c) => prog[c]),
+    ...CAMPOS_FECHA_VISITA.map((c) => vis[c]), vis.fechaCompletado,
+  ];
   for (const c of candidatas) {
     const f = aFecha(c);
     if (f) return f;
@@ -125,21 +188,19 @@ export function fechaEjecucionReal(orden, n, informe) {
   return null;
 }
 
-/** Estado explícito de completada de ESA visita (no el contador ni el estado global). */
+/** Estado explícito de finalizada de ESA visita (no el contador ni el estado de la orden). */
 function estadoExplicitoCompletada(o, n) {
-  const clave = `V${n}`;
-  const porVisita = o.estadosPorVisita && o.estadosPorVisita[clave];
-  const arreglo = Array.isArray(o.visitas) && o.visitas[n - 1] ? o.visitas[n - 1].estado : null;
-  const prog = o.programacionVisitas && o.programacionVisitas[`v_${n}`] ? o.programacionVisitas[`v_${n}`].estado : null;
-  return esEstadoCompletada(porVisita) || esEstadoCompletada(arreglo) || esEstadoCompletada(prog);
+  const porVisita = o.estadosPorVisita && o.estadosPorVisita[`V${n}`];
+  const vis = (Array.isArray(o.visitas) && o.visitas[n - 1]) || {};
+  const prog = (o.programacionVisitas && o.programacionVisitas[`v_${n}`]) || {};
+  return [porVisita, vis.estado, vis.estadoOperativo, prog.estado, prog.estadoOperativo].some(esEstadoCompletada);
 }
 
-/** Origen del estado «completada» de la visita n, o null. Solo el explícito se completa con una fecha real. */
+/** Origen del estado «finalizada» de la visita n, o null. El contador solo cuenta si hay operador y evidencia. */
 function origenEstado(o, n) {
   if (estadoExplicitoCompletada(o, n)) return 'explicito';
   const contador = Number(o.visitasCompletadas);
   if (Number.isFinite(contador) && contador >= n) return 'legado_contador';
-  if (esEstadoCompletada(o.estado) || esEstadoCompletada(o.estadoServicio)) return 'legado_global';
   return null;
 }
 
@@ -149,24 +210,27 @@ function origenEstado(o, n) {
  * @param {number} n      número de visita (1..)
  * @param {{docId?: string, indiceInformes?: object}} [ctx]
  * @returns {{numero:number, clave:string, terminada:boolean, origenEstado:string|null, motivo:string,
+ *            operador:string|null, operadorValido:boolean, tieneEvidencia:boolean,
  *            tieneInforme:boolean, informeId:string|null, informe:object|null, fechaEjecucion:Date|null}}
+ *   motivo: 'terminada' | 'sin_estado_completada' | 'sin_operador' | 'sin_evidencia'
  */
 export function evaluarVisita(orden, n, ctx = {}) {
   const o = orden || {};
   const hit = informeDeVisita(ctx.indiceInformes, [ctx.docId, o.numeroOrden, o.ordenId], n);
   const informe = hit ? hit.data : null;
-  const fechaEjecucion = fechaEjecucionReal(o, n, informe);
+  const vis = (Array.isArray(o.visitas) && o.visitas[n - 1]) || {};
+  const prog = (o.programacionVisitas && o.programacionVisitas[`v_${n}`]) || {};
+  const operador = operadorDeVisita(o, n, informe);
+  const tieneEvidencia = informeTieneContenido(informe) || tieneEvidenciaPropia(vis) || tieneEvidenciaPropia(prog);
   const origen = origenEstado(o, n);
-  let terminada = false;
-  let motivo = 'sin_estado_completada';
-  if (origen) {
-    const evidencia = origen === 'explicito' ? Boolean(hit || fechaEjecucion) : Boolean(hit);
-    terminada = evidencia;
-    motivo = evidencia ? 'terminada' : 'sin_evidencia';
-  }
+  let motivo = 'terminada';
+  if (!origen) motivo = 'sin_estado_completada';
+  else if (!operador) motivo = 'sin_operador';
+  else if (!tieneEvidencia) motivo = 'sin_evidencia';
   return {
-    numero: n, clave: `V${n}`, terminada, origenEstado: origen, motivo,
-    tieneInforme: Boolean(hit), informeId: hit ? hit.id : null, informe, fechaEjecucion,
+    numero: n, clave: `V${n}`, terminada: motivo === 'terminada', origenEstado: origen, motivo,
+    operador, operadorValido: Boolean(operador), tieneEvidencia,
+    tieneInforme: Boolean(hit), informeId: hit ? hit.id : null, informe, fechaEjecucion: fechaEjecucionReal(o, n, informe),
   };
 }
 
@@ -207,11 +271,12 @@ export function numerosTerminados(orden, ctx = {}) {
 /**
  * Campos que escribe «Marcar visita completada» (todos-los-trabajos.html) para ESA visita, en rutas con punto:
  * no reemplaza mapas completos ni arrastra visitas anteriores (antes se escribía visitasCompletadas = n, un contador
- * posicional que marcaba también las visitas previas).
+ * posicional que marcaba también las visitas previas). La página solo lo permite si la visita ya tiene operador y
+ * evidencia (si no, no pasaría a terminada). No escribe fechas de ejecución: esa fecha sale del informe de la visita.
  *  - estadosPorVisita.V{n} = 'completada'        → estado explícito de la visita
- *  - programacionVisitas.v_{n}.fechaEjecucion     → fecha real propia de la visita (evidencia)
  *  - ultimaModificacion                           → auditoría (spec 041), con origen «cierre_manual»
- *  - visitasCompletadas = cantidad de visitas terminadas (no la posición), para quien aún lo lee
+ *  - NO escribe visitasCompletadas: ese contador posicional queda congelado como dato histórico (si se escribiera,
+ *    la regla de compatibilidad lo leería como «visitas 1..N» y volvería a arrastrar las anteriores)
  *  - ultimaVisitaCompletadaFecha, actualizadoEn   → solo informativos (compatibilidad); NUNCA cuentan como fecha de término
  * Cuando con esta visita quedan todas las del plan terminadas, mantiene el comportamiento histórico de cerrar la orden
  * (estado/estadoServicio/fechaCompletado).
@@ -229,12 +294,9 @@ export function construirCierreVisita({ numero, totalVisitas, terminadasPrevias,
   const terminadas = Math.max(0, Number(terminadasPrevias) || 0) + 1;
   const payload = {
     [`estadosPorVisita.V${numero}`]: 'completada',
-    [`programacionVisitas.v_${numero}.visitaNumero`]: numero,
-    [`programacionVisitas.v_${numero}.fechaEjecucion`]: marcaTiempo,
     ultimaModificacion: {
       uidOperador, timestamp: new Date(ahora).toISOString(), estadoAnterior, estadoNuevo: 'completada', origen: 'cierre_manual',
     },
-    visitasCompletadas: terminadas,
     ultimaVisitaCompletadaFecha: marcaTiempo, // se sigue escribiendo por compatibilidad; NUNCA cuenta como fecha de término
     actualizadoEn: marcaTiempo,
   };

@@ -1,75 +1,94 @@
-REPORTE — corrección «visitas recién compradas aparecen como Completada» — 2026-11-10 — rama `fix/servicio-terminado-visitas` (base: `main` = tag `ops-3` + docs)
+REPORTE — «Servicio Terminado» estricto y nombre del cliente — 2026-11-10 — rama `fix/servicio-terminado-visitas` (base: `main` = `ops-3` + docs)
 
 # Estado
-Completa en código y pruebas. **Nada desplegado, nada empujado.** Pendiente: revisión del dueño, PR, merge, tag y despliegue (dueño).
+Completa en código y pruebas. **Nada desplegado, nada empujado.** Pendiente: revisión del dueño, PR, merge, tag y despliegue (dueño). Incluye dos encargos: (A) visitas recién compradas como «Completada», ampliado con la regla de tres condiciones; (B) columna Cliente/Titular que mostraba solo «Cliente».
 
-## 1. Diagnóstico
-Caso: `#ORD-1794358691756423-V1` y `-V2` (Plan 6) salían en `trabajos-terminados.html` como «Completada», con la fecha de la compra, «Sin asignar» y «Ver Informe» activo.
+## 1. Diagnóstico exacto (líneas en `main` antes del cambio)
 
-Causas (todas en el cliente; no hay escritura nueva de la web involucrada):
-1. `cargarOrdenesTerminadas()` daba por terminada una visita por **tres ramas laxas**: `visitas[].estado`, el contador posicional `visitasCompletadas > 0` (generaba V1..Vn) o el `estado` global de la orden (fila «Servicio Completo»). Ninguna exigía evidencia de esa visita.
-2. La **fecha de término** caía a `ultimaVisitaCompletadaFecha || fechaCompletado || actualizadoEn || creadoEl` (y `fechaEstimada`): sin fecha real se mostraba la de la compra. `formatearFecha` inventaba además «10-10-2026» si no había fecha.
-3. El HTML de la fila escribía «Completada» y «Ver Informe» fijos, sin mirar si existía el informe.
-4. Origen del contador: `todos-los-trabajos.html › completarVisitaIndividual` escribía `visitasCompletadas: numeroVisita` (posición, no cantidad) y marcaba `estado: completada` si `numeroVisita >= total`. Completar la V2 arrastraba la V1; completar la V6 antes que otras cerraba toda la orden.
-5. `todos-los-trabajos.html` y `planificacion.html` leían ese contador (`idx < visitasCompletadasCount`) para **ocultar** visitas como hechas, y `todos-los-trabajos` ocultaba la orden entera si su estado global decía «completada».
-6. `trabajos-terminados.html` no filtraba con `esOrdenPagada` (regla 11 del CLAUDE.md).
+### Bug A — visitas sin ejecutar aparecen como «Completada»
+| Dónde | Qué pasaba |
+|---|---|
+| `public/trabajos-terminados.html:272` | Rama (a): `visitas[].estado` completada/completado/terminada bastaba, sin operador ni informe |
+| `…:297-321` | Rama (b): `Number(d.visitasCompletadas) > 0` fabricaba V1..Vn (contador posicional); fecha = `ultimaVisitaCompletadaFecha \|\| fechaCompletado \|\| actualizadoEn \|\| creadoEl` (:319) |
+| `…:322-341` | Rama (c): `estado`/`estadoServicio` global completada/finalizada fabricaba «Servicio Completo» (fecha :340 `… \|\| actualizadoEn \|\| creadoEl`) |
+| `…:293` | Rama (a): fecha `v.fechaEjecucion \|\| v.fechaCompletado \|\| v.fechaEstimada \|\| d.actualizadoEn \|\| d.creadoEl` → la fecha de compra |
+| `…:203` | `formatearFecha` devolvía «10-10-2026» inventado cuando no había fecha |
+| `…:496`, `…:509` | «Completada» y «Ver Informe» fijos en la fila, sin mirar evidencia |
+| `…` (todo el `forEach` de órdenes) | No filtraba con `esOrdenPagada` (regla 11 del CLAUDE.md) |
+| `public/todos-los-trabajos.html:303-306` | `completarVisitaIndividual` escribía `visitasCompletadas: numeroVisita` (posición): completar la V2 arrastraba la V1; `numeroVisita >= total` cerraba la orden aunque faltaran visitas |
+| `public/todos-los-trabajos.html:250` y `public/ordenes.html:337` | `idx < visitasCompletadasCount`: ocultaban visitas por posición; `todos-los-trabajos` además ocultaba la orden entera si su `estado` decía completada |
+| `public/planificacion.html:518` | `cantRealizadas` desde `visitasCompletadas` y numeración correlativa tras ese conteo |
+| `public/ordenes.html:403` | Una visita con `estadosPorVisita` = completada se quitaba de la lista aunque no tuviera operador ni informe (desaparecía de todas las pantallas) |
 
-No pude ver el documento real de producción (prohibido leer/escribir datos reales); la regla nueva cubre las tres ramas, así que no depende de cuál campo concreto tenía esa orden.
+Casos reportados (`#ORD-1794358691756423-V1/-V2`, `#ORD-1794357459960709-V1`): no pude ver los documentos reales (prohibido leer/escribir producción). Cualquiera de las tres ramas explicaba la fila, y la fecha 10-11-2026 era la de compra/actualización; la regla nueva cubre todas.
+
+### Bug B — «Cliente» en lugar del nombre
+| Dónde | Qué pasaba |
+|---|---|
+| `public/trabajos-terminados.html:257`, `public/todos-los-trabajos.html:196`, `public/ordenes.html:277` | `tit = d.titular \|\| d; nomCliente = tit.nombreCompleto \|\| tit.nombreCliente \|\| d.clienteNombre \|\| d.usuario \|\| "Cliente"`. Con un `titular` que trae `nombre`, o `nombres + apellidoPaterno + apellidoMaterno`, ninguna alternativa existía y salía «Cliente» (si había `titular`, no se miraba la raíz de la orden) |
+| `public/planificacion.html:393-404, 499` | `extraerTexto` no cubría `apellidoMaterno` ni `comprador`, y su respaldo era un nombre inventado («Felipe Toledo Toledo») |
 
 ## 2. Regla única de «Servicio Terminado» (`public/js/servicio-terminado.js`)
-Una visita está terminada solo si cumple **ambas**:
-- **Estado explícito de completada, propio de esa visita:** `estadosPorVisita.V{n}` (spec 041), `visitas[n-1].estado`, o `programacionVisitas.v_{n}.estado` (lo escribe la aprobación del informe en `informe-revision.html`). Valores: completada/completado/terminada/finalizada.
-- **Evidencia real de esa visita:** su informe (`informes/{ordenId}-V{n}`, también por `ordenId`+`visitaNumero`; un informe `rechazado` no vale; el informe antiguo sin sufijo vale solo para la V1) **o** una fecha de ejecución propia (`programacionVisitas.v_{n}.fechaEjecucion`, `visitas[n-1].fechaEjecucion/fechaCompletado`).
+Una visita está terminada solo si cumple **las tres**:
+1. **Operador válido:** no vacío ni «Sin asignar». Se toma, en orden, del informe, de la visita (`visitas[n-1]`, `programacionVisitas.v_n`), de `operadoresPorVisita.V{n}` y por último del operador de la orden.
+2. **Evidencia real de esa visita:** su informe con contenido (fotos, `informeUrl`, `reporteFotografico`, o `estado` aprobado) o evidencia propia en la visita (`fotos`, `fotosDespues`, `evidencia`, `informeUrl`, `reporteFotografico`, `informeAprobado === true`). Un informe rechazado o vacío no cuenta.
+3. **Estado explícito de finalizada de esa visita:** `estadosPorVisita.V{n}`, `visitas[n-1].estado/estadoOperativo` o `programacionVisitas.v_n.estado/estadoOperativo` (completada/completado/terminada/finalizada/aprobado). **Nunca** `orden.estado` («Confirmado», «pagado», «aprobado», «completada») ni `pagoConfirmado`.
 
-**Nunca** se infiere de `fechaPago`, `creadoEn/creadoEl/createdAt`, `actualizadoEn/updatedAt`, `fechaEstimada`, ni de `fechaCompletado`/`ultimaVisitaCompletadaFecha` de la orden (lista fijada en `CAMPOS_FECHA_PROHIBIDOS` y en una prueba).
+**Fecha ejecutada:** solo `fechaEjecucion`, `fechaRealizada`, `fechaTermino`, `fechaInforme` de la visita o del informe, más `fechaCaptura`/`createdAt` del informe (cuándo se capturó: es el único campo de fecha que escribe `informe-captura.html`, por eso se incluyó); si no hay, «—». Nunca `fechaPago`, `creadoEn/creadoEl`, `actualizadoEn` ni `fechaEstimada`.
 
-**Fecha mostrada:** `fechaEjecucionReal` = `informe.fechaCaptura` → `informe.createdAt` → `programacionVisitas.v_n.fechaEjecucion` → `visitas[n-1].fechaEjecucion/fechaCompletado`; si no hay ninguna, «—».
+**Compatibilidad (órdenes antiguas):** el contador `visitasCompletadas` (N) cuenta como estado de las visitas 1..N solo si cada una además cumple operador + evidencia. El **estado global ya no cuenta** (cambio respecto a la primera entrega, por la regla más estricta). Una orden vieja con contador pero sin informes ya no figura como terminada y sus visitas vuelven a pendientes.
 
-**Compatibilidad (órdenes antiguas):** el contador `visitasCompletadas` (N) y el estado global completada/finalizada se aceptan como estado **solo para visitas que además tengan su informe real** (una fecha suelta no basta: el contador no distingue cuál se hizo). Así una orden vieja con informes reales conserva lo terminado; una orden nueva con contador/estado erróneos y sin informes no aparece. Efecto a tener presente: una orden vieja con contador pero **sin** informes ya no figura como terminada y vuelve a mostrar esas visitas como pendientes.
+**Decisiones de interpretación a validar con el dueño:** (a) el operador de la orden (campo global) vale como respaldo del de la visita; (b) `informeAprobado === true` solo se acepta a nivel de visita (a nivel de orden no se sabe a cuál visita pertenece); (c) el contador histórico se mantiene como estado solo con operador y evidencia.
 
-Las visitas nuevas quedan Pendiente / Sin asignar por defecto (no hay estado ni evidencia que las adelante).
+## 3. Nombre del cliente (`public/js/nombre-cliente.js`)
+Orden: `titular.nombreCompleto` → `titular.nombre` (se le suman apellidos aparte si los hay) → `titular.nombres + apellidoPaterno + apellidoMaterno` → misma concatenación en la raíz → `nombreCompleto`, `nombreCliente`, `clienteNombre`, `cliente` (si es texto) → `comprador.nombreCompleto/nombre`. Ignora vacíos, «Cliente», «Cliente Registrado» y correos. Si nada sirve, usa el contrato de la orden (`contratos/CTR-<numeroOrden>`).
 
-## 3. Archivos tocados
+**Lo que sí y no puede leer el staff (verificado en `firestore.rules` del repo de la web, solo lectura):** `usuarios/{uid}` lo lee **solo su dueño** → el staff **no puede**; no se lee. `contratos` lo puede leer el staff (`esStaff()`), así que se usa como respaldo, cargado **una vez** por página (sin lecturas por orden). **Sin verificar:** qué campos de nombre trae realmente un documento `contratos/CTR-…` (el contrato de datos dice solo «metadatos del PDF y URL»); el respaldo busca los mismos campos de nombre y, si no están, no aporta nada. Si tras publicar siguen apareciendo «Cliente», significa que ni la orden ni su contrato traen nombre y habría que corregir el dato en origen (la web). No se cambian reglas ni datos.
+
+## 4. Archivos tocados
 | Archivo | Cambio |
 |---|---|
-| `public/js/servicio-terminado.js` | **nuevo.** Regla, índice de informes, fecha real y `construirCierreVisita` |
-| `public/trabajos-terminados.html` | Las tres ramas se reemplazan por la regla; filtra con `esOrdenPagada`; fecha real o «—» (ya no «10-10-2026»); «Ver Informe» solo con informe (si no, botón deshabilitado «Sin informe», mismas clases + `cursor-not-allowed`). Renombrada una variable local (`snapStaff`) |
-| `public/todos-los-trabajos.html` | Lista las visitas no terminadas según la regla (sin contador ni estado global); «Completar visita» escribe **solo esa visita** |
-| `public/planificacion.html` | Realizadas/pendientes según la regla (lee `informes` completo además de la consulta de aprobados de la spec 041, que no cambia); numeración de pendientes por número real |
-| `public/js/servicio-terminado.test.mjs`, `tests/servicio-terminado-paginas.test.mjs` | **nuevos** |
-| `tests/n80-paginas.test.mjs` | agrega `trabajos-terminados.html` a las páginas que filtran por orden pagada |
+| `public/js/servicio-terminado.js` (+ `.test.mjs`) | **nuevo.** Regla, índice de informes, operador, evidencia, fecha real y `construirCierreVisita` |
+| `public/js/nombre-cliente.js` (+ `.test.mjs`) | **nuevo.** Extractor único y carga única de contratos |
+| `public/trabajos-terminados.html` | Regla de tres condiciones en lugar de las tres ramas; filtra pagadas; fecha real o «—»; operador de la regla; «Ver Informe» solo con informe (si no, botón deshabilitado «Sin informe»); nombre con el extractor |
+| `public/todos-los-trabajos.html` | Pendientes según la regla; «Completar visita» escribe solo esa visita y **solo se permite con operador y evidencia** (si no, avisa); nombre |
+| `public/planificacion.html` | Realizadas/pendientes según la regla; un «completada» guardado sin evidencia no se pinta como completada; titular con el extractor (sin nombres de relleno) |
+| `public/ordenes.html` | Pendientes según la regla (ya no oculta por contador ni por un «completada» sin evidencia); nombre |
+| `tests/servicio-terminado-paginas.test.mjs`, `tests/n80-paginas.test.mjs` | pruebas de aceptación y estáticas; `trabajos-terminados` entra a la prueba de órdenes pagadas |
 
-Diseño: sin cambios de estructura, clases ni colores salvo el estado deshabilitado del botón (necesario para el criterio 3).
+`mis-trabajos.html` no se tocó: la usan operadores, sigue ocultando por contador y su nombre sigue con el extractor antiguo (no se sabe si las reglas de `informes`/`contratos` les permiten leer; siguiente paso).
 
-## 4. Contrato de datos con la web
-Solo cambios aditivos. «Completar visita» ahora escribe, con rutas con punto (no reemplaza mapas): `estadosPorVisita.V{n}`, `programacionVisitas.v_{n}.visitaNumero/fechaEjecucion`, `ultimaModificacion` (con `origen: 'cierre_manual'`), y mantiene `visitasCompletadas` (ahora = **cantidad** terminada, antes posición), `ultimaVisitaCompletadaFecha` y `actualizadoEn`. Al terminar todas las visitas mantiene el cierre histórico (`estado`/`estadoServicio`/`fechaCompletado`). No se renombra ni elimina ningún campo. Lectura nueva: colección `informes` completa en `todos-los-trabajos` y `planificacion` (staff ya la lee en `trabajos-terminados`).
+Diseño: sin cambios de estructura, clases ni colores salvo el botón deshabilitado «Sin informe».
 
-## 5. Pruebas
+## 5. Contrato de datos con la web
+Solo cambios aditivos. «Completar visita» escribe, con rutas con punto: `estadosPorVisita.V{n}`, `ultimaModificacion` (con `origen: 'cierre_manual'`), `ultimaVisitaCompletadaFecha` y `actualizadoEn` (solo informativos). **Deja de escribir `visitasCompletadas`** (contador posicional que arrastraba visitas; si se siguiera escribiendo, la regla de compatibilidad lo leería como «1..N»): queda congelado como dato histórico, y `clientes.html` (que lo muestra como avance) ya no avanzará con cierres manuales nuevos — seguimiento pendiente. No escribe fechas de ejecución (salen del informe). Al completar todas las visitas mantiene el cierre histórico (`estado`/`estadoServicio`/`fechaCompletado`). Lecturas nuevas (solo lectura): `informes` completo y `contratos` en las listas de trabajo.
+
+## 6. Pruebas
 | Prueba | Resultado |
 |---|---|
-| `node --test tests/ public/js/` | **173 / 173** (antes 140; +33) |
-| Navegador contra emuladores propios (`GC_OFFSET=1500`, proyecto `demo-gravecare`, reglas publicadas de la web, datos ficticios) | ver abajo |
+| `node --test tests/ public/js/` | **191 / 191** (antes 140 en `ops-3`; +51) |
+| Navegador contra emuladores propios (`GC_OFFSET=1500`, `demo-gravecare`, reglas publicadas de la web, datos ficticios) | ver abajo |
 
-Criterios cubiertos: orden recién comprada de 12/6/4 visitas no aparece en terminadas; visita con estado + evidencia sí; completar V2 no arrastra V1 (escritura y lectura); `fechaPago`/`creadoEn`/`actualizadoEn`/`fechaEstimada` nunca son fecha de término; «Ver Informe» solo con informe; fecha «—» sin ejecución; compatibilidad con órdenes antiguas.
+Criterios: orden «Confirmado» + `pagoConfirmado` sin operador o sin informe nunca sale terminada (con estado de visita incluido); orden recién comprada de 12/6/4 sin terminadas; los tres casos reportados no aparecen; extracción de nombres + apellidos, genéricos ignorados, respaldo de contrato y sin lectura de `usuarios`; `fechaPago`/`creadoEn`/`creadoEl`/`actualizadoEn`/`fechaEstimada` nunca son fecha de ejecución; «Ver Informe» solo con informe; completar V2 no arrastra V1; compatibilidad con órdenes antiguas.
 
-Resultado en navegador (emuladores): orden nueva Plan 6 y orden con el caso del error (contador 2 + `visitas[]` completadas + fechas de compra) → **no aparecen** en terminadas y conservan sus 6 visitas pendientes en `todos-los-trabajos` y `planificacion`; orden con V1 (estado+informe) y V2 (estado+fecha propia) → aparecen 2 filas con fecha real y «Ver Informe» solo en la V1 («Sin informe» en la V2); orden antigua con contador 2 y sus 2 informes → V1 y V2 terminadas con sus fechas. Completar la V2 de la orden nueva escribió solo la V2 (contador 1, orden sin cerrar); en terminadas apareció solo la V2 y en planificación quedaron V1 y V3–V6. **No se reejecutó** `npm run test:e2e` (B-2/B-3): requiere instalar Playwright; la parte estática de B-2 (`n80-paginas`) sí corre y pasa.
+En navegador (emuladores): orden nueva con titular `nombres+apellidos` → «Cleo Cleopatra Ponce» en las 4 pantallas; titular solo con `nombre` → nombre; titular sin nombre → nombre tomado de `contratos/CTR-…`; orden con contador 2 y `visitas[]` completadas, y orden asignada a un operador con estado completada pero sin informe → **no aparecen** en terminadas y conservan todas sus visitas pendientes en `todos-los-trabajos`, `planificacion` y `ordenes`; orden con V1 (operador + informe con fotos + estado) → terminada con fecha del informe y «Ver Informe»; su V2 (operador y estado, sin informe) → sigue pendiente; orden antigua (contador 2 + operador + 2 informes) → V1 y V2 terminadas; «Completar» sin operador queda bloqueado con aviso. **No se reejecutó** `npm run test:e2e` (B-2/B-3): requiere instalar Playwright; la parte estática de B-2 sí corre.
 
-## 6. Cómo validar en localhost
+## 7. Cómo validar en localhost
 Con emuladores de la web (o los de `docs/entorno-local.md`) y `GC_OFFSET` propio, p. ej. 1500:
 ```powershell
 $env:GC_OFFSET=1500
 node scripts/local/sembrar-emulador.mjs
 node scripts/local/servidor-emuladores.mjs      # deja esta terminal abierta
 ```
-Entra a `http://localhost:6550/login-ops.html` (usuario de `STAFF_PRUEBA`). Con las 14 órdenes sembradas (todas sin ejecución) `trabajos-terminados.html` debe verse **vacía** y `todos-los-trabajos.html` mostrar todas sus visitas. Para ver una terminada: «Completar» una visita en `todos-los-trabajos.html` → aparece solo esa en terminadas, con la fecha de hoy y «Sin informe».
+Entra a `http://localhost:6550/login-ops.html` (usuario de `STAFF_PRUEBA`). Con las 14 órdenes sembradas (sin operador ni ejecución) `trabajos-terminados.html` debe verse **vacía** y las demás listas mostrar todas sus visitas con el nombre del titular.
 
-## 7. Hallazgos fuera de alcance (no tocados)
-1. **Riesgo de ingresos (previo, importante):** al completar la última visita se escribe `estado: 'completada'` sobre el `estado: 'Confirmado'` de la web. `cuentaComoIngreso` exige `estado === 'Confirmado'`, así que esa orden **deja de contar como ingreso tributario** en Gastos e ingresos. Se mantuvo el comportamiento por contrato; conviene que el PM/dueño decida si el cierre debe usar otro campo y no pisar `estado`.
-2. `ordenes.html` y `mis-trabajos.html` siguen ocultando visitas con el contador posicional (solo ocultan, no marcan terminadas). Con datos erróneos podrían divergir de `planificacion`. No se tocaron porque `mis-trabajos` lo usan operadores y no se sabe si las reglas de `informes` les permiten leer; queda como siguiente paso.
-3. `mapa.html` usa `programacionVisitas.v_n.estado` (explícito) y no el contador: no afectado. `clientes.html` solo muestra `visitasCompletadas` como dato.
-4. `informe-captura.html` deja `programacionVisitas.v_n.estado = "en revision"` y la aprobación escribe `completada`: con la regla, una visita pasa a terminada recién al aprobar el informe (o al cerrarla a mano).
+## 8. Hallazgos fuera de alcance (no tocados)
+1. **Riesgo de ingresos (previo, importante):** al completar la última visita se escribe `estado: 'completada'` sobre el `estado: 'Confirmado'` de la web; `cuentaComoIngreso` exige `'Confirmado'`, así que esa orden **deja de contar como ingreso tributario**. Se mantuvo por contrato; el dueño/PM debe decidir si el cierre usa otro campo.
+2. `mis-trabajos.html` y `clientes.html` siguen leyendo el contador `visitasCompletadas` (ver §4 y §5).
+3. Los respaldos con nombres inventados en `planificacion.html` para el **difunto** («Tulio Santana») y datos por defecto siguen ahí (solo se quitó el del titular).
+4. `informe-captura.html` deja `programacionVisitas.v_n.estado = "en revision"` y la aprobación escribe `completada`: con la regla, una visita pasa a terminada recién al aprobar el informe (o al cerrarla a mano con operador y evidencia).
 
-## 8. Plan de despliegue y reversa
+## 9. Plan de despliegue y reversa
 - Despliegue (dueño, clon limpio `C:\Despliegue\GravecareOps`, tag nuevo p. ej. `ops-4` tras el merge): `firebase deploy --project gravecare-2e8d2 --only hosting:gravecare-ops`. Solo Hosting; no hay reglas ni datos que migrar.
-- Después de publicar: abrir `trabajos-terminados.html` y verificar que no aparecen visitas sin ejecución; revisar `todos-los-trabajos`.
-- **Reversa:** volver a publicar el tag anterior (`ops-3`) con el mismo comando. No hay datos que revertir: lo único nuevo en Firestore son los campos aditivos que escribe «Completar visita» (`estadosPorVisita`, `programacionVisitas.v_n.*`, `ultimaModificacion.origen`), que las versiones anteriores ignoran.
+- Después de publicar: `trabajos-terminados.html` no debe mostrar visitas sin operador/informe; revisar que los nombres aparezcan.
+- **Reversa:** volver a publicar el tag anterior (`ops-3`) con el mismo comando. No hay datos que revertir: lo nuevo en Firestore son campos aditivos (`estadosPorVisita`, `ultimaModificacion.origen`) que las versiones anteriores ignoran.

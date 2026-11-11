@@ -190,6 +190,7 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { crearIndiceInformes, evaluarVisitas } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -248,6 +249,14 @@
 
         const indiceInformes = crearIndiceInformes(informesDataMap);
 
+        // Respaldo del nombre del cliente: contratos (el staff puede leerlos). `usuarios/{uid}` solo lo lee su dueño (firestore.rules).
+        const contratosMap = await cargarContratos(async () => {
+          const sc = await getDocs(collection(db, "contratos"));
+          const l = [];
+          sc.forEach(c => l.push([c.id, c.data()]));
+          return l;
+        });
+
         const snap = await getDocs(collection(db, "ordenes"));
         const terminadas = [];
         const cementeriosSet = new Set();
@@ -258,7 +267,7 @@
 
           const tit = d.titular || d;
           const dif = d.difunto || {};
-          const nomCliente = tit.nombreCompleto || tit.nombreCliente || d.clienteNombre || d.usuario || "Cliente";
+          const nomCliente = nombreClienteParaMostrar(d, contratosDeOrden(contratosMap, d, docSnap.id));
           const nomDifunto = dif.nombreCompleto || dif.nombre || d.nombreCompletoDifunto || d.difuntoNombre || "Ser Querido";
           const cem = d.ubicacionSepultura?.cementerio || d.cementerio || "Cementerio";
           cementeriosSet.add(cem);
@@ -267,9 +276,6 @@
           const ubicacionTexto = `Sec: ${d.ubicacionSepultura?.sector || d.sector || "-"} / Pat: ${d.ubicacionSepultura?.patio || d.patio || "-"} / N°: ${d.ubicacionSepultura?.numeroSepultura || d.numeroSepultura || "-"}`;
           const planNombre = d.servicio?.planNombre || d.planNombre || "Plan 4";
 
-          const operadoresPorVisita = d.operadoresPorVisita || {};
-          const operadorGlobal = d.operadorAsignadoNombre || d.operadorNombre || d.operador || "";
-
           // Regla única (js/servicio-terminado.js): una visita está terminada solo con estado explícito de completada
           // Y evidencia real de ESA visita (su informe o su fecha de ejecución). Nunca se infiere de fechaPago,
           // creadoEl, actualizadoEn ni fechaEstimada. Las visitas recién compradas no aparecen aquí.
@@ -277,10 +283,7 @@
           const totalVisitas = evaluadas.length;
           evaluadas.filter(ev => ev.terminada).forEach(ev => {
             const idVisitaCompleto = `${baseOrdenId}-V${ev.numero}`;
-            const claveV = ev.clave;
-            const v = (Array.isArray(d.visitas) && d.visitas[ev.numero - 1]) || {};
-            const infDoc = ev.informe || {};
-            const opDetectado = infDoc.operador || infDoc.operadorNombre || v.operadorNombre || v.operador || operadoresPorVisita[claveV] || operadorGlobal;
+            const opDetectado = ev.operador; // operador válido: sin él la visita no llega a terminada
 
             terminadas.push({
               id: `${docSnap.id}-V${ev.numero}`,
