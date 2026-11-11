@@ -171,8 +171,9 @@ test('clientes.html: el avance sale de las visitas que cumplen la regla (no del 
   const m = lee('mis-trabajos.html');
   assert.match(m, /from "\.\/js\/nombre-cliente\.js"/);
   assert.match(m, /nombreClienteParaMostrar\(d, /);
-  assert.doesNotMatch(m, /collection\(db, "informes"\)/, 'mis-trabajos no lee informes (permisos intactos)');
-  assert.match(m, /esEstadoCompletada\(\(d\.estadosPorVisita \|\| \{\}\)\[claveVisita\]\)/);
+  // Mis Trabajos intenta leer informes (en try/catch, solo lectura) para aplicar la misma regla de visita terminada que Órdenes; si no puede, usa el criterio anterior.
+  assert.match(m, /collection\(db, "informes"\)/);
+  assert.match(m, /visitaCerradaParaMisTrabajos\(d, numVisita, /);
   const o = lee('ordenes.html');
   assert.doesNotMatch(o, /estadoGlobal/);
 });
