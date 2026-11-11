@@ -15,6 +15,6 @@ test('no lee ni usa el contador posicional visitasCompletadas para ocultar visit
   assert.doesNotMatch(html, /d\.visitasCompletadas/);
 });
 
-test('sigue ocultando solo las visitas con su estado propio de finalizada', () => {
-  assert.match(html, /if \(esEstadoCompletada\(\(d\.estadosPorVisita \|\| \{\}\)\[claveVisita\]\)\) continue;/);
+test('solo oculta visitas terminadas según la regla única (estado propio + operador + evidencia)', () => {
+  assert.match(html, /visitaCerradaParaMisTrabajos\(d, numVisita, \{ docId: docSnap\.id, indiceInformes, informesLeidos \}\)\) continue;/);
 });

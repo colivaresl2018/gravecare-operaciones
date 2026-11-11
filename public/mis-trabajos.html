@@ -111,7 +111,8 @@
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
-    import { esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única: estado propio de la visita
+    import { crearIndiceInformes } from "./js/servicio-terminado.js"; // regla única de visita terminada (informes como evidencia)
+    import { crearIdentidad, visitaAsignadaA, visitaCerradaParaMisTrabajos } from "./js/operador-asignado.js"; // quién soy y si la visita ya está cerrada
     import { ubicacionDeVisita, agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador } from "./js/ubicacion-trabajo.js"; // ubicación de las visitas en el mapa (sepultura o cementerio)
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
@@ -215,23 +216,35 @@
 
     // CARGAR VISITAS ASIGNADAS
     async function cargarMisTrabajos(usuario) {
-      const emailUser = (usuario.email || "").toLowerCase().trim();
-      let nombreOperador = (usuario.displayName || "").trim();
-
-      if (emailUser === "colivaresl@hotmail.com" || emailUser === "admin@gravecare.cl") {
-        nombreOperador = "Christian Olivares";
-      } else {
-        try {
-          const sSnap = await getDoc(doc(db, "staff", usuario.uid));
-          if (sSnap.exists()) {
-            nombreOperador = sSnap.data().nombre || nombreOperador;
-          }
-        } catch (e) {
-          console.warn("Staff:", e);
+      // Identidad: uid, correo(s) y nombre(s) con que puede estar guardada una asignación. Las pantallas de asignación guardan
+      // el nombre del staff (staff.nombre), que puede ser el completo; el admin entra con dos correos y es la misma persona.
+      let staffNombre = "";
+      let staffEmail = "";
+      try {
+        const sSnap = await getDoc(doc(db, "staff", usuario.uid));
+        if (sSnap.exists()) {
+          staffNombre = sSnap.data().nombre || "";
+          staffEmail = sSnap.data().email || "";
         }
+      } catch (e) {
+        console.warn("Staff:", e);
       }
+      const identidad = crearIdentidad({ uid: usuario.uid, email: usuario.email, displayName: usuario.displayName, staffNombre, staffEmail });
 
       try {
+        // Evidencia de visitas terminadas (igual que ordenes.html). Si no se pueden leer, se usa el criterio anterior sin evidencia.
+        let indiceInformes = crearIndiceInformes([]);
+        let informesLeidos = false;
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          const entradas = [];
+          snapInf.forEach(i => entradas.push([i.id, i.data()]));
+          indiceInformes = crearIndiceInformes(entradas);
+          informesLeidos = true;
+        } catch (e) {
+          console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        }
+
         // Respaldo del nombre del cliente: contratos. Si el operador no tiene permiso de lectura, la carga falla en silencio
         // y el nombre queda como esté en la orden (no se leen informes aquí: los permisos de informes no cambian).
         const contratosMap = await cargarContratos(async () => {
@@ -247,11 +260,7 @@
         snap.forEach(docSnap => {
           const d = docSnap.data();
           if (!esOrdenPagada(d)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
-          const estadoGlobal = (d.estado || d.estadoServicio || "").toLowerCase().trim();
-
-          if (estadoGlobal === "completada" || estadoGlobal === "completado" || estadoGlobal === "terminada") {
-            return;
-          }
+          // El estado global de la orden ya no oculta visitas: una visita está terminada solo por la regla única (operador + evidencia + estado propio).
 
           const tit = d.titular || d;
           const dif = d.difunto || {};
@@ -290,25 +299,16 @@
             if (fU) fechasGuardadas.push(fU);
           }
 
-          const operadoresPorVisita = d.operadoresPorVisita || {};
-          const operadorGlobal = d.operadorAsignadoNombre || d.operadorNombre || "";
-
           // Evaluar cada visita del plan
           for (let idx = 0; idx < totalVisitas; idx++) {
             const numVisita = idx + 1;
             const claveVisita = `V${numVisita}`;
 
-            // visitasCompletadas (contador posicional) ya no oculta visitas: solo cuenta el estado propio de la visita.
-            if (esEstadoCompletada((d.estadosPorVisita || {})[claveVisita])) continue; // visita cerrada con el estado propio (el cierre ya no escribe el contador)
+            // Solo se oculta una visita realmente terminada (regla de servicio-terminado.js); un «completada» sin informe ni operador no la oculta.
+            if (visitaCerradaParaMisTrabajos(d, numVisita, { docId: docSnap.id, indiceInformes, informesLeidos })) continue;
 
-            const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || operadorGlobal || "";
-
-            const coincideOperador = 
-              (operadorDeEstaVisita && nombreOperador && operadorDeEstaVisita.toLowerCase().includes(nombreOperador.toLowerCase())) ||
-              (operadorDeEstaVisita && emailUser && operadorDeEstaVisita.toLowerCase().includes(emailUser)) ||
-              (d.operadorId === usuario.uid);
-
-            if (coincideOperador) {
+            // Mía por uid, correo o nombre normalizado, esté donde esté guardada la asignación (operadoresPorVisita, visitas, orden raíz...).
+            if (visitaAsignadaA(d, numVisita, identidad)) {
               const fProg = fechasGuardadas[idx] || fechasGuardadas[0];
               lista.push({
                 ordenDocId: docSnap.id,
