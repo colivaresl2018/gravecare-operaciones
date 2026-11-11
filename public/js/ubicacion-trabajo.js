@@ -158,3 +158,13 @@ export function contenidoMarcador(grupo) {
   const nota = grupo.aproximada ? '<div style="color:#b45309;font-weight:600;">Ubicación aproximada del cementerio</div>' : '';
   return `<div style="color:#111;font-family:sans-serif;font-size:13px;max-width:260px;">${filas}${nota}</div>`;
 }
+
+/**
+ * Ventana del Mapa de Operaciones: una ficha por visita del lugar (difunto, visita y estado, cementerio, cliente y operador),
+ * con scroll si el lugar tiene muchas. Todo el texto va escapado.
+ */
+export function contenidoMarcadorOperativo(grupo) {
+  const fichas = grupo.visitas.map((v) => `<div style="margin-bottom:8px;"><strong style="color:#002d1a;font-size:13px;">${escaparHtml(v.difunto)}</strong><br><span style="display:inline-block;margin:2px 0;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:11px;">Visita ${escaparHtml(v.visitaNumero)} de ${escaparHtml(v.totalVisitas)} (${escaparHtml(String(v.estadoVisita || '').toUpperCase())})</span><br><span>${escaparHtml(v.cementerio)}</span><br><span style="color:#64748b;">Cliente: ${escaparHtml(v.cliente)}</span><br><span style="color:#002d1a;font-weight:bold;">Operador: ${escaparHtml(v.operador)}</span></div>`).join('');
+  const nota = grupo.aproximada ? '<div style="color:#b45309;font-weight:600;">Ubicación aproximada del cementerio</div>' : '';
+  return `<div style="font-family:sans-serif;font-size:12px;padding:4px;max-width:280px;max-height:240px;overflow-y:auto;">${fichas}${nota}</div>`;
+}

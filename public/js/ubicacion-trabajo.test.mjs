@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizarNombre, leerCoordenada, coordenadasDeOrden, coordenadasCementerio, ubicacionDeVisita,
-  agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador, agruparPorOrden, escaparHtml,
+  agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador, agruparPorOrden, escaparHtml, contenidoMarcadorOperativo,
 } from './ubicacion-trabajo.js';
 
 test('normalizarNombre: minúsculas, sin tildes ni puntuación', () => {
@@ -125,4 +125,18 @@ test('contenidoMarcador: orden, difunto y cementerio, con HTML escapado', () => 
   assert.doesNotMatch(html, /<b>TV/);
   assert.equal(tituloMarcador(g), 'ORD-1794318778901977 · Pepito <b>TV</b> Solis · Cementerio El Prado de Puente Alto');
   assert.equal(escaparHtml(`<&"'>`), '&lt;&amp;&quot;&#39;&gt;');
+});
+
+test('contenidoMarcadorOperativo: una ficha por visita, con estado, cliente y operador escapados', () => {
+  const g = agruparMarcadores([
+    { idVisitaCompleto: 'ORD-9-V1', difunto: 'Ana <i>X</i>', cementerio: 'Cementerio El Prado de Puente Alto', badgeFraccion: '1/6', visitaNumero: 1, totalVisitas: 6, estadoVisita: 'pendiente', cliente: 'Cliente & Co', operador: 'Raúl', ubicacion: PRADO },
+    { idVisitaCompleto: 'ORD-9-V2', difunto: 'Ana <i>X</i>', cementerio: 'Cementerio El Prado de Puente Alto', badgeFraccion: '2/6', visitaNumero: 2, totalVisitas: 6, estadoVisita: 'asignada', cliente: 'Cliente & Co', operador: 'Raúl', ubicacion: PRADO },
+  ]).marcadores[0];
+  const html = contenidoMarcadorOperativo(g);
+  assert.equal((html.match(/Visita \d de 6/g) || []).length, 2);
+  assert.match(html, /Visita 1 de 6 \(PENDIENTE\)/);
+  assert.match(html, /Cliente: Cliente &amp; Co/);
+  assert.match(html, /Operador: Raúl/);
+  assert.doesNotMatch(html, /<i>X<\/i>/);
+  assert.match(html, /Ubicación aproximada del cementerio/);
 });
