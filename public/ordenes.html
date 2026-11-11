@@ -147,7 +147,7 @@
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { ESTADOS, transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
-    import { fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura)
+    import { fechaGuardadaVisita, guardarFechaVisitaEnOrden } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura y escritura de una fecha)
     import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -488,7 +488,7 @@
             <td class="py-3.5 px-3 text-center">
               <span class="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-900 font-mono font-bold px-2.5 py-1 rounded-md text-[11px]">
                 <span class="material-symbols-outlined text-[13px] text-amber-600">calendar_today</span>
-                ${formatearFechaChile(item.fechaEstimada)}
+                <input type="date" value="${valorFechaInput(item.fechaEstimada)}" onchange="window.cambiarFechaVisita('${item.idVisitaCompleto}', this.value)" title="Cambiar la fecha de esta visita" class="bg-transparent outline-none cursor-pointer font-mono font-bold text-[11px] text-amber-900" />
               </span>
             </td>
             <td class="py-3.5 px-3 text-center">
@@ -508,6 +508,32 @@
     }
 
     // ABRIR MODAL PARA ASIGNAR OPERADOR MANUALMENTE
+    // Fecha de la visita para el selector (AAAA-MM-DD, hora local). Vacío si no hay fecha.
+    function valorFechaInput(f) {
+      if (!f) return "";
+      const d = f.toDate ? f.toDate() : new Date(f);
+      if (isNaN(d.getTime())) return "";
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // Cambia la fecha de UNA visita (fechasPorVisita.<clave>, mismo guardado que Planificación).
+    window.cambiarFechaVisita = async function(idVisitaCompleto, valor) {
+      const item = listaVisitasPendientes.find(v => v.idVisitaCompleto === idVisitaCompleto);
+      if (!item) return;
+      const partes = String(valor || "").split("-").map(Number);
+      if (partes.length !== 3 || partes.some(n => !Number.isFinite(n))) { alert("Escribe una fecha válida."); renderizarTabla(); return; }
+      const fecha = new Date(partes[0], partes[1] - 1, partes[2], 12, 0, 0); // mediodía local: evita que la fecha cambie por zona horaria
+      try {
+        await guardarFechaVisitaEnOrden({ actualizar: updateDoc, referencia: (id) => doc(db, "ordenes", id), ordenDocId: item.ordenDocId, claveVisita: item.claveVisita, fecha });
+        item.fechaEstimada = fecha;
+        item.tieneFechaGuardada = true;
+        renderizarTabla();
+      } catch (err) {
+        alert("No se pudo guardar la fecha: " + err.message);
+        renderizarTabla();
+      }
+    };
+
     window.abrirModalAsignar = function(idVisitaCompleto) {
       itemEditando = listaVisitasPendientes.find(v => v.idVisitaCompleto === idVisitaCompleto);
       if (!itemEditando) return;
