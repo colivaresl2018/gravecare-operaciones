@@ -133,42 +133,32 @@
           </div>
         </div>
 
-        <!-- SECCIÓN 1: FOTOS DEL ESTADO INICIAL (ANTES) -->
-        <div>
-          <div class="flex items-center gap-1.5 mb-2.5">
-            <span class="material-symbols-outlined text-amber-600 text-base">history</span>
-            <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Estado Inicial (Antes) - 2 Fotografías</h4>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
-              <span class="block text-[11px] font-bold text-slate-600 mb-1.5">Foto Antes 1</span>
-              <img id="inf-foto-antes-1" src="" alt="Foto Antes 1" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
-              <div id="inf-sin-antes-1" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
-            </div>
-            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
-              <span class="block text-[11px] font-bold text-slate-600 mb-1.5">Foto Antes 2</span>
-              <img id="inf-foto-antes-2" src="" alt="Foto Antes 2" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
-              <div id="inf-sin-antes-2" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SECCIÓN 2: FOTOS DEL ESTADO FINAL (DESPUÉS) -->
+        <!-- FOTOGRAFÍAS DEL PROTOCOLO (4): mismas que muestra informe-revision.html (js/fotos-informe.js) -->
         <div>
           <div class="flex items-center gap-1.5 mb-2.5">
             <span class="material-symbols-outlined text-emerald-600 text-base">verified</span>
-            <h4 class="font-bold text-[#002d1a] text-xs uppercase tracking-wider">Trabajo Finalizado (Después) - 2 Fotografías</h4>
+            <h4 class="font-bold text-[#002d1a] text-xs uppercase tracking-wider">Registro Fotográfico - 4 Fotografías</h4>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="border border-emerald-100 rounded-xl p-2.5 text-center bg-emerald-50/20">
-              <span class="block text-[11px] font-bold text-emerald-900 mb-1.5">Foto Después 1</span>
-              <img id="inf-foto-despues-1" src="" alt="Foto Después 1" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
-              <div id="inf-sin-despues-1" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="inf-fotos-grid">
+            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
+              <span class="block text-[11px] font-bold text-slate-600 mb-1.5" id="inf-titulo-foto-1">1. Estado Inicial</span>
+              <img id="inf-foto-1" src="" alt="Estado Inicial" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-foto-1" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
             </div>
-            <div class="border border-emerald-100 rounded-xl p-2.5 text-center bg-emerald-50/20">
-              <span class="block text-[11px] font-bold text-emerald-900 mb-1.5">Foto Después 2</span>
-              <img id="inf-foto-despues-2" src="" alt="Foto Después 2" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
-              <div id="inf-sin-despues-2" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
+              <span class="block text-[11px] font-bold text-slate-600 mb-1.5" id="inf-titulo-foto-2">2. Finalizado</span>
+              <img id="inf-foto-2" src="" alt="Finalizado" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-foto-2" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            </div>
+            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
+              <span class="block text-[11px] font-bold text-slate-600 mb-1.5" id="inf-titulo-foto-3">3. Ornamentación</span>
+              <img id="inf-foto-3" src="" alt="Ornamentación" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-foto-3" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
+            </div>
+            <div class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50">
+              <span class="block text-[11px] font-bold text-slate-600 mb-1.5" id="inf-titulo-foto-4">4. Vista Panorámica</span>
+              <img id="inf-foto-4" src="" alt="Vista Panorámica" class="w-full h-48 object-cover rounded-lg border border-slate-200 hidden cursor-pointer hover:opacity-95 transition" onclick="window.open(this.src, '_blank')">
+              <div id="inf-sin-foto-4" class="h-48 flex items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-lg">Sin fotografía registrada</div>
             </div>
           </div>
         </div>
@@ -192,6 +182,7 @@
     import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { crearIndiceInformes, evaluarVisitas } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { resolverFotosInforme } from "./js/fotos-informe.js"; // las 4 fotos del informe, igual que informe-revision.html
 
     const firebaseConfig = FIREBASE_CONFIG;
 
@@ -325,6 +316,8 @@
 
       document.getElementById("inf-titulo").textContent = `Informe ${idInforme}`;
       document.getElementById("inf-subtitulo").textContent = "Cargando informe desde base de datos...";
+      // Limpia las fotos del informe anterior (si este no existe no deben quedar las de otro).
+      for (let n = 1; n <= 4; n++) aplicarFoto(`inf-foto-${n}`, `inf-sin-foto-${n}`, "");
 
       try {
         let docSnap = await getDoc(doc(db, "informes", idInforme));
@@ -356,29 +349,13 @@
 
           document.getElementById("inf-observaciones").textContent = inf.observaciones || inf.comentarios || "todo ok";
 
-          let antes1 = inf.fotoAntes1 || inf.fotoAntesUrl1 || inf.fotosAntes?.[0] || inf.fotos?.antes1 || null;
-          let antes2 = inf.fotoAntes2 || inf.fotoAntesUrl2 || inf.fotosAntes?.[1] || inf.fotos?.antes2 || null;
-          if (!antes1) antes1 = inf.fotoAntesUrl || inf.fotoAntes || inf.urlFotoAntes || inf.fotos?.antes || null;
-
-          let despues1 = inf.fotoDespues1 || inf.fotoDespuesUrl1 || inf.fotosDespues?.[0] || inf.fotos?.despues1 || null;
-          let despues2 = inf.fotoDespues2 || inf.fotoDespuesUrl2 || inf.fotosDespues?.[1] || inf.fotos?.despues2 || null;
-          if (!despues1) despues1 = inf.fotoDespuesUrl || inf.fotoDespues || inf.urlFotoDespues || inf.fotos?.despues || null;
-
-          const arrGeneral = Array.isArray(inf.fotos) ? inf.fotos : (Array.isArray(inf.imagenes) ? inf.imagenes : null);
-          if (arrGeneral && arrGeneral.length >= 2) {
-            if (!antes1) antes1 = arrGeneral[0];
-            if (!antes2 && arrGeneral.length >= 4) antes2 = arrGeneral[1];
-            if (!despues1) despues1 = arrGeneral[arrGeneral.length >= 4 ? 2 : 1];
-            if (!despues2 && arrGeneral.length >= 4) despues2 = arrGeneral[3];
+          // Misma resolución que informe-revision.html (fotos.inicial/finalizado/ornamentacion/panoramica + alias),
+          // con respaldo para los informes antiguos de 2 «antes» + 2 «después».
+          for (const foto of resolverFotosInforme(inf)) {
+            const elTitulo = document.getElementById(`inf-titulo-foto-${foto.numero}`);
+            if (elTitulo) elTitulo.textContent = foto.titulo;
+            aplicarFoto(`inf-foto-${foto.numero}`, `inf-sin-foto-${foto.numero}`, foto.url);
           }
-
-          if (antes1 && !antes2 && (inf.fotoAntesExtra || inf.fotoAntes2)) antes2 = inf.fotoAntesExtra || inf.fotoAntes2;
-          if (despues1 && !despues2 && (inf.fotoDespuesExtra || inf.fotoDespues2)) despues2 = inf.fotoDespuesExtra || inf.fotoDespues2;
-
-          aplicarFoto("inf-foto-antes-1", "inf-sin-antes-1", antes1);
-          aplicarFoto("inf-foto-antes-2", "inf-sin-antes-2", antes2);
-          aplicarFoto("inf-foto-despues-1", "inf-sin-despues-1", despues1);
-          aplicarFoto("inf-foto-despues-2", "inf-sin-despues-2", despues2);
 
         } else {
           document.getElementById("inf-subtitulo").textContent = "Documento de informe no encontrado";
