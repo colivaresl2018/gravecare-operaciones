@@ -141,7 +141,7 @@ test('completar V2 no arrastra V1 (la escritura es por visita y la lectura tambi
   assert.equal(Object.keys(payload).some((k) => /V1\b|v_1\b/.test(k)), false);
   assert.equal(payload['estadosPorVisita.V2'], 'completada');
   assert.equal('visitasCompletadas' in payload, false); // el contador posicional ya no se escribe (antes: 2, que daba también por hecha la V1)
-  assert.equal('estado' in payload, false);     // no cierra la orden: faltan visitas
+  assert.equal('estado' in payload || 'estadoOperativo' in payload, false);     // no cierra la orden: faltan visitas
   assert.equal(Object.keys(payload).some((k) => k.startsWith('programacionVisitas')), false, 'no pisa fechas de ejecución reales');
   const despues = { ...o, estadosPorVisita: { V2: payload['estadosPorVisita.V2'] } };
   const idx = ctx(crearIndiceInformes([informe(1), informe(2)])); // ambas visitas tienen informe: solo la V2 tiene estado
@@ -153,9 +153,13 @@ test('completar V2 no arrastra V1 (la escritura es por visita y la lectura tambi
 test('el cierre exige operador y solo cierra la orden cuando están todas las visitas', () => {
   assert.throws(() => construirCierreVisita({ numero: 1, totalVisitas: 4, terminadasPrevias: 0, uidOperador: '', marcaTiempo: 1 }), /operador/);
   const ultima = construirCierreVisita({ numero: 4, totalVisitas: 4, terminadasPrevias: 3, uidOperador: 'u', marcaTiempo: 1 });
-  assert.equal(ultima.estado, 'completada');
+  assert.equal(ultima.estadoOperativo, 'completada');
+  assert.equal('estado' in ultima, false, 'nunca pisa orden.estado (guarda Confirmado del pago)');
+  assert.equal('estadoServicio' in ultima, false);
   assert.equal('visitasCompletadas' in ultima, false);
-  assert.equal('estado' in construirCierreVisita({ numero: 4, totalVisitas: 4, terminadasPrevias: 1, uidOperador: 'u', marcaTiempo: 1 }), false);
+  const intermedia = construirCierreVisita({ numero: 4, totalVisitas: 4, terminadasPrevias: 1, uidOperador: 'u', marcaTiempo: 1 });
+  assert.equal('estadoOperativo' in intermedia, false);
+  assert.equal('estado' in intermedia, false);
 });
 
 test('fechaPago, creadoEn/creadoEl, actualizadoEn y fechaEstimada nunca son fecha de ejecución', () => {

@@ -60,6 +60,22 @@ test('sin ningún nombre se muestra «Cliente»; el respaldo (contrato) lo compl
   assert.equal(nombreClienteParaMostrar(orden, [{ titular: { nombreCompleto: 'Cliente' } }]), 'Cliente');
 });
 
+test('respaldo (contrato): variantes titular, nombreCliente, titularNombre, contratante, cliente.nombreCompleto y nombres + apellidos', () => {
+  const orden = { numeroOrden: 'ORD-9' };
+  const variantes = [
+    [{ titular: { nombreCompleto: 'A Uno Dos' } }, 'A Uno Dos'],
+    [{ titular: { nombres: 'B', apellidoPaterno: 'Tres', apellidoMaterno: 'Cuatro' } }, 'B Tres Cuatro'],
+    [{ nombreCliente: 'C Cinco Seis' }, 'C Cinco Seis'],
+    [{ titularNombre: 'D Siete Ocho' }, 'D Siete Ocho'],
+    [{ contratante: 'E Nueve Diez' }, 'E Nueve Diez'],
+    [{ contratante: { nombreCompleto: 'F Once Doce' } }, 'F Once Doce'],
+    [{ cliente: { nombreCompleto: 'G Trece Catorce' } }, 'G Trece Catorce'],
+    [{ nombres: 'H', apellidoPaterno: 'Quince', apellidoMaterno: 'Dieciseis' }, 'H Quince Dieciseis'],
+  ];
+  for (const [contrato, esperado] of variantes) assert.equal(nombreClienteParaMostrar(orden, [contrato]), esperado, JSON.stringify(contrato));
+  assert.equal(nombreClienteParaMostrar(orden, [{ contratante: 'Cliente Registrado', titularNombre: '' }]), 'Cliente');
+});
+
 test('el nombre de la orden tiene prioridad sobre el respaldo', () => {
   assert.equal(nombreClienteDeOrden({ nombreCliente: 'De La Orden Real' }, [{ nombreCliente: 'Del Contrato' }]), 'De La Orden Real');
 });

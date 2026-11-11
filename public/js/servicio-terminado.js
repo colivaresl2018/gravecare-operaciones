@@ -278,8 +278,9 @@ export function numerosTerminados(orden, ctx = {}) {
  *  - NO escribe visitasCompletadas: ese contador posicional queda congelado como dato histórico (si se escribiera,
  *    la regla de compatibilidad lo leería como «visitas 1..N» y volvería a arrastrar las anteriores)
  *  - ultimaVisitaCompletadaFecha, actualizadoEn   → solo informativos (compatibilidad); NUNCA cuentan como fecha de término
- * Cuando con esta visita quedan todas las del plan terminadas, mantiene el comportamiento histórico de cerrar la orden
- * (estado/estadoServicio/fechaCompletado).
+ * Cuando con esta visita quedan todas las del plan terminadas, marca el cierre operativo de la orden en un campo
+ * SEPARADO (`estadoOperativo: 'completada'` y `fechaCompletado`). NUNCA sobrescribe `estado` (guarda 'Confirmado' del
+ * pago Webpay: de él depende el ingreso tributario) ni `estadoServicio`.
  * @param {object} p
  * @param {number} p.numero               visita que se completa (1..)
  * @param {number} p.totalVisitas         visitas del plan
@@ -301,8 +302,7 @@ export function construirCierreVisita({ numero, totalVisitas, terminadasPrevias,
     actualizadoEn: marcaTiempo,
   };
   if (terminadas >= Number(totalVisitas)) {
-    payload.estado = 'completada';
-    payload.estadoServicio = 'completada';
+    payload.estadoOperativo = 'completada';
     payload.fechaCompletado = marcaTiempo;
   }
   return payload;

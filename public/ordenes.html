@@ -291,12 +291,7 @@
         snapOrdenes.forEach(docSnap => {
           const d = docSnap.data();
           if (!esOrdenPagada(d)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
-          const estadoGlobal = (d.estado || d.estadoServicio || "").toLowerCase().trim();
-
-          // Si toda la orden está completada, se omite por completo
-          if (estadoGlobal === "completada" || estadoGlobal === "completado" || estadoGlobal === "terminada" || estadoGlobal === "finalizada") {
-            return;
-          }
+          // El estado global de la orden ya no oculta visitas: una visita está terminada solo por la regla única (operador + evidencia + estado propio).
 
           const tit = d.titular || d;
           const dif = d.difunto || {};

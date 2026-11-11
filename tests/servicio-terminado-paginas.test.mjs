@@ -154,3 +154,25 @@ test('ordenes.html y planificacion.html: un «completada» guardado sin operador
   const p = lee('planificacion.html');
   assert.match(p, /const estadoGuardado = esEstadoCompletada\(estadoCrudo\) \? null : estadoCrudo;/);
 });
+
+test('el cierre de la última visita no pisa orden.estado y no escribe el contador (ni en la página ni en el módulo)', () => {
+  const h = lee('todos-los-trabajos.html');
+  assert.doesNotMatch(h, /estado: ?["']completada["']|estadoServicio/, 'la página no escribe estado/estadoServicio');
+  const m = lee('js/servicio-terminado.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''); // sin comentarios
+  assert.doesNotMatch(m, /payload\.estado = |payload\.estadoServicio|visitasCompletadas: /);
+  assert.match(m, /payload\.estadoOperativo = 'completada'/);
+});
+
+test('clientes.html: el avance sale de las visitas que cumplen la regla (no del contador); mis-trabajos y ordenes usan el nombre único', () => {
+  const c = lee('clientes.html');
+  assert.match(c, /from "\.\/js\/servicio-terminado\.js"/);
+  assert.equal([...c.matchAll(/numerosTerminados\(ord, \{ docId: (ordId|docSnap\.id), indiceInformes \}\)\.size/g)].length, 2);
+  assert.doesNotMatch(c, /ord\.visitasCompletadas/);
+  const m = lee('mis-trabajos.html');
+  assert.match(m, /from "\.\/js\/nombre-cliente\.js"/);
+  assert.match(m, /nombreClienteParaMostrar\(d, /);
+  assert.doesNotMatch(m, /collection\(db, "informes"\)/, 'mis-trabajos no lee informes (permisos intactos)');
+  assert.match(m, /esEstadoCompletada\(\(d\.estadosPorVisita \|\| \{\}\)\[claveVisita\]\)/);
+  const o = lee('ordenes.html');
+  assert.doesNotMatch(o, /estadoGlobal/);
+});

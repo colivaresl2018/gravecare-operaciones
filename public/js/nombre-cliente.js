@@ -12,7 +12,8 @@
  *   4. la misma concatenación en la raíz de la orden
  *   5. nombreCompleto, nombreCliente, clienteNombre, cliente (si es texto) de la orden
  *   6. comprador.nombreCompleto / comprador.nombre
- *   7. respaldo: el contrato de la orden (contratos/CTR-<numeroOrden>), si el staff puede leerlo
+ *   7. respaldo: el contrato de la orden (contratos/CTR-<numeroOrden>), si el staff puede leerlo; se le aplican las
+ *      mismas variantes, más titularNombre, contratante y cliente.nombreCompleto
  * Se ignoran los genéricos («Cliente», «Cliente Registrado», vacío) y los correos.
  *
  * NO se lee `usuarios/{uid}`: según firestore.rules solo lo lee su dueño, así que el staff no puede (se verificó
@@ -69,17 +70,20 @@ export function nombreClienteDeOrden(orden, respaldos = []) {
   else if (tit && typeof tit === 'object') candidatos.push(nombreDesdeObjeto(tit));
   // Raíz de la orden: solo la concatenación nombres + apellidos y nombreCompleto (un `nombre` suelto en la raíz podría ser otra cosa).
   candidatos.push(t(o.nombres) ? unir([o.nombres, o.apellidoPaterno, o.apellidoMaterno]) : '');
-  candidatos.push(o.nombreCompleto, o.nombreCliente, o.clienteNombre);
+  candidatos.push(o.nombreCompleto, o.nombreCliente, o.clienteNombre, o.titularNombre);
   if (typeof o.cliente === 'string') candidatos.push(o.cliente);
   else candidatos.push(nombreDesdeObjeto(o.cliente));
+  if (typeof o.contratante === 'string') candidatos.push(o.contratante);
+  else candidatos.push(nombreDesdeObjeto(o.contratante));
   candidatos.push(nombreDesdeObjeto(o.comprador));
   for (const c of candidatos) {
     const s = t(c);
     if (s && !esNombreGenerico(s)) return s;
   }
+  // Respaldos (p. ej. el contrato): mismas variantes (titular, nombres + apellidos, nombreCliente, titularNombre,
+  // contratante, cliente.nombreCompleto…). Una sola pasada por cada uno, sin volver a recorrer respaldos.
   for (const r of respaldos || []) {
-    const s = nombreDesdeObjeto(r) || nombreDesdeObjeto(r && r.titular) || (typeof (r && r.titular) === 'string' ? t(r.titular) : '')
-      || t(r && r.clienteNombre) || t(r && r.nombreCliente);
+    const s = r && typeof r === 'object' ? (nombreClienteDeOrden(r) || nombreDesdeObjeto(r)) : '';
     if (s && !esNombreGenerico(s)) return s;
   }
   return '';
