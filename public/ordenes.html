@@ -533,6 +533,12 @@
       if (!itemEditando) return;
       const opSeleccionado = document.getElementById("modal-select-operador").value;
 
+      // Sin fecha programada no se asigna: la visita no aparece en Mis Trabajos hasta tener fecha.
+      if (opSeleccionado !== "Sin asignar" && !itemEditando.tieneFechaGuardada) {
+        alert("Programa primero la fecha de esta visita antes de asignarle un operador.");
+        return;
+      }
+
       const btn = document.getElementById("btn-guardar-modal");
       btn.disabled = true;
       btn.textContent = "Guardando...";

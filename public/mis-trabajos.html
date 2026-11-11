@@ -310,6 +310,8 @@
             // Mía por uid, correo o nombre normalizado, esté donde esté guardada la asignación (operadoresPorVisita, visitas, orden raíz...).
             if (visitaAsignadaA(d, numVisita, identidad)) {
               const fProg = fechasGuardadas[idx] || fechasGuardadas[0];
+              // Sin fecha programada la visita no se muestra: primero se programa (ver «Asignar» en Órdenes de Servicio).
+              if (!fProg) continue;
               lista.push({
                 ordenDocId: docSnap.id,
                 idVisitaCompleto: `${d.numeroOrden || d.ordenId || docSnap.id}-${claveVisita}`,
