@@ -29,10 +29,15 @@ Comparación: `mapa.html` tiene otro diccionario de 8 claves en minúsculas y us
 - Navegador (emuladores de la web, `GC_OFFSET=1500`, proyecto `demo-gravecare`, nada de producción): con 4 órdenes ficticias (El Prado sin coordenadas, alias antiguo, coordenadas `{latitude,longitude}`, cementerio desconocido) la página dio «3 ubicaciones en el mapa», pines naranjo/rojo/naranjo en las posiciones esperadas, y aviso «Sin ubicación en el mapa: ORD-MAPA-SIN». Limitación: Google Maps rechaza `localhost` con la clave actual (`RefererNotAllowedMapError`), así que no se vieron teselas reales; los pines se comprobaron sustituyendo `google.maps.Marker` por un registro. El aviso «No se pudo cargar Google Maps» se vio funcionando con ese rechazo real.
 - Durante la prueba apareció un error propio (un salto de línea dentro de un `join("…")` rompía el script); se corrigió y la prueba de sintaxis lo impide.
 
+## 3b. Mapa de Operaciones (`public/mapa.html`), mismo arreglo
+- Quitados su diccionario de 8 nombres y el desplazamiento aleatorio (`Math.random`) de los pines. Ahora usa `ubicacionDeVisita` y el catálogo oficial de 17 cementerios.
+- Un pin por lugar, con una ventana por visita (difunto, visita y estado, cementerio, cliente, operador). Amarillo si alguna visita del lugar no tiene operador; verde si todas tienen.
+- Prueba nueva `tests/mapa-operaciones-pagina.test.mjs` (imports, sin diccionario ni azar, ventana, sintaxis del script en línea) y prueba unitaria de `contenidoMarcadorOperativo` en `public/js/ubicacion-trabajo.test.mjs`. Suite: 231 en verde.
+- No se verificó en navegador esta página: los emuladores ya estaban apagados. Queda pendiente una comprobación visual.
+
 ## 4. Plan de despliegue y reversa
-Solo Hosting `gravecare-ops` (dueño, desde clon limpio en tag, `--project gravecare-2e8d2 --only hosting:gravecare-ops`). Archivos: `public/mis-trabajos.html`, `public/js/ubicacion-trabajo.js`, `public/js/cementeriosCoords.js` (solo comentario). Reversa: volver al tag anterior y redesplegar. Sin cambios de datos ni de reglas.
+Solo Hosting `gravecare-ops` (dueño, desde clon limpio en tag, `--project gravecare-2e8d2 --only hosting:gravecare-ops`). Archivos: `public/mis-trabajos.html`, `public/mapa.html`, `public/js/ubicacion-trabajo.js`, `public/js/cementeriosCoords.js` (solo comentario). Reversa: volver al tag anterior y redesplegar. Sin cambios de datos ni de reglas.
 
 ## 5. Notas para el dueño
 - La clave de Google Maps está escrita en `mis-trabajos.html` (y otras páginas) desde antes de este cambio; es una clave de navegador, conviene confirmar que tiene restricción por dominio (hoy rechaza `localhost`, lo que sugiere que sí).
 - Si se agrega un cementerio al catálogo de la web, hay que replicarlo en `ubicacion-trabajo.js`.
-- Mejora aparte sugerida: que `mapa.html` use el mismo módulo (hoy usa un desplazamiento aleatorio y solo 8 nombres).
