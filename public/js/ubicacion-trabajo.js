@@ -9,7 +9,7 @@
 // → 3) sin ubicación (la página muestra un aviso en español en lugar de un mapa vacío).
 //
 // Las coordenadas de los cementerios son una copia del catálogo del repo de la web
-// (docs/referencias/cementerios.json, ids cem-001…cem-018, con sus alias). Si allá se corrige una, replicarla aquí.
+// (docs/referencias/cementerios.json, 17 cementerios vigentes cem-001…cem-018 sin cem-004, eliminado por el dueño el 29-oct; con sus alias). Si allá se corrige una, replicarla aquí.
 
 /** Texto comparable: minúsculas, sin tildes, sin puntuación y con espacios simples. */
 export function normalizarNombre(s) {
@@ -51,7 +51,6 @@ const CATALOGO = [
   { nombres: ['Parque del Recuerdo de Huechuraba', 'Parque del Recuerdo Américo Vespucio'], lat: -33.3838805, lng: -70.6345455 },
   { nombres: ['Cementerio General de Recoleta', 'Cementerio General de Santiago', 'Cementerio General'], lat: -33.4176636, lng: -70.6500999 },
   { nombres: ['Cementerio Católico de Recoleta'], lat: -33.4134151, lng: -70.6422611 },
-  { nombres: ['Cementerio Parque del Santiago'], lat: -33.3908378, lng: -70.6106419 },
   { nombres: ['Parque Canaán de Pudahuel', 'Parque Canaán'], lat: -33.442826, lng: -70.8013175 },
   { nombres: ['Cementerio Metropolitano de Lo Espejo', 'Cementerio Metropolitano'], lat: -33.5304473, lng: -70.68327 },
   { nombres: ['Parque del Recuerdo Cordillera de Puente Alto', 'Parque del Recuerdo Cordillera'], lat: -33.5549429, lng: -70.54416 },
