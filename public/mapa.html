@@ -99,6 +99,7 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
+    import { ubicacionDeVisita, agruparMarcadores, contenidoMarcadorOperativo } from "./js/ubicacion-trabajo.js"; // ubicación: sepultura o catálogo oficial de cementerios
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -111,16 +112,7 @@
     let marcadores = [];
     let visitasPendientesData = [];
 
-    const COORDENADAS_CEMENTERIOS = {
-      "cementerio general": { lat: -33.4158, lng: -70.6517 },
-      "parque del recuerdo américo vespucio": { lat: -33.3762, lng: -70.6384 },
-      "parque del recuerdo padre hurtado": { lat: -33.3768, lng: -70.6398 },
-      "parque del recuerdo": { lat: -33.3762, lng: -70.6384 },
-      "parque sendero maipú": { lat: -33.5186, lng: -70.7645 },
-      "parque sendero": { lat: -33.5186, lng: -70.7645 },
-      "parque el manantial": { lat: -33.5222, lng: -70.7410 },
-      "parque del prado": { lat: -33.5678, lng: -70.5843 }
-    };
+    let ventanaInfo = null;
 
     function inicializarMapa() {
       mapa = new google.maps.Map(document.getElementById('mapa'), {
@@ -128,25 +120,6 @@
         center: { lat: -33.4489, lng: -70.6693 },
         mapTypeId: google.maps.MapTypeId.ROADMAP
       });
-    }
-
-    function resolverCoordenadas(ord) {
-      if (ord.coordenadas?.latitude && ord.coordenadas?.longitude) {
-        return { lat: Number(ord.coordenadas.latitude), lng: Number(ord.coordenadas.longitude) };
-      }
-      if (ord.ubicacionSepultura?.coordenadas?.latitude && ord.ubicacionSepultura?.coordenadas?.longitude) {
-        return { lat: Number(ord.ubicacionSepultura.coordenadas.latitude), lng: Number(ord.ubicacionSepultura.coordenadas.longitude) };
-      }
-      const cemNombre = (ord.ubicacionSepultura?.cementerio || ord.cementerio || "").toLowerCase().trim();
-      for (const [key, coords] of Object.entries(COORDENADAS_CEMENTERIOS)) {
-        if (cemNombre.includes(key)) {
-          return {
-            lat: coords.lat + (Math.random() - 0.5) * 0.003,
-            lng: coords.lng + (Math.random() - 0.5) * 0.003
-          };
-        }
-      }
-      return null;
     }
 
     function extraerNumeroPlan(planVal) {
@@ -175,7 +148,7 @@
           const cliente = ord.titular?.nombreCompleto || ord.titular?.nombre || ord.titular || ord.nombreTitular || ord.cliente || "Cliente";
           const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo";
           const operadorGeneral = ord.operadorAsignadoNombre || ord.operadorNombre || ord.operador || "Sin asignar";
-          const coordenadas = resolverCoordenadas(ord);
+          const ubicacion = ubicacionDeVisita(ord, cementerio); // sepultura o, si no hay, ubicación fija del cementerio (sin desplazamiento aleatorio)
 
           // Determinar cantidad total de visitas contratadas según el plan
           const totalVisitas = ord.totalVisitas || ord.numeroVisitas || ord.cantidadVisitas || extraerNumeroPlan(ord.plan || ord.tipoPlan || 1);
@@ -202,7 +175,8 @@
                 cliente,
                 cementerio,
                 operador: opVisita,
-                coordenadas: coordenadas,
+                coordenadas: ubicacion ? { lat: ubicacion.lat, lng: ubicacion.lng } : null,
+                ubicacion,
                 estadoVisita: estadoVisita || 'pendiente'
               });
             }
@@ -222,48 +196,42 @@
       if (!mapa) return;
       marcadores.forEach(m => m.setMap(null));
       marcadores = [];
+      if (!ventanaInfo) ventanaInfo = new google.maps.InfoWindow();
 
+      // Un pin por lugar (las visitas del mismo cementerio quedan en la misma ventana, sin desplazarlas al azar)
+      const { marcadores: grupos } = agruparMarcadores(visitas);
       const bounds = new google.maps.LatLngBounds();
-      let hasCoords = false;
 
-      visitas.forEach(v => {
-        if (v.coordenadas) {
-          hasCoords = true;
-          bounds.extend(v.coordenadas);
+      grupos.forEach(g => {
+        const posicion = { lat: g.lat, lng: g.lng };
+        bounds.extend(posicion);
 
-          // Si el trabajo está sin asignar se muestra en amarillo, si está asignado o pendiente en verde
-          const esAsignado = v.operador && v.operador !== "Sin asignar";
-          const iconUrl = esAsignado 
-            ? 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' 
-            : 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+        // Amarillo si alguna visita del lugar está sin asignar; verde si todas tienen operador
+        const haySinAsignar = g.visitas.some(v => !v.operador || v.operador === "Sin asignar");
+        const iconUrl = haySinAsignar
+          ? 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png'
+          : 'https://maps.google.com/mapfiles/ms/icons/green-dot.png';
 
-          const marcador = new google.maps.Marker({
-            position: v.coordenadas,
-            map: mapa,
-            title: `${v.difunto} - Visita ${v.visitaNumero}/${v.totalVisitas}`,
-            icon: iconUrl
-          });
+        const marcador = new google.maps.Marker({
+          position: posicion,
+          map: mapa,
+          title: g.visitas.length === 1
+            ? `${g.visitas[0].difunto} - Visita ${g.visitas[0].visitaNumero}/${g.visitas[0].totalVisitas}`
+            : `${g.cementerio}: ${g.visitas.length} visitas pendientes`,
+          icon: iconUrl
+        });
 
-          const infoWindow = new google.maps.InfoWindow({
-            content: `
-              <div style="font-family:sans-serif; font-size:12px; padding:4px;">
-                <strong style="color:#002d1a; font-size:13px;">${v.difunto}</strong><br>
-                <span style="display:inline-block; margin:2px 0; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:11px;">
-                  Visita ${v.visitaNumero} de ${v.totalVisitas} (${v.estadoVisita.toUpperCase()})
-                </span><br>
-                <span>${v.cementerio}</span><br>
-                <span style="color:#64748b;">Cliente: ${v.cliente}</span><br>
-                <span style="color:#002d1a; font-weight:bold;">Operador: ${v.operador}</span>
-              </div>`
-          });
-
-          marcador.addListener('click', () => infoWindow.open(mapa, marcador));
-          marcadores.push(marcador);
-        }
+        marcador.addListener('click', () => {
+          ventanaInfo.setContent(contenidoMarcadorOperativo(g));
+          ventanaInfo.open(mapa, marcador);
+        });
+        marcadores.push(marcador);
       });
 
-      if (hasCoords) {
+      if (grupos.length) {
         mapa.fitBounds(bounds);
+        // con un solo lugar fitBounds acercaría al máximo: se limita el zoom
+        google.maps.event.addListenerOnce(mapa, 'idle', () => { if (mapa.getZoom() > 15) mapa.setZoom(15); });
       }
     }
 

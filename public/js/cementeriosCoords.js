@@ -1,3 +1,6 @@
+// OBSOLETO: ya no lo importa ninguna página. El mapa de «Mis Trabajos» usa ubicacion-trabajo.js (catálogo con alias).
+// Se conserva por la regla de no borrar; retirar a legacy/ cuando el dueño lo apruebe.
+//
 // Coordenadas de referencia (ubicación general, no de una sepultura
 // puntual) de cada cementerio donde opera GraveCare. Se usan como respaldo
 // en el mapa de "Mis Trabajos" cuando una orden todavía no tiene
