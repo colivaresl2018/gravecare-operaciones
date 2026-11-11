@@ -29,6 +29,8 @@
 
     <!-- Contenedor del Mapa -->
     <div id="mapa-operaciones" class="bg-slate-100 overflow-hidden border border-slate-200"></div>
+    <!-- Aviso del mapa: ubicación aproximada, visitas sin ubicación o error al cargar Google Maps -->
+    <div id="aviso-mapa" class="hidden mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs leading-relaxed" role="status"></div>
   </section>
 
   <!-- Listado de Asignaciones Pendientes -->
@@ -110,6 +112,7 @@
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única: estado propio de la visita
+    import { ubicacionDeVisita, agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador } from "./js/ubicacion-trabajo.js"; // ubicación de las visitas en el mapa (sepultura o cementerio)
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -122,13 +125,8 @@
     let mapaInstancia = null;
     let marcadoresMapa = [];
 
-    const CEMENTERIOS_COORDS = {
-      "Parque del Recuerdo Padre Hurtado": { lat: -33.5683, lng: -70.7891 },
-      "Parque del Recuerdo Américo Vespucio": { lat: -33.3644, lng: -70.6415 },
-      "Parque del Recuerdo Cordillera": { lat: -33.5694, lng: -70.5489 },
-      "Cementerio General": { lat: -33.4168, lng: -70.6517 },
-      "Cementerio Metropolitano": { lat: -33.5358, lng: -70.6865 }
-    };
+    let errorMapa = "";
+    let ventanaInfo = null;
 
     function formatearFechaChile(f) {
       if (!f) return "Por coordinar";
@@ -168,39 +166,48 @@
       actualizarMarcadoresMapa();
     }
 
+    // Cabecera y aviso del mapa: no dependen de Google Maps, así nunca queda un mapa vacío sin explicación.
+    function actualizarAvisoMapa() {
+      const resumen = resumenMapa(misVisitasAsignadas);
+      const txtCoords = document.getElementById("txt-coordenadas-estado");
+      if (txtCoords) txtCoords.textContent = resumen.estado;
+      const aviso = document.getElementById("aviso-mapa");
+      if (aviso) {
+        const texto = [errorMapa, resumen.aviso].filter(Boolean).join(" ");
+        aviso.textContent = texto;
+        aviso.classList.toggle("hidden", !texto);
+      }
+    }
+
     function actualizarMarcadoresMapa() {
+      actualizarAvisoMapa();
       if (!mapaInstancia || typeof google === "undefined") return;
 
       marcadoresMapa.forEach(m => m.setMap(null));
       marcadoresMapa = [];
+      if (!ventanaInfo) ventanaInfo = new google.maps.InfoWindow();
 
-      let hayCoords = false;
+      const { marcadores } = agruparMarcadores(misVisitasAsignadas);
       const bounds = new google.maps.LatLngBounds();
 
-      misVisitasAsignadas.forEach(v => {
-        let latLng = v.coordenadas;
-        if (!latLng && CEMENTERIOS_COORDS[v.cementerio]) {
-          latLng = CEMENTERIOS_COORDS[v.cementerio];
-        }
-
-        if (latLng) {
-          hayCoords = true;
-          const marker = new google.maps.Marker({
-            position: latLng,
-            map: mapaInstancia,
-            title: `${v.difunto} - ${v.cementerio}`
-          });
-          bounds.extend(latLng);
-          marcadoresMapa.push(marker);
-        }
+      marcadores.forEach(g => {
+        const posicion = { lat: g.lat, lng: g.lng };
+        const marker = new google.maps.Marker({
+          position: posicion,
+          map: mapaInstancia,
+          // naranjo = ubicación aproximada del cementerio; rojo = coordenadas de la sepultura
+          icon: g.aproximada ? "https://maps.google.com/mapfiles/ms/icons/orange-dot.png" : undefined,
+          title: tituloMarcador(g)
+        });
+        marker.addListener("click", () => {
+          ventanaInfo.setContent(contenidoMarcador(g));
+          ventanaInfo.open(mapaInstancia, marker);
+        });
+        bounds.extend(posicion);
+        marcadoresMapa.push(marker);
       });
 
-      const txtCoords = document.getElementById("txt-coordenadas-estado");
-      if (txtCoords) {
-        txtCoords.textContent = hayCoords ? `${marcadoresMapa.length} sepultura(s) geolocalizada(s)` : "Sin coordenadas registradas";
-      }
-
-      if (hayCoords && marcadoresMapa.length > 0) {
+      if (marcadoresMapa.length > 0) {
         mapaInstancia.fitBounds(bounds);
         if (mapaInstancia.getZoom() > 14) mapaInstancia.setZoom(14);
       }
@@ -318,7 +325,7 @@
                 cementerio: cem,
                 plan: plan,
                 fechaProgramada: fProg,
-                coordenadas: d.ubicacionSepultura?.coordenadas || d.coordenadas || null,
+                ubicacion: ubicacionDeVisita(d, cem), // sepultura (orden) o, si no hay, ubicación aproximada del cementerio
                 observaciones: observacionesCliente.trim()
               });
             }
@@ -442,6 +449,12 @@
         scriptMap.async = true;
         scriptMap.defer = true;
         window.inicializarMapaGoogle = inicializarMapaGoogle;
+        const avisarErrorMapa = () => {
+          errorMapa = "No se pudo cargar Google Maps; las ubicaciones no se pueden mostrar en este momento.";
+          actualizarAvisoMapa();
+        };
+        scriptMap.onerror = avisarErrorMapa;
+        window.gm_authFailure = avisarErrorMapa; // clave rechazada o sin permiso para este dominio
         document.head.appendChild(scriptMap);
       }
     });
