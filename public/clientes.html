@@ -87,6 +87,7 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
+    import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js"; // avance real: visitas que cumplen la regla única
     import { 
       getFirestore, 
       collection, 
@@ -175,6 +176,17 @@
 
       try {
         // 1. Obtener todas las órdenes agrupadas
+        // Evidencia de visitas terminadas: informes por visita. Si no se pueden leer, ninguna visita se da por hecha.
+        let indiceInformes = crearIndiceInformes([]);
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          const entradas = [];
+          snapInf.forEach(i => entradas.push([i.id, i.data()]));
+          indiceInformes = crearIndiceInformes(entradas);
+        } catch (e) {
+          console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        }
+
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         const ordenesPorEmail = new Map();
         const ordenesPorRut = new Map();
@@ -200,7 +212,8 @@
             tipoServicio: ord.tipoServicio || (String(ord.planNombre || "").toLowerCase().includes("spot") ? "SPOT" : "PLAN"),
             suscripcion: ord.tipoServicio === "SPOT" ? "Única" : "Anual",
             ramos: ord.ramosAdicionales || ord.servicio?.ramos || ord.flores || ord.ramos || "Sin ramos adicionales",
-            visitasCompletadas: Number(ord.visitasCompletadas !== undefined ? ord.visitasCompletadas : (String(ord.estado).toLowerCase().includes("complet") ? 1 : 0)),
+            // Avance real: cantidad de visitas que cumplen operador + evidencia + estado propio (no el contador antiguo).
+            visitasCompletadas: numerosTerminados(ord, { docId: ordId, indiceInformes }).size,
             fechaRegistro: fechaRaw,
             cementerio: cementerio,
             sector: ord.ubicacionSepultura?.sector || ord.sector || "",
@@ -322,7 +335,7 @@
             else if (pL.includes("6")) totalVisitas = 6;
             else if (pL.includes("4")) totalVisitas = 4;
 
-            const realizadas = Number(ord.visitasCompletadas !== undefined ? ord.visitasCompletadas : 1);
+            const realizadas = numerosTerminados(ord, { docId: docSnap.id, indiceInformes }).size; // avance real (regla única)
             const enCurso = Math.min(totalVisitas, realizadas + 1);
 
             const fRaw = obtenerFechaContratacion(ord);

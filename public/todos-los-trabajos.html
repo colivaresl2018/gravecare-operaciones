@@ -85,6 +85,8 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
+    import { crearIndiceInformes, numerosTerminados, evaluarVisita, construirCierreVisita } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
 
     const firebaseConfig = FIREBASE_CONFIG;
 
@@ -178,6 +180,25 @@
 
     async function cargarTrabajosActivos() {
       try {
+        // Evidencia de visitas terminadas: informes por visita. Si no se pueden leer, ninguna visita se da por hecha.
+        let indiceInformes = crearIndiceInformes([]);
+        try {
+          const snapInf = await getDocs(collection(db, "informes"));
+          const entradas = [];
+          snapInf.forEach(i => entradas.push([i.id, i.data()]));
+          indiceInformes = crearIndiceInformes(entradas);
+        } catch (e) {
+          console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        }
+
+        // Respaldo del nombre del cliente: contratos (el staff puede leerlos). `usuarios/{uid}` solo lo lee su dueño (firestore.rules).
+        const contratosMap = await cargarContratos(async () => {
+          const sc = await getDocs(collection(db, "contratos"));
+          const l = [];
+          sc.forEach(c => l.push([c.id, c.data()]));
+          return l;
+        });
+
         const snap = await getDocs(collection(db, "ordenes"));
         const visitas = [];
         const cementeriosSet = new Set();
@@ -185,15 +206,13 @@
         snap.forEach(docSnap => {
           const d = docSnap.data();
           if (!esOrdenPagada(d)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
-          const estado = (d.estado || d.estadoServicio || "").toLowerCase().trim();
-
-          if (estado === "completada" || estado === "completado" || estado === "terminada" || estado === "finalizada") {
-            return;
-          }
+          // Visitas realmente terminadas (estado explícito + evidencia de esa visita). El estado global de la orden y
+          // el contador visitasCompletadas ya no ocultan visitas por sí solos: una orden recién comprada conserva todas.
+          const terminadas = numerosTerminados(d, { docId: docSnap.id, indiceInformes });
 
           const tit = d.titular || d;
           const dif = d.difunto || {};
-          const nomCliente = tit.nombreCompleto || tit.nombreCliente || d.clienteNombre || d.usuario || "Cliente";
+          const nomCliente = nombreClienteParaMostrar(d, contratosDeOrden(contratosMap, d, docSnap.id));
           const nomDifunto = dif.nombreCompleto || dif.nombre || d.nombreCompletoDifunto || d.difuntoNombre || "Ser Querido";
           const cem = d.ubicacionSepultura?.cementerio || d.cementerio || "Cementerio";
           cementeriosSet.add(cem);
@@ -233,7 +252,7 @@
             if (fUnica) fechasGuardadas.push(fUnica);
           }
 
-          const visitasCompletadasCount = Number(d.visitasCompletadas || 0);
+          const visitasCompletadasCount = terminadas.size;
 
           while (fechasGuardadas.length < (totalVisitas - visitasCompletadasCount)) {
             const base = fechasGuardadas[fechasGuardadas.length - 1] || fInicioDate;
@@ -247,7 +266,7 @@
 
           for (let idx = 0; idx < totalVisitas; idx++) {
             const numeroVisita = idx + 1;
-            const esVisitaYaRealizada = idx < visitasCompletadasCount;
+            const esVisitaYaRealizada = terminadas.has(numeroVisita);
 
             if (esVisitaYaRealizada) continue;
 
@@ -256,6 +275,8 @@
 
             const visData = progMap[`v_${numeroVisita}`] || progMap[String(numeroVisita)] || {};
             const estadoVisita = visData.estado || (d.operadorAsignadoNombre || d.operadorNombre ? "asignada" : "pendiente");
+
+            const evVisita = evaluarVisita(d, numeroVisita, { docId: docSnap.id, indiceInformes });
 
             visitas.push({
               ordenDocId: docSnap.id,
@@ -269,7 +290,11 @@
               ubicacion: `Sec: ${d.ubicacionSepultura?.sector || d.sector || "-"} / Pat: ${d.ubicacionSepultura?.patio || d.patio || "-"} / N°: ${d.ubicacionSepultura?.numeroSepultura || d.numeroSepultura || "-"}`,
               plan: plan,
               fechaProgramada: fechaDeEstaVisita,
-              estadoVisita: estadoVisita
+              estadoVisita: estadoVisita,
+              terminadasOrden: terminadas.size, // visitas ya terminadas de la orden (para saber si se cierra el plan)
+              // Solo se puede completar a mano una visita con operador válido y evidencia: si no, no pasaría a terminada.
+              puedeCompletar: evVisita.operadorValido && evVisita.tieneEvidencia,
+              motivoNoCompletar: !evVisita.operadorValido ? "sin operador asignado" : "sin informe ni evidencia de la visita"
             });
           }
         });
@@ -300,23 +325,26 @@
       }
 
       try {
-        const esUltimaVisita = (numeroVisita >= totalVisitas);
-        
-        const payloadUpdate = {
-          visitasCompletadas: numeroVisita,
-          ultimaVisitaCompletadaFecha: serverTimestamp(),
-          actualizadoEn: serverTimestamp()
-        };
-
-        if (esUltimaVisita) {
-          payloadUpdate.estado = "completada";
-          payloadUpdate.estadoServicio = "completada";
-          payloadUpdate.fechaCompletado = serverTimestamp();
+        // Se escribe SOLO esta visita (estado y fecha de ejecución propios); completar la V2 ya no marca la V1.
+        const item = listaVisitasActivas.find(v => v.ordenDocId === ordenId && v.numeroVisita === numeroVisita);
+        if (item && !item.puedeCompletar) {
+          alert(`La Visita ${numeroVisita} no se puede completar: ${item.motivoNoCompletar}. Asigna un operador y registra su informe primero.`);
+          return;
         }
+        const terminadasPrevias = item ? item.terminadasOrden : 0;
+        const payloadUpdate = construirCierreVisita({
+          numero: numeroVisita,
+          totalVisitas: totalVisitas,
+          terminadasPrevias: terminadasPrevias,
+          uidOperador: auth.currentUser?.uid || "",
+          marcaTiempo: serverTimestamp()
+        });
+        const esUltimaVisita = (terminadasPrevias + 1 >= totalVisitas);
 
         await updateDoc(doc(db, "ordenes", ordenId), payloadUpdate);
 
         listaVisitasActivas = listaVisitasActivas.filter(v => !(v.ordenDocId === ordenId && v.numeroVisita === numeroVisita));
+        listaVisitasActivas.forEach(v => { if (v.ordenDocId === ordenId) v.terminadasOrden = terminadasPrevias + 1; });
         renderizarTabla();
 
         if (esUltimaVisita) {

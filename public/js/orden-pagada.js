@@ -8,6 +8,7 @@
  * - Los retornos sin pago escriben pagoConfirmado: false y motivoSinPago (cancelado, rechazado, vencida…).
  *
  * Solo LEE campos existentes (contrato de datos con la web): pagoConfirmado, estado, modoPago, fechaPago.
+ * El cierre operativo de las visitas usa `estadoOperativo` y no modifica `estado` (de él depende el ingreso).
  */
 
 /** true si la orden está pagada según el servidor. Un documento vacío o sin esos campos no está pagado. */
@@ -21,12 +22,25 @@ export function esOrdenDePrueba(orden) {
 }
 
 /**
+ * true si el `estado` de la orden fue pisado por un cierre operativo antiguo: antes el backoffice escribía
+ * `estado: 'completada'` sobre el 'Confirmado' del pago al terminar la última visita. Desde ahora el cierre usa
+ * `estadoOperativo` y no toca `estado`, pero las órdenes ya cerradas conservan ese valor.
+ */
+export function esCierreOperativoAntiguo(orden) {
+  return Boolean(orden) && ['completada', 'completado', 'terminada', 'finalizada'].includes(String(orden.estado || '').toLowerCase().trim());
+}
+
+/**
  * true si la orden se suma como ingreso tributario (Boleta Venta / Ingreso Bruto del F22).
- * Exige además estado 'Confirmado': Oneclick (hallazgo C2) marca pagoConfirmado al inscribir la tarjeta,
- * sin cobrar. Y excluye las órdenes de prueba (regla de B-1).
+ * Exige estado 'Confirmado': Oneclick (hallazgo C2) marca pagoConfirmado al inscribir la tarjeta, sin cobrar.
+ * Excepción para no perder ingresos históricos: una orden con `pagoConfirmado === true`, `fechaPago` (la escribe la
+ * confirmación del cobro) y `estado` pisado por un cierre operativo antiguo ('completada'…) sigue contando.
+ * Siempre excluye las órdenes de prueba (regla de B-1).
  */
 export function cuentaComoIngreso(orden) {
-  return esOrdenPagada(orden) && orden.estado === 'Confirmado' && !esOrdenDePrueba(orden);
+  if (!esOrdenPagada(orden) || esOrdenDePrueba(orden)) return false;
+  if (orden.estado === 'Confirmado') return true;
+  return orden.pagoConfirmado === true && Boolean(orden.fechaPago) && esCierreOperativoAntiguo(orden);
 }
 
 /**

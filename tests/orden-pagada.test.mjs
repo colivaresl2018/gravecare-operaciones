@@ -1,7 +1,7 @@
 // N80 (directriz B-2): criterio de orden pagada e ingreso tributario. Ejecutar:  node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { esOrdenPagada, esOrdenDePrueba, cuentaComoIngreso, fechaDelIngreso } from '../public/js/orden-pagada.js';
+import { esOrdenPagada, esOrdenDePrueba, cuentaComoIngreso, fechaDelIngreso, esCierreOperativoAntiguo } from '../public/js/orden-pagada.js';
 
 // Datos como los de producción al 2026-11-08: 5 Confirmado con pagoConfirmado true y 2 iniciada con monto.
 const ORDENES_PRODUCCION = [
@@ -64,4 +64,25 @@ test('la fecha del ingreso sale de fechaPago cuando existe', () => {
   assert.equal(fechaDelIngreso({ createdAt: 'c' }), 'c');
   assert.equal(fechaDelIngreso({}), null);
   assert.equal(fechaDelIngreso(null), null);
+});
+
+// Cierre operativo: el backoffice ya no pisa `estado`, y los cierres antiguos no hacen perder ingreso histórico.
+test('cierre antiguo: pagoConfirmado + fechaPago + estado «completada» (pisado) sigue contando como ingreso', () => {
+  const orden = { estado: 'completada', pagoConfirmado: true, fechaPago: '2026-10-01T10:00:00.000Z', modoPago: 'produccion', montoTotal: 100000 };
+  assert.equal(esOrdenPagada(orden), true);
+  assert.equal(cuentaComoIngreso(orden), true);
+  assert.equal(esCierreOperativoAntiguo(orden), true);
+});
+
+test('cierre antiguo: la excepción no abre la puerta a Oneclick sin cobro, a pruebas ni a órdenes sin pago', () => {
+  assert.equal(cuentaComoIngreso({ estado: 'completada', pagoConfirmado: true, modoPago: 'produccion' }), false, 'sin fechaPago no hay evidencia de cobro');
+  assert.equal(cuentaComoIngreso({ estado: 'completada', pagoConfirmado: true, fechaPago: '2026-10-01', modoPago: 'integracion' }), false);
+  assert.equal(cuentaComoIngreso({ estado: 'completada', pagoConfirmado: false, fechaPago: '2026-10-01' }), false);
+  assert.equal(cuentaComoIngreso({ estado: 'inscripcion_iniciada', pagoConfirmado: true, fechaPago: '2026-10-01' }), false);
+});
+
+test('una orden Confirmado con cierre operativo nuevo (estadoOperativo) conserva su estado y cuenta como ingreso', () => {
+  const orden = { estado: 'Confirmado', pagoConfirmado: true, estadoOperativo: 'completada', fechaPago: '2026-10-01' };
+  assert.equal(cuentaComoIngreso(orden), true);
+  assert.equal(esCierreOperativoAntiguo(orden), false);
 });

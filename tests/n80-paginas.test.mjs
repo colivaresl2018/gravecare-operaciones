@@ -18,7 +18,7 @@ function cuerpoForEachOrdenes(html) {
   return html.slice(iForEach, iForEach + 6000);
 }
 
-const LISTAS = ['ordenes.html', 'mis-trabajos.html', 'todos-los-trabajos.html', 'mapa.html', 'planificacion.html', 'clientes.html'];
+const LISTAS = ['ordenes.html', 'mis-trabajos.html', 'todos-los-trabajos.html', 'mapa.html', 'planificacion.html', 'clientes.html', 'trabajos-terminados.html'];
 
 for (const pagina of LISTAS) {
   test(`${pagina}: importa esOrdenPagada y descarta las órdenes sin pago antes de listarlas`, () => {
