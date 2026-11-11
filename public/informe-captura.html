@@ -88,6 +88,15 @@
     </div>
   </div>
 
+  <!-- Aviso: informe rechazado por supervisión (se muestra solo si la visita fue rechazada) -->
+  <div id="avisoRechazo" class="hidden mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-900 flex items-start gap-3 shadow-sm">
+    <span class="material-symbols-outlined text-2xl text-rose-600 shrink-0">report</span>
+    <div>
+      <p class="text-sm font-bold">Este informe fue rechazado por supervisión. Corrígelo y vuelve a enviarlo.</p>
+      <p id="avisoRechazoMotivo" class="text-xs font-medium mt-1"></p>
+    </div>
+  </div>
+
   <!-- Alerta de validación de 4 fotos -->
   <div id="alertaFotosIncompletas" class="hidden mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-900 flex items-center gap-3 shadow-sm transition-all">
     <span class="material-symbols-outlined text-2xl text-rose-600 shrink-0">warning</span>
@@ -245,6 +254,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
+    import { rechazoDeVisita } from "./js/informe-rechazado.js"; // informe rechazado: muestra el motivo al operador
     import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -456,6 +466,12 @@
         document.getElementById("txtUbicacion").innerHTML = `
           <strong>${cem}</strong> • Sector: <span class="text-brand font-bold">${sec}</span> • Sepultura / Lote: <span class="text-brand font-bold">#${sep}</span>
         `;
+
+        const rechazo = rechazoDeVisita(datosOrden, visitaIndex, { docId: ordenId });
+        if (rechazo.rechazada) {
+          document.getElementById("avisoRechazoMotivo").textContent = rechazo.motivo ? `Motivo: ${rechazo.motivo}` : "";
+          document.getElementById("avisoRechazo").classList.remove("hidden");
+        }
 
         capturarUbicacionGps();
 

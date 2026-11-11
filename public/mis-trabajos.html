@@ -88,6 +88,11 @@
           <div id="obs-difunto" class="text-slate-600 font-medium">...</div>
         </div>
 
+        <div id="obs-rechazo" class="hidden">
+          <span class="text-rose-600 block text-[10px] uppercase font-bold mb-1">Motivo del rechazo (corrige y reenvía el informe):</span>
+          <div id="obs-rechazo-texto" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs leading-relaxed font-medium max-h-48 overflow-y-auto"></div>
+        </div>
+
         <div>
           <span class="text-slate-400 block text-[10px] uppercase font-bold mb-1">Comentarios / Indicaciones:</span>
           <div id="obs-contenido" class="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl text-slate-700 text-xs leading-relaxed max-h-48 overflow-y-auto">
@@ -113,6 +118,7 @@
     import { fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: misma fecha por visita que Órdenes de Servicio
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { crearIndiceInformes } from "./js/servicio-terminado.js"; // regla única de visita terminada (informes como evidencia)
+    import { rechazoDeVisita } from "./js/informe-rechazado.js"; // informe rechazado: vuelve al mismo operador con su motivo
     import { crearIdentidad, visitaAsignadaA, visitaCerradaParaMisTrabajos } from "./js/operador-asignado.js"; // quién soy y si la visita ya está cerrada
     import { ubicacionDeVisita, agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador } from "./js/ubicacion-trabajo.js"; // ubicación de las visitas en el mapa (sepultura o cementerio)
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -312,6 +318,8 @@
             if (visitaAsignadaA(d, numVisita, identidad)) {
               // Misma fecha que muestra Órdenes de Servicio (la de la visita o la de la orden). Si no hay ninguna, la visita aparece igual como «Por coordinar».
               const fProg = fechaGuardadaVisita(d, claveVisita) || fechasGuardadas[idx] || fechasGuardadas[0] || null;
+              // Informe rechazado por supervisión: la visita sigue siendo de este operador, ahora como «Rechazado» y con el motivo.
+              const rechazo = rechazoDeVisita(d, numVisita, { docId: docSnap.id, indiceInformes });
               lista.push({
                 ordenDocId: docSnap.id,
                 idVisitaCompleto: `${d.numeroOrden || d.ordenId || docSnap.id}-${claveVisita}`,
@@ -325,6 +333,8 @@
                 cementerio: cem,
                 plan: plan,
                 fechaProgramada: fProg,
+                rechazada: rechazo.rechazada,
+                motivoRechazo: rechazo.motivo,
                 ubicacion: ubicacionDeVisita(d, cem), // sepultura (orden) o, si no hay, ubicación aproximada del cementerio
                 observaciones: observacionesCliente.trim()
               });
@@ -386,16 +396,16 @@
             <button 
               type="button" 
               onclick="window.mostrarObservacionesCliente('${item.idVisitaCompleto}')" 
-              class="inline-flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-[10px] transition cursor-pointer shadow-xs" 
-              title="Haz clic para ver las observaciones del cliente"
+              class="inline-flex items-center gap-1 ${item.rechazada ? 'bg-rose-100 hover:bg-rose-200 text-rose-800' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'} font-bold px-2.5 py-1 rounded-full text-[10px] transition cursor-pointer shadow-xs" 
+              title="${item.rechazada ? 'Haz clic para ver el motivo del rechazo' : 'Haz clic para ver las observaciones del cliente'}"
             >
-              <span class="material-symbols-outlined text-xs">notes</span>
-              <span>Asignado</span>
+              <span class="material-symbols-outlined text-xs">${item.rechazada ? 'cancel' : 'notes'}</span>
+              <span>${item.rechazada ? 'Rechazado' : 'Asignado'}</span>
             </button>
           </td>
           <td class="py-3 px-4 text-center">
             <a href="informe-captura.html?ordenId=${item.ordenDocId}&v=${item.numeroVisita}" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline text-xs">
-              <span class="material-symbols-outlined text-sm">photo_camera</span> Reportar
+              <span class="material-symbols-outlined text-sm">${item.rechazada ? 'edit' : 'photo_camera'}</span> ${item.rechazada ? 'Corregir informe' : 'Reportar'}
             </a>
           </td>
         </tr>
@@ -409,6 +419,14 @@
 
       document.getElementById("obs-orden-visita").textContent = `${item.idVisitaCompleto} (${item.badgeFraccion})`;
       document.getElementById("obs-difunto").textContent = `Difunto: ${item.difunto} | Cliente: ${item.cliente}`;
+
+      const boxRechazo = document.getElementById("obs-rechazo");
+      if (item.rechazada) {
+        document.getElementById("obs-rechazo-texto").textContent = item.motivoRechazo || "Sin motivo detallado registrado. Consulta con supervisión.";
+        boxRechazo.classList.remove("hidden");
+      } else {
+        boxRechazo.classList.add("hidden");
+      }
 
       const boxContenido = document.getElementById("obs-contenido");
       if (item.observaciones && item.observaciones.length > 0) {
