@@ -233,6 +233,7 @@
     import { transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { construirActualizacionFecha, fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (sin arreglo completo)
+    import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
     import { 
       getFirestore, 
       collection, 
@@ -479,6 +480,19 @@
       return mapa;
     }
 
+    // Evidencia de visitas terminadas: informes por visita. Si no se pueden leer, ninguna visita se da por hecha.
+    async function cargarIndiceInformes() {
+      try {
+        const snap = await getDocs(collection(db, "informes"));
+        const entradas = [];
+        snap.forEach(i => entradas.push([i.id, i.data()]));
+        return crearIndiceInformes(entradas);
+      } catch (e) {
+        console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        return crearIndiceInformes([]);
+      }
+    }
+
     async function cargarDatos() {
       generarColumnasGantt();
       await cargarOperadores();
@@ -489,6 +503,7 @@
         const cementeriosSet = new Set();
 
         const mapaRealizadas = await cargarVisitasRealizadas(); // spec 041
+        const indiceInformes = await cargarIndiceInformes();
         snapOrdenes.forEach(docSnap => {
           const ord = docSnap.data();
           if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
@@ -515,9 +530,14 @@
           else if (planL.includes("4")) totalVisitas = 4;
 
           const realizadasOrden = (mapaRealizadas.get(ordId) || []).sort((a, b) => a.n - b.n); // spec 041
-          const cantRealizadas = ord.visitasCompletadas !== undefined ? Number(ord.visitasCompletadas) : realizadasOrden.length;
+          // Realizada = estado explícito de completada + evidencia de ESA visita (regla única). El contador
+          // visitasCompletadas ya no marca visitas por posición: una orden recién comprada conserva todas pendientes.
+          const hechasSet = numerosTerminados(ord, { docId: ordId, indiceInformes });
+          const cantRealizadas = hechasSet.size;
           const visitasHechas = realizadasOrden.map(r => r.f); // spec 041: solo fechas de informes aprobados
-          const cantPendientes = Math.max(0, totalVisitas - cantRealizadas);
+          const numerosPendientes = [];
+          for (let n = 1; n <= totalVisitas; n++) if (!hechasSet.has(n)) numerosPendientes.push(n);
+          const cantPendientes = numerosPendientes.length;
 
           // Cargar arreglo de fechas programadas
           let fechasProyectadas = [];
@@ -539,7 +559,7 @@
 
           // DESGLOSE INDIVIDUAL DE CADA VISITA PENDIENTE
           for (let vIdx = 0; vIdx < cantPendientes; vIdx++) {
-            const numVisita = cantRealizadas + vIdx + 1;
+            const numVisita = numerosPendientes[vIdx];
             const claveVisita = `V${numVisita}`;
             const fechaDeEstaVisita = fechaGuardadaVisita(ord, claveVisita) || fechasProyectadas[vIdx] || fechasProyectadas[0];
 

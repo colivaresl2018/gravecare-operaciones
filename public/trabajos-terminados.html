@@ -189,6 +189,8 @@
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
+    import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
+    import { crearIndiceInformes, evaluarVisitas } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
 
     const firebaseConfig = FIREBASE_CONFIG;
 
@@ -200,7 +202,7 @@
     const staffNombres = new Map();
 
     function formatearFecha(f) {
-      if (!f) return "10-10-2026";
+      if (!f) return "—"; // sin fecha real de ejecución no se inventa ninguna
       const d = f.toDate ? f.toDate() : new Date(f);
       if (isNaN(d.getTime())) return String(f);
       const dia = String(d.getDate()).padStart(2, '0');
@@ -211,8 +213,8 @@
 
     async function cargarStaff() {
       try {
-        const snap = await getDocs(collection(db, "staff"));
-        snap.forEach(d => {
+        const snapStaff = await getDocs(collection(db, "staff"));
+        snapStaff.forEach(d => {
           const s = d.data();
           const email = (s.email || "").toLowerCase().trim();
           const nombre = s.nombre || s.nombreCompleto || email;
@@ -244,13 +246,15 @@
           informesDataMap.set(d.id, d.data());
         });
 
+        const indiceInformes = crearIndiceInformes(informesDataMap);
+
         const snap = await getDocs(collection(db, "ordenes"));
         const terminadas = [];
         const cementeriosSet = new Set();
 
         snap.forEach(docSnap => {
           const d = docSnap.data();
-          const estadoGlobal = (d.estado || d.estadoServicio || "").toLowerCase().trim();
+          if (!esOrdenPagada(d)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
 
           const tit = d.titular || d;
           const dif = d.difunto || {};
@@ -266,80 +270,35 @@
           const operadoresPorVisita = d.operadoresPorVisita || {};
           const operadorGlobal = d.operadorAsignadoNombre || d.operadorNombre || d.operador || "";
 
-          if (Array.isArray(d.visitas) && d.visitas.length > 0) {
-            d.visitas.forEach((v, idx) => {
-              const estVisita = (v.estado || "").toLowerCase().trim();
-              if (estVisita === "completada" || estVisita === "completado" || estVisita === "terminada") {
-                const idVisitaCompleto = `${baseOrdenId}-V${idx + 1}`;
-                const claveV = `V${idx + 1}`;
-                
-                // Obtener operador del informe o de la orden
-                const infDoc = informesDataMap.get(idVisitaCompleto) || {};
-                const opDetectado = infDoc.operador || infDoc.operadorNombre || v.operadorNombre || v.operador || operadoresPorVisita[claveV] || operadorGlobal;
-
-                terminadas.push({
-                  id: `${docSnap.id}-V${idx + 1}`,
-                  ordenDocId: docSnap.id,
-                  idInforme: idVisitaCompleto,
-                  numeroVisita: idx + 1,
-                  numeroOrden: idVisitaCompleto,
-                  etiquetaVisita: `Visita ${idx + 1}`,
-                  cliente: nomCliente,
-                  difunto: nomDifunto,
-                  cementerio: cem,
-                  ubicacion: ubicacionTexto,
-                  plan: planNombre,
-                  operador: resolverNombreOperador(opDetectado),
-                  fechaTermino: v.fechaEjecucion || v.fechaCompletado || v.fechaEstimada || d.actualizadoEn || d.creadoEl
-                });
-              }
-            });
-          } else if (Number(d.visitasCompletadas || 0) > 0) {
-            const numHechas = Number(d.visitasCompletadas);
-            for (let i = 1; i <= numHechas; i++) {
-              const idVisitaCompleto = `${baseOrdenId}-V${i}`;
-              const claveV = `V${i}`;
-              
-              const infDoc = informesDataMap.get(idVisitaCompleto) || {};
-              const opDetectado = infDoc.operador || infDoc.operadorNombre || operadoresPorVisita[claveV] || operadorGlobal;
-
-              terminadas.push({
-                id: `${docSnap.id}-V${i}`,
-                ordenDocId: docSnap.id,
-                idInforme: idVisitaCompleto,
-                numeroVisita: i,
-                numeroOrden: idVisitaCompleto,
-                etiquetaVisita: `Visita ${i}`,
-                cliente: nomCliente,
-                difunto: nomDifunto,
-                cementerio: cem,
-                ubicacion: ubicacionTexto,
-                plan: planNombre,
-                operador: resolverNombreOperador(opDetectado),
-                fechaTermino: d.ultimaVisitaCompletadaFecha || d.fechaCompletado || d.actualizadoEn || d.creadoEl
-              });
-            }
-          } else if (estadoGlobal === "completada" || estadoGlobal === "completado" || estadoGlobal === "terminada" || estadoGlobal === "finalizada") {
-            const idVisitaCompleto = `${baseOrdenId}-V1`;
-            const infDoc = informesDataMap.get(idVisitaCompleto) || informesDataMap.get(docSnap.id) || {};
-            const opDetectado = infDoc.operador || infDoc.operadorNombre || operadoresPorVisita["V1"] || operadorGlobal;
+          // Regla única (js/servicio-terminado.js): una visita está terminada solo con estado explícito de completada
+          // Y evidencia real de ESA visita (su informe o su fecha de ejecución). Nunca se infiere de fechaPago,
+          // creadoEl, actualizadoEn ni fechaEstimada. Las visitas recién compradas no aparecen aquí.
+          const evaluadas = evaluarVisitas(d, { docId: docSnap.id, indiceInformes: indiceInformes });
+          const totalVisitas = evaluadas.length;
+          evaluadas.filter(ev => ev.terminada).forEach(ev => {
+            const idVisitaCompleto = `${baseOrdenId}-V${ev.numero}`;
+            const claveV = ev.clave;
+            const v = (Array.isArray(d.visitas) && d.visitas[ev.numero - 1]) || {};
+            const infDoc = ev.informe || {};
+            const opDetectado = infDoc.operador || infDoc.operadorNombre || v.operadorNombre || v.operador || operadoresPorVisita[claveV] || operadorGlobal;
 
             terminadas.push({
-              id: docSnap.id,
+              id: `${docSnap.id}-V${ev.numero}`,
               ordenDocId: docSnap.id,
-              idInforme: idVisitaCompleto,
-              numeroVisita: 1,
-              numeroOrden: baseOrdenId,
-              etiquetaVisita: "Servicio Completo",
+              idInforme: ev.informeId || idVisitaCompleto,
+              tieneInforme: ev.tieneInforme,
+              numeroVisita: ev.numero,
+              numeroOrden: idVisitaCompleto,
+              etiquetaVisita: totalVisitas === 1 ? "Servicio Completo" : `Visita ${ev.numero}`,
               cliente: nomCliente,
               difunto: nomDifunto,
               cementerio: cem,
               ubicacion: ubicacionTexto,
               plan: planNombre,
               operador: resolverNombreOperador(opDetectado),
-              fechaTermino: d.fechaCompletado || d.fechaEjecucion || d.actualizadoEn || d.creadoEl
+              fechaTermino: ev.fechaEjecucion // fecha de ejecución real de esa visita; null → «—»
             });
-          }
+          });
         });
 
         listaTerminadas = terminadas;
@@ -504,10 +463,13 @@
           </td>
           <!-- COLUMNA INFORME -->
           <td class="py-3.5 px-4 text-center">
-            <button type="button" onclick="window.abrirModalInforme('${item.idInforme}', '${item.ordenDocId}', '${item.operador}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#002d1a] hover:bg-[#003d24] text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Ver informe fotográfico">
+            ${item.tieneInforme ? `<button type="button" onclick="window.abrirModalInforme('${item.idInforme}', '${item.ordenDocId}', '${item.operador}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#002d1a] hover:bg-[#003d24] text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Ver informe fotográfico">
               <span class="material-symbols-outlined text-sm">visibility</span>
               <span>Ver Informe</span>
-            </button>
+            </button>` : `<button type="button" disabled class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-200 text-slate-500 font-bold text-xs shadow-sm cursor-not-allowed" title="Esta visita no tiene informe registrado">
+              <span class="material-symbols-outlined text-sm">visibility_off</span>
+              <span>Sin informe</span>
+            </button>`}
           </td>
         </tr>
       `).join("");

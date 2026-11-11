@@ -1,0 +1,110 @@
+// Bug «visitas recién compradas aparecen como Completada» en trabajos-terminados.html. Ejecutar: node --test tests/
+// Parte A: escenarios de aceptación sobre la colección de órdenes con la regla compartida.
+// Parte B: pruebas estáticas de que las páginas usan la regla y no el contador posicional ni fechas de compra.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { esOrdenPagada } from '../public/js/orden-pagada.js';
+import { crearIndiceInformes, visitasTerminadas, numerosTerminados, evaluarVisitas } from '../public/js/servicio-terminado.js';
+
+const PUBLIC = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const lee = (p) => readFileSync(join(PUBLIC, p), 'utf8').replace(/\r/g, '');
+
+const COMPRA = '2026-11-09T15:30:00.000Z';
+const compra = (id, plan, extra = {}) => ({
+  id, numeroOrden: id, estado: 'Confirmado', pagoConfirmado: true, modoPago: 'produccion', planNombre: plan,
+  fechaPago: COMPRA, creadoEl: COMPRA, creadoEn: COMPRA, actualizadoEn: COMPRA, operadorAsignadoNombre: '', ...extra,
+});
+
+/** Lo que haría trabajos-terminados.html: filas de terminadas de toda la colección. */
+function filasTerminadas(ordenes, informes = []) {
+  const indiceInformes = crearIndiceInformes(informes);
+  return ordenes.filter(esOrdenPagada).flatMap((o) => visitasTerminadas(o, { docId: o.id, indiceInformes }).map((v) => ({ orden: o.id, ...v })));
+}
+
+// ---------- Parte A ----------
+test('órdenes recién compradas (Plan 12, Plan 6 y Plan 4): ninguna visita aparece en terminadas', () => {
+  const ordenes = [compra('ORD-A', 'Plan 12'), compra('ORD-1794358691756423', 'Plan 6'), compra('ORD-C', 'Plan 4')];
+  assert.deepEqual(filasTerminadas(ordenes), []);
+});
+
+test('el caso reportado: Plan 6 con V1 y V2 «completadas» solo por la compra no aparece; con informe real, solo esa visita', () => {
+  // Datos que antes producían el error: contador, arreglo de visitas y fechas de compra, sin ejecución.
+  const base = { visitasCompletadas: 2, visitas: [{ estado: 'completada', fechaEstimada: COMPRA }, { estado: 'completada', fechaEstimada: COMPRA }] };
+  const orden = compra('ORD-1794358691756423', 'Plan 6', base);
+  assert.deepEqual(filasTerminadas([orden]), []);
+  const informes = [['ORD-1794358691756423-V1', { ordenId: 'ORD-1794358691756423', visitaNumero: 1, estado: 'aprobado', fechaCaptura: '2026-12-15T13:00:00.000Z' }]];
+  const filas = filasTerminadas([orden], informes);
+  assert.deepEqual(filas.map((f) => f.numero), [1]);
+  assert.equal(filas[0].tieneInforme, true);
+  assert.equal(filas[0].fechaEjecucion.toISOString(), '2026-12-15T13:00:00.000Z');
+});
+
+test('una orden no pagada nunca aparece, aunque tenga visitas con estado completada y su informe', () => {
+  const o = { id: 'ORD-X', estado: 'iniciada', pagoConfirmado: false, planNombre: 'Plan 4', estadosPorVisita: { V1: 'completada' } };
+  assert.deepEqual(filasTerminadas([o], [['ORD-X-V1', { ordenId: 'ORD-X', visitaNumero: 1, estado: 'aprobado' }]]), []);
+});
+
+test('con visitas completadas y evidencia: aparecen solo esas, con su fecha real y botón de informe según corresponda', () => {
+  const o = compra('ORD-D', 'Plan 4', {
+    estadosPorVisita: { V1: 'completada', V3: 'completada' },
+    programacionVisitas: { v_3: { fechaEjecucion: '2027-06-01T12:00:00.000Z' } },
+  });
+  const informes = [['ORD-D-V1', { ordenId: 'ORD-D', visitaNumero: 1, estado: 'aprobado', fechaCaptura: '2026-12-01T12:00:00.000Z' }]];
+  const filas = filasTerminadas([o], informes);
+  assert.deepEqual(filas.map((f) => [f.numero, f.tieneInforme]), [[1, true], [3, false]]);
+  assert.equal(filas[1].fechaEjecucion.toISOString(), '2027-06-01T12:00:00.000Z');
+});
+
+test('la fecha de compra jamás se muestra como fecha de término', () => {
+  const o = compra('ORD-E', 'Plan 4', { estadosPorVisita: { V1: 'completada' }, fechaCompletado: COMPRA, ultimaVisitaCompletadaFecha: COMPRA });
+  const ev = evaluarVisitas(o, { docId: 'ORD-E', indiceInformes: crearIndiceInformes([]) });
+  for (const v of ev) assert.equal(v.fechaEjecucion, null);
+  assert.equal(numerosTerminados(o, { docId: 'ORD-E', indiceInformes: crearIndiceInformes([]) }).size, 0);
+});
+
+// ---------- Parte B ----------
+test('trabajos-terminados.html: usa la regla compartida, filtra pagadas y no usa contador ni fechas de compra', () => {
+  const h = lee('trabajos-terminados.html');
+  assert.match(h, /import \{[^}]*evaluarVisitas[^}]*\} from "\.\/js\/servicio-terminado\.js"/);
+  assert.match(h, /if \(!esOrdenPagada\(d\)\) return;/);
+  assert.doesNotMatch(h, /d\.visitasCompletadas/);
+  assert.doesNotMatch(h, /d\.actualizadoEn|d\.creadoEl|d\.fechaPago|v\.fechaEstimada|ultimaVisitaCompletadaFecha/);
+  assert.doesNotMatch(h, /estadoGlobal/);
+  assert.doesNotMatch(h, /10-10-2026/, 'ya no inventa una fecha cuando falta');
+  assert.match(h, /fechaTermino: ev\.fechaEjecucion/);
+});
+
+test('trabajos-terminados.html: «Ver Informe» solo se habilita si la visita tiene informe', () => {
+  const h = lee('trabajos-terminados.html');
+  assert.match(h, /\$\{item\.tieneInforme \? `<button type="button" onclick="window\.abrirModalInforme/);
+  assert.match(h, /disabled class="[^"]*cursor-not-allowed/);
+  assert.match(h, /tieneInforme: ev\.tieneInforme/);
+});
+
+test('todos-los-trabajos.html: no oculta visitas por el contador posicional y completar escribe solo esa visita', () => {
+  const h = lee('todos-los-trabajos.html');
+  assert.match(h, /from "\.\/js\/servicio-terminado\.js"/);
+  assert.doesNotMatch(h, /idx < visitasCompletadasCount/);
+  assert.doesNotMatch(h, /Number\(d\.visitasCompletadas/);
+  assert.doesNotMatch(h, /visitasCompletadas: numeroVisita/);
+  assert.match(h, /construirCierreVisita\(/);
+  assert.match(h, /terminadas\.has\(numeroVisita\)/);
+});
+
+test('planificacion.html: las visitas realizadas salen de la regla compartida, no del contador', () => {
+  const h = lee('planificacion.html');
+  assert.match(h, /numerosTerminados\(ord, \{ docId: ordId, indiceInformes \}\)/);
+  assert.doesNotMatch(h, /ord\.visitasCompletadas/);
+  assert.match(h, /numVisita = numerosPendientes\[vIdx\]/);
+});
+
+test('el módulo compartido no lee las fechas de compra como fecha de ejecución', () => {
+  const m = lee('js/servicio-terminado.js');
+  const cuerpo = m.slice(m.indexOf('export function fechaEjecucionReal'), m.indexOf('/** Estado explícito de completada'));
+  for (const campo of ['fechaPago', 'creadoEn', 'creadoEl', 'actualizadoEn', 'updatedAt', 'fechaEstimada', 'ultimaVisitaCompletadaFecha']) {
+    assert.ok(!cuerpo.includes(`.${campo}`), `fechaEjecucionReal no debe leer ${campo}`);
+  }
+});
