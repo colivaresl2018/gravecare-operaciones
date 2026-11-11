@@ -1,4 +1,5 @@
-// Regla: una visita sin fecha programada no se asigna a un operador y no aparece en Mis Trabajos.
+// Regla: asignar un operador exige una fecha (la que muestra Órdenes de Servicio),
+// y Mis Trabajos muestra SIEMPRE las visitas asignadas, con esa misma fecha o «Por coordinar».
 // Prueba estática sobre el código de las páginas (sin navegador ni Firebase).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const leer = (f) => readFileSync(join(RAIZ, 'public', f), 'utf8');
 
-test('Órdenes de Servicio: asignar un operador exige fecha programada en la visita', () => {
+test('Órdenes de Servicio: asignar un operador exige fecha en la visita', () => {
   const src = leer('ordenes.html');
   assert.match(src, /opSeleccionado !== "Sin asignar" && !itemEditando\.tieneFechaGuardada/);
   assert.match(src, /Programa primero la fecha de esta visita antes de asignarle un operador\./);
@@ -17,11 +18,16 @@ test('Órdenes de Servicio: asignar un operador exige fecha programada en la vis
   assert.ok(src.indexOf('!itemEditando.tieneFechaGuardada') < src.indexOf('operadoresPorVisita.${itemEditando.claveVisita}'));
 });
 
-test('Mis Trabajos: una visita sin fecha programada no se lista', () => {
+test('Mis Trabajos: usa la misma fecha que Órdenes de Servicio (fechaGuardadaVisita primero)', () => {
   const src = leer('mis-trabajos.html');
-  assert.match(src, /const fProg = fechasGuardadas\[idx\] \|\| fechasGuardadas\[0\];\r?\n(\s*\/\/[^\r\n]*\r?\n)?\s*if \(!fProg\) continue;/);
-  // el filtro va antes de empujar la visita a la lista
-  assert.ok(src.indexOf('if (!fProg) continue;') < src.indexOf('fechaProgramada: fProg,'));
+  assert.match(src, /import \{ fechaGuardadaVisita \} from "\.\/js\/fechas-visita\.js"/);
+  assert.match(src, /const fProg = fechaGuardadaVisita\(d, claveVisita\) \|\| fechasGuardadas\[idx\] \|\| fechasGuardadas\[0\] \|\| null;/);
+});
+
+test('Mis Trabajos: una visita asignada siempre se lista, aunque no tenga fecha', () => {
+  const src = leer('mis-trabajos.html');
+  assert.doesNotMatch(src, /if \(!fProg\) continue;/);
+  assert.match(src, /if \(!f\) return "Por coordinar";/);
 });
 
 test('«Sin asignar» siempre se permite (liberar una visita no depende de la fecha)', () => {
