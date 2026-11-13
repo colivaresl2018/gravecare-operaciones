@@ -152,6 +152,7 @@
     import { ESTADOS, transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { fechaGuardadaVisita, guardarFechaVisitaEnOrden } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura y escritura de una visita)
+    import { fechaVisitaConOrigen } from "./js/fechas-tentativas.js"; // fechas tentativas según el plan (se calculan, no se guardan)
     import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -335,14 +336,7 @@
           if (rawInicio?.toDate) fInicioDate = rawInicio.toDate();
           else if (rawInicio) fInicioDate = new Date(rawInicio);
 
-          // Fechas guardadas
-          let fechasGuardadas = [];
-          if (Array.isArray(d.fechasProgramadas) && d.fechasProgramadas.length > 0) {
-            fechasGuardadas = d.fechasProgramadas.map(f => parseAFecha(f)).filter(Boolean);
-          } else if (d.proximaVisita || d.fechaProgramada) {
-            const fUnica = parseAFecha(d.proximaVisita || d.fechaProgramada);
-            if (fUnica) fechasGuardadas.push(fUnica);
-          }
+          // Fecha por visita: la real (fechasPorVisita) o la tentativa del plan. Ya no se leen arreglos antiguos.
 
           // Sin fecha guardada no se inventan fechas: la visita queda «Sin fecha» hasta que se planifique.
 
@@ -360,7 +354,9 @@
               continue;
             }
 
-            const fechaDeEstaVisita = fechaGuardadaVisita(d, claveVisita) || fechasGuardadas[idx] || null;
+            const fvis = fechaVisitaConOrigen(d, numeroVisita);
+            const fechaDeEstaVisita = fvis ? fvis.fecha : null;
+            const fechaTentativa = Boolean(fvis && fvis.tentativa);
             const operadorAsignado = operadoresPorVisita[claveVisita] || "Sin asignar";
             const estadoVisita = operadorAsignado !== "Sin asignar" ? "asignado" : "pendiente";
 
@@ -379,11 +375,12 @@
               cementerio: cem,
               plan: plan,
               fechaEstimada: fechaDeEstaVisita,
+              fechaTentativa,
               // Una visita que llega aquí NO está terminada según la regla (sin operador o sin evidencia): si su estado
               // guardado dice «completada», no se muestra como completada ni se oculta de la lista.
               estado: estadoVisitaVigente(d, claveVisita) || estadoVisita,
               estadoPersistido: estadoVisitaVigente(d, claveVisita),
-              tieneFechaGuardada: Boolean(fechaGuardadaVisita(d, claveVisita) || (d.fechasProgramadas && d.fechasProgramadas.length) || d.fechaProgramada || d.proximaVisita),
+              tieneFechaGuardada: !fechaTentativa && Boolean(fechaDeEstaVisita),
               operadorAsignado: operadorAsignado,
               operadoresPorVisita: { ...operadoresPorVisita }
             });
@@ -488,7 +485,7 @@
             <td class="py-3.5 px-3 text-center">
               <button type="button" onclick="window.abrirModalAsignar('${item.idVisitaCompleto}', 'fecha')" title="Clic para elegir la fecha de ejecución en el calendario" class="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-mono font-bold px-2.5 py-1 rounded-md text-[11px] cursor-pointer transition">
                 <span class="material-symbols-outlined text-[13px] text-amber-600">calendar_today</span>
-                ${item.fechaEstimada ? formatearFechaChile(item.fechaEstimada) : "Sin fecha"}
+                ${item.fechaEstimada ? formatearFechaChile(item.fechaEstimada) : "Sin fecha"}${item.fechaTentativa ? '<span class="block text-[9px] font-sans normal-case text-amber-700">tentativa</span>' : ""}
               </button>
             </td>
             <td class="py-3.5 px-3 text-center">
@@ -558,10 +555,10 @@
         const estadoAnterior = itemEditando.estado;
         const fVal = document.getElementById("modal-input-fecha")?.value || "";
         const fechaAnterior = itemEditando.fechaEstimada || null;
-        const cambioFecha = Boolean(fVal) && fVal !== fechaComoInput(fechaAnterior);
+        const cambioFecha = Boolean(fVal) && (itemEditando.fechaTentativa || fVal !== fechaComoInput(fechaAnterior));
         let estadoElegido = document.getElementById("modal-select-estado")?.value || estadoAnterior;
         // Como en Planificación: reprogramar una visita ya asignada o en ejecución la deja «Reprogramada».
-        if (cambioFecha && fechaAnterior && estadoElegido === estadoAnterior && ["asignado", "en_ejecucion"].includes(estadoAnterior)) estadoElegido = "reprogramada";
+        if (cambioFecha && !itemEditando.fechaTentativa && fechaAnterior && estadoElegido === estadoAnterior && ["asignado", "en_ejecucion"].includes(estadoAnterior)) estadoElegido = "reprogramada";
         if (estadoElegido !== estadoAnterior && !transicionValida(estadoAnterior, estadoElegido)) {
           throw new Error(`Transición no permitida: ${estadoAnterior} → ${estadoElegido}.`);
         }
@@ -570,6 +567,7 @@
           const nuevaFecha = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]), 10, 0, 0);
           await guardarFechaVisitaEnOrden({ actualizar: updateDoc, referencia: (id) => doc(db, "ordenes", id), ordenDocId: itemEditando.ordenDocId, claveVisita: itemEditando.claveVisita, fecha: nuevaFecha });
           itemEditando.fechaEstimada = nuevaFecha;
+          itemEditando.fechaTentativa = false;
         }
         itemEditando.operadorAsignado = opSeleccionado;
         itemEditando.operadoresPorVisita[itemEditando.claveVisita] = opSeleccionado;
