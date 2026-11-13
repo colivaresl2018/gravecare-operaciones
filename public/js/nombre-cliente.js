@@ -94,6 +94,20 @@ export function nombreClienteParaMostrar(orden, respaldos = []) {
   return nombreClienteDeOrden(orden, respaldos) || 'Cliente';
 }
 
+/**
+ * Nombre de la fila de un cliente (colección `clientes`): sus propios campos; si no tiene ninguno útil,
+ * el titular de sus órdenes vinculadas (`titularNombre`); y como último recurso «Cliente».
+ */
+export function nombreFilaCliente(cliente, ordenes = []) {
+  const propio = nombreDesdeObjeto(cliente || {});
+  if (propio) return propio;
+  for (const o of ordenes || []) {
+    const s = t(o && o.titularNombre);
+    if (s && !esNombreGenerico(s)) return s;
+  }
+  return 'Cliente';
+}
+
 /** Ids con que un contrato puede estar guardado para esa orden (`CTR-<numeroOrden>` según el contrato de datos). */
 export function idsContratoDeOrden(orden, docId) {
   const o = orden || {};
