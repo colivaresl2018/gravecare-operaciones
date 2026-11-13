@@ -235,6 +235,7 @@
     import { construirActualizacionFecha, fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (sin arreglo completo)
     import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js?v=ops13"; // regla única de «Servicio Terminado»
     import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita
+    import { fechaVisitaConOrigen } from "./js/fechas-tentativas.js"; // fechas tentativas según el plan (se calculan, no se guardan)
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor Ãºnico del nombre del cliente
     import { 
       getFirestore, 
@@ -567,7 +568,9 @@
           for (let vIdx = 0; vIdx < cantPendientes; vIdx++) {
             const numVisita = numerosPendientes[vIdx];
             const claveVisita = `V${numVisita}`;
-            const fechaDeEstaVisita = fechaGuardadaVisita(ord, claveVisita) || fechasProyectadas[vIdx] || null;
+            const fvis = fechaVisitaConOrigen(ord, numVisita);
+            const fechaDeEstaVisita = fvis ? fvis.fecha : null;
+            const esTentativa = Boolean(fvis && fvis.tentativa);
 
             // Operador asignado exclusivamente a esta visita (por defecto "Sin asignar")
             const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || "Sin asignar";
@@ -577,7 +580,7 @@
             // Estado unificado (programacionVisitas + estadosPorVisita, el más avanzado): también muestra «en revision» y «rechazada».
             const estadoU = estadoUnificadoVisita(ord, numVisita, { terminada: hechasSet.has(numVisita) });
             const estadoVigente = estadoU && estadoU !== "completada" ? estadoU : estadoGuardado;
-            const tieneFechaGuardada = Boolean(fechaGuardadaVisita(ord, claveVisita) || (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
+            const tieneFechaGuardada = !esTentativa && Boolean(fechaGuardadaVisita(ord, claveVisita) || (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
 
             lista.push({
               id: ordId,
@@ -603,6 +606,7 @@
               cantPendientes,
               ultimaVisita: visitasHechas[visitasHechas.length - 1] || null,
               proximaVisita: fechaDeEstaVisita,
+              esTentativa,
               fechasProyectadas: fechaDeEstaVisita ? [fechaDeEstaVisita] : [],
               fechasProyectadasCompletas: fechasProyectadas,
               visitasHechas: (vIdx === 0 ? visitasHechas : []),
@@ -808,7 +812,7 @@
                 title="Visita programada. Clic para mover o Doble Clic para editar fecha exacta."
               >
                 <span class="material-symbols-outlined text-[13px] text-amber-600 pointer-events-none">touch_app</span>
-                <span class="pointer-events-none">Por Realizar</span>
+                <span class="pointer-events-none">${item.esTentativa ? 'Tentativa' : 'Por Realizar'}</span>
               </div>`;
           }
 
@@ -832,6 +836,7 @@
               </div>
               <div class="text-[11px] text-[#002d1a] font-semibold mt-0.5">Difunto: ${item.difunto}</div>
               ${item.proximaVisita ? "" : '<div class="text-[10px] font-bold text-amber-700">Sin fecha programada</div>'}
+              ${item.esTentativa ? '<div class="text-[10px] italic text-amber-700">Fecha tentativa según el plan</div>' : ""}
               <div class="text-[10px] text-slate-500">${item.cementerio || "Sin cementerio"} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${item.plan}</span></div>
               <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
                 <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
