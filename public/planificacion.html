@@ -234,6 +234,7 @@
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { construirActualizacionFecha, fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (sin arreglo completo)
     import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js"; // estado único por visita
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor Ãºnico del nombre del cliente
     import { 
       getFirestore, 
@@ -573,6 +574,9 @@
             // spec 041. Una visita pendiente aquí no está terminada según la regla: un «completada» guardado sin operador/evidencia no vale.
             const estadoCrudo = (ord.estadosPorVisita || {})[claveVisita] || null;
             const estadoGuardado = esEstadoCompletada(estadoCrudo) ? null : estadoCrudo;
+            // Estado unificado (programacionVisitas + estadosPorVisita, el más avanzado): también muestra «en revision» y «rechazada».
+            const estadoU = estadoUnificadoVisita(ord, numVisita, { terminada: hechasSet.has(numVisita) });
+            const estadoVigente = estadoU && estadoU !== "completada" ? estadoU : estadoGuardado;
             const tieneFechaGuardada = Boolean(fechaGuardadaVisita(ord, claveVisita) || (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
 
             lista.push({
@@ -589,7 +593,7 @@
               plan,
               operadorAsignado: operadorDeEstaVisita,
               estadoPersistido: estadoGuardado,
-              estado: estadoGuardado || (operadorDeEstaVisita !== "Sin asignar" ? "asignado" : "pendiente"),
+              estado: estadoVigente || (operadorDeEstaVisita !== "Sin asignar" ? "asignado" : "pendiente"),
               tieneFechaGuardada,
               operadoresPorVisita: { ...operadoresPorVisita },
               fInicio: fInicioDate,
@@ -718,10 +722,12 @@
     // spec 041: tarjeta del Gantt para visitas con estado distinto de pendiente. Mantiene el mismo data-action (clic y doble clic).
     function tarjetaDeEstado(item, fechaAttr) {
       const MAPA = {
-        asignado: ["bg-violet-50 border-violet-300 text-violet-800", "person", "Asignada"],
+        asignado: ["bg-violet-50 border-violet-300 text-violet-800", "person", "Asignado"],
         en_ejecucion: ["bg-sky-50 border-sky-300 text-sky-800", "engineering", "En ejecución"],
         completada: ["bg-emerald-100 border-emerald-400 text-emerald-900", "task_alt", "Completada"],
         reprogramada: ["bg-orange-50 border-orange-300 text-orange-800", "event_repeat", "Reprogramada"],
+        "en revision": ["bg-blue-50 border-blue-300 text-blue-800", "hourglass_top", "Pendiente Revisión"],
+        rechazada: ["bg-rose-50 border-rose-300 text-rose-800", "cancel", "Rechazada"],
       };
       const [clases, icono, texto] = MAPA[item.estado];
       const activa = ordenSeleccionadaId === item.subId ? "tarjeta-activa" : "";

@@ -112,7 +112,8 @@
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { crearIndiceInformes } from "./js/servicio-terminado.js"; // regla única de visita terminada (informes como evidencia)
-    import { crearIdentidad, visitaAsignadaA, visitaCerradaParaMisTrabajos } from "./js/operador-asignado.js"; // quién soy y si la visita ya está cerrada
+    import { crearIdentidad, visitaAsignadaA, visitaCerradaParaMisTrabajos } from "./js/operador-asignado.js";
+    import { estadoUnificadoVisita, etiquetaEstadoVisita } from "./js/estado-visita-unificado.js"; // estado único por visita (Pendiente Revisión / Rechazada / Asignado / Completada) // quién soy y si la visita ya está cerrada
     import { ubicacionDeVisita, agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador } from "./js/ubicacion-trabajo.js"; // ubicación de las visitas en el mapa (sepultura o cementerio)
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
@@ -309,6 +310,7 @@
 
             // Mía por uid, correo o nombre normalizado, esté donde esté guardada la asignación (operadoresPorVisita, visitas, orden raíz...).
             if (visitaAsignadaA(d, numVisita, identidad)) {
+              const estadoEtiqueta = etiquetaEstadoVisita(estadoUnificadoVisita(d, numVisita, { terminada: false })) || "Asignado";
               const fProg = fechasGuardadas[idx] || fechasGuardadas[0];
               lista.push({
                 ordenDocId: docSnap.id,
@@ -324,6 +326,7 @@
                 plan: plan,
                 fechaProgramada: fProg,
                 ubicacion: ubicacionDeVisita(d, cem), // sepultura (orden) o, si no hay, ubicación aproximada del cementerio
+                estadoEtiqueta: estadoEtiqueta,
                 observaciones: observacionesCliente.trim()
               });
             }
@@ -388,7 +391,7 @@
               title="Haz clic para ver las observaciones del cliente"
             >
               <span class="material-symbols-outlined text-xs">notes</span>
-              <span>Asignado</span>
+              <span>${item.estadoEtiqueta}</span>
             </button>
           </td>
           <td class="py-3 px-4 text-center">
