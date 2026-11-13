@@ -48,9 +48,9 @@ test('las notas se guardan en la colección aditiva «notasCredito» y nunca se 
   assert.equal(html.split('updateDoc(doc(db, "gastos_ingresos"').length - 1, 1);
 });
 
-test('de «ordenes» solo se lee (contrato con la web) y el ingreso sigue pasando por cuentaComoIngreso', () => {
+test('de «ordenes» solo se lee (contrato con la web) y el ingreso sigue pasando por la regla de orden pagada', () => {
   assert.match(html, /import \{ cuentaComoIngreso, fechaDelIngreso \} from "\.\/js\/orden-pagada\.js"/);
-  assert.match(html, /if \(totalBruto > 0 && cuentaComoIngreso\(ord\)\)/);
+  assert.match(html, /if \(totalBruto > 0 && esOrdenPagadaValida\(ord\)\)/);
   assert.equal(html.split('getDocs(collection(db, "ordenes"))').length - 1, 1);
   // La única escritura a ordenes es la que ya existía: adjuntar el comprobante a una orden Webpay.
   assert.equal(html.split('updateDoc(doc(db, "ordenes"').length - 1, 1);

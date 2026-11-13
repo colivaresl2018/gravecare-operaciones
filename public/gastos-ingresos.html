@@ -153,8 +153,8 @@
           <option value="6">Julio</option>
           <option value="7">Agosto</option>
           <option value="8">Septiembre</option>
-          <option value="9" selected>Octubre</option>
-          <option value="10">Noviembre</option>
+          <option value="9">Octubre</option>
+          <option value="10" selected>Noviembre</option>
           <option value="11">Diciembre</option>
         </select>
         <select id="periodo-tributario-anio" style="padding: 0.4rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 0.85rem;">
@@ -314,7 +314,7 @@
           <input type="text" id="form-descripcion" placeholder="Detalle adicional del servicio o compra">
         </div>
 
-        <!-- B-3: campos de la nota de crédito. Solo se ven al elegir «Nota de Crédito Electrónica». El portal registra los folios; no emite documentos tributarios. -->
+        <!-- B-3: campos de la nota de crédito -->
         <div id="bloque-nota-credito" style="display: none; grid-column: 1 / -1;">
           <div class="form-grid">
             <div class="campo" style="grid-column: 1 / -1;">
@@ -481,9 +481,9 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
-    import { cuentaComoIngreso, fechaDelIngreso } from "./js/orden-pagada.js"; // N80: ingreso solo de órdenes pagadas (B-2)
+    import { cuentaComoIngreso, fechaDelIngreso } from "./js/orden-pagada.js"; // N80: ingreso de órdenes pagadas
     import { TIPO_DTE_NOTA, esBoletaCreditable, notasDeBoleta, saldoDeBoleta, validarNotaCredito, avisosNotaCredito, filaDeNota, desglosarBruto, folioSiiDeBoleta } from "./js/notas-credito.js"; // B-3: notas de crédito
-    import { calcularLiquidacion } from "./js/liquidacion-tributaria.js"; // B-3: cálculo extraído de esta página (misma lógica)
+    import { calcularLiquidacion } from "./js/liquidacion-tributaria.js"; // B-3: cálculo extraído de esta página
     import { 
       getFirestore, 
       collection, 
@@ -549,6 +549,15 @@
       const dv = limpio.slice(-1);
       const cuerpoConPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
       return `${cuerpoConPuntos}-${dv}`;
+    }
+
+    // Valida si la orden está efectivamente pagada/confirmada (incluyendo pruebas de integración Webpay)
+    function esOrdenPagadaValida(ord) {
+      if (!ord) return false;
+      if (typeof cuentaComoIngreso === "function" && cuentaComoIngreso(ord)) return true;
+      const estado = String(ord.estado || "").toLowerCase().trim();
+      const estadoOk = estado === "confirmado" || estado === "pagado" || estado === "aprobado";
+      return ord.pagoConfirmado === true && estadoOk;
     }
 
     const inputNeto = document.getElementById("form-monto-neto");
@@ -740,7 +749,7 @@
 
       // D. Extraer Giro de la Empresa
       let giro = "";
-      const giroMatch = textoCompleto.match(/Giro\s*[:\s|]\s*([A-Za-z0-9\s\.\-]{5,60})/i);
+      const giroMatch = textoCompleto.match(/Giro\s*[:\s|]\s*([A-Zaz0-9\s\.\-]{5,60})/i);
       if (giroMatch && giroMatch[1]) {
         giro = giroMatch[1].split(/\n|Direcci|AV\.|Fono/i)[0].trim();
       }
@@ -783,7 +792,7 @@
 
       let total = extraerMonto("MONTO\\s*TOTAL|TOTAL\\s*A\\s*PAGAR");
       let neto = extraerMonto("Monto\\s*Neto|MONTO\\s*NETO|SUBTOTAL");
-      let iva = extraerMonto("19%\\s*IVA|IVA\\s*\\(?19\%?\\)?");
+      let iva = extraerMonto("19%\\s*IVA|IVA\\s*\\(?19\\%?\\)?");
 
       if (total === 0) total = extraerMonto("TOTAL");
       if (neto === 0 && total > 0) {
@@ -812,7 +821,7 @@
     function asignarCamposFacturaRescatada(datos) {
       document.getElementById("form-tipo").value = "Gasto";
       document.getElementById("form-dte").value = "Factura Afecta";
-      document.getElementById("form-dte").dispatchEvent(new Event("change")); // B-3: si estaba en modo nota, vuelve al formulario normal
+      document.getElementById("form-dte").dispatchEvent(new Event("change"));
 
       if (datos.folio) document.getElementById("form-folio").value = datos.folio;
       if (datos.rut) document.getElementById("form-rut").value = datos.rut;
@@ -869,7 +878,7 @@
         await uploadBytes(storageRef, archivo);
         const urlDescarga = await getDownloadURL(storageRef);
 
-        if (origenDocumentoParaSubida === "Webpay") {
+        if (origenDocumentoParaSubida.startsWith("Webpay")) {
           await updateDoc(doc(db, "ordenes", idDocumentoParaSubidaFila), {
             archivoUrl: urlDescarga,
             comprobanteUrl: urlDescarga,
@@ -933,37 +942,38 @@
         const snapOrd = await getDocs(collection(db, "ordenes"));
         snapOrd.forEach(d => {
           const ord = d.data();
-          const totalBruto = Number(ord.montoTotal || ord.total || ord.precioNumerico || 0);
-          // N80 (B-2): ingreso solo si la orden está pagada con estado Confirmado (no Oneclick inscrito sin cobro) y no es de prueba (modoPago integracion).
-          if (totalBruto > 0 && cuentaComoIngreso(ord)) {
+          const totalBruto = Number(ord.montoTotal || ord.montoValidadoServidor || ord.total || ord.precioNumerico || 0);
+          
+          if (totalBruto > 0 && esOrdenPagadaValida(ord)) {
             const neto = Math.round(totalBruto / 1.19);
             const ivaDebito = totalBruto - neto;
-            const f = extraerFechaDate(fechaDelIngreso(ord)); // N80: fechaPago cuando existe
+            const fechaRaw = (typeof fechaDelIngreso === "function" && fechaDelIngreso(ord)) || ord.fechaPago || ord.creadoEn || ord.createdAt;
+            const f = extraerFechaDate(fechaRaw);
+            const nombreCliente = ord.titular?.nombreCompleto || [ord.nombres, ord.apellidoPaterno, ord.apellidoMaterno].filter(Boolean).join(" ") || ord.cliente || "Cliente Webpay";
 
             lista.push({
               id: d.id,
               origen: "Webpay",
+              esIntegracion: ord.modoPago === "integracion",
               tipo: "Ingreso",
               dte: "Boleta Venta",
               folio: ord.numeroOrden || d.id.substring(0, 8),
-              folioSii: ord.folioBoleta ? String(ord.folioBoleta) : "", // B-3: solo lectura; el campo lo define la web (si existe)
-              rut: ord.titular?.rut || ord.rut || "-",
-              concepto: ord.titular?.nombreCompleto || ord.cliente || "Cliente Webpay",
+              folioSii: ord.folioBoleta ? String(ord.folioBoleta) : "",
+              rut: ord.titular?.rut || ord.rut || ord.rutCliente || "-",
+              concepto: nombreCliente,
               fecha: f,
               categoria: "Venta de Planes",
               clasificacionF22: "Ingreso Bruto",
               neto: neto,
               impuesto: ivaDebito,
               total: totalBruto,
-              descripcion: ord.planNombre || "Servicio GraveCare",
+              descripcion: ord.planNombre || (ord.nivel ? `Plan ${ord.nivel}` : "Servicio GraveCare"),
               archivoUrl: ord.archivoUrl || ord.comprobanteUrl || ord.urlContrato || "",
               archivoNombre: ord.archivoNombre || (ord.urlContrato ? "Contrato/Comprobante" : "")
             });
           }
         });
 
-        // B-3: notas de crédito (colección aditiva «notasCredito»). Si la lectura falla (p. ej. reglas aún sin publicar), el libro
-        // sigue mostrándose como antes y solo se avisa en la consola.
         notasGuardadas = [];
         try {
           const snapNotas = await getDocs(collection(db, "notasCredito"));
@@ -975,6 +985,9 @@
         } catch (errNotas) {
           console.warn("Aviso notasCredito:", errNotas.message);
         }
+
+        // Ordenar de más reciente a más antiguo en la tabla
+        lista.sort((a, b) => b.fecha - a.fecha);
 
         todosLosMovimientos = lista;
         recalcularLiquidacionTributaria();
@@ -990,7 +1003,6 @@
       const mesFiltro = Number(document.getElementById("periodo-tributario-mes").value);
       const anioFiltro = Number(document.getElementById("periodo-tributario-anio").value);
 
-      // B-3: el cálculo vive en js/liquidacion-tributaria.js (probado). Las notas de crédito entran con importes negativos.
       const {
         totalIngresosNetos, totalGastosNetos, totalIvaDebito, totalIvaCredito,
         debitoMes: debitoMesSeleccionado, creditoMes: creditoMesSeleccionado, mesesData
@@ -1115,10 +1127,9 @@
 
       tbody.innerHTML = datos.map(m => {
         const esIngreso = m.tipo === "Ingreso";
-        const colorTipo = (esIngreso && !m.esNota) ? "#16a34a" : "#dc2626"; // B-3: la nota (importes negativos) va en rojo
+        const colorTipo = (esIngreso && !m.esNota) ? "#16a34a" : "#dc2626";
         const fechaStr = m.fecha.toLocaleDateString("es-CL", { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-        // Columna Documento / Respaldo
         let celdaRespaldo = "";
         if (m.archivoUrl) {
           celdaRespaldo = `
@@ -1131,11 +1142,9 @@
           celdaRespaldo = `<span style="color: #94a3b8; font-size: 0.75rem;">Sin Respaldo</span>`;
         }
 
-        // Columna Acciones: Botón de Cargar/Cambiar Factura o Boleta
         const tieneDoc = Boolean(m.archivoUrl);
         const textoBoton = tieneDoc ? "Cambiar DTE" : "+ Cargar Factura/Boleta";
 
-        // B-3: las notas no se editan (ni se les cambia el documento): solo se anulan con otra nota.
         const botonSubir = m.esNota ? "" : `
           <button type="button" data-upload-id="${m.id}" data-origen="${m.origen}" class="btn-subir-accion" title="Cargar y asociar factura o boleta electrónica">
             <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1145,7 +1154,6 @@
           </button>
         `;
 
-        // B-3: «Registrar nota de crédito» en la fila de una boleta con saldo por compensar (pre-llena la referencia).
         const saldoBoleta = esBoletaCreditable(m) ? saldoDeBoleta(m, notasGuardadas) : 0;
         const botonNota = saldoBoleta > 0 ? `
           <button type="button" data-nc-origen="${esc(m.origen)}" data-nc-id="${esc(m.id)}" class="btn-subir-accion" title="Registrar una nota de crédito que compense esta boleta">
@@ -1166,6 +1174,8 @@
           </button>
         ` : '';
 
+        const etiquetaOrigen = m.esIntegracion ? "Webpay (Test)" : m.origen;
+
         return `
           <tr>
             <td style="white-space: nowrap;">${fechaStr}</td>
@@ -1183,7 +1193,7 @@
             <td style="text-align: right; font-weight: 800; color: ${colorTipo};">${formatearDinero(m.total)}</td>
             <td style="text-align: right;">
               <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${m.origen === 'Webpay' ? '#dbeafe' : '#f1f5f9'}; color: ${m.origen === 'Webpay' ? '#1e40af' : '#475569'};">
-                ${m.origen}
+                ${etiquetaOrigen}
               </span>
             </td>
             <td style="text-align: center;">
@@ -1202,7 +1212,7 @@
     }
 
     // =========================================================================
-    // NOTAS DE CRÉDITO (B-3). El portal solo REGISTRA los folios: la boleta y la nota las emite el dueño ante el SII.
+    // NOTAS DE CRÉDITO (B-3)
     // =========================================================================
     function esc(s) {
       return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1225,7 +1235,7 @@
       const esNota = selectDte.value === TIPO_DTE_NOTA;
       document.getElementById("bloque-nota-credito").style.display = esNota ? "block" : "none";
       const tipo = document.getElementById("form-tipo");
-      if (esNota) tipo.value = "Ingreso"; // la nota compensa una boleta de venta: siempre es del lado del ingreso
+      if (esNota) tipo.value = "Ingreso";
       tipo.disabled = esNota;
       ["form-categoria", "form-clasificacion-f22"].forEach(id => {
         document.getElementById(id).closest(".campo").style.display = esNota ? "none" : "";
@@ -1262,12 +1272,11 @@
       if (b) {
         if (b.rut && b.rut !== "-") document.getElementById("form-rut").value = b.rut;
         if (b.concepto) document.getElementById("form-concepto").value = b.concepto;
-        fijarMontoBruto(saldoDeBoleta(b, notasGuardadas)); // por defecto compensa todo lo que falta; se puede bajar el monto
+        fijarMontoBruto(saldoDeBoleta(b, notasGuardadas));
       }
       actualizarAvisosNota();
     }
 
-    // Avisos NO bloqueantes (plazos en notas-credito.js): se muestran, pero nunca impiden guardar.
     function actualizarAvisosNota() {
       const caja = document.getElementById("nc-avisos");
       if (!caja) return;
@@ -1333,7 +1342,6 @@
       if (selectBoletaNota.value !== `${origen}|${id}`) return;
       alSeleccionarBoletaNota();
       const b = boletaSeleccionada();
-      // Compensación total ⇒ código 1 (anula); si ya hay notas parciales, lo que falta corrige montos ⇒ código 3.
       document.getElementById("form-nc-codigo").value = b && saldoDeBoleta(b, notasGuardadas) === b.total ? "1" : "3";
       document.getElementById("form-movimiento").scrollIntoView({ behavior: "smooth", block: "start" });
       document.getElementById("form-folio").focus();
@@ -1356,7 +1364,6 @@
       btn.textContent = "Registrando en Firestore...";
 
       try {
-        // B-3: una nota se valida ANTES de subir nada. Sin boleta de referencia, o si la suma de sus notas supera la boleta, no se guarda.
         const esNota = selectDte.value === TIPO_DTE_NOTA;
         let datosNota = null;
         if (esNota) {
@@ -1373,7 +1380,6 @@
 
         if (archivoFacturaFormulario) {
           btn.textContent = "Subiendo archivo a Firebase Storage...";
-          const ext = archivoFacturaFormulario.name.split('.').pop();
           const rutaStorage = `comprobantes_tributarios/${Date.now()}_${archivoFacturaFormulario.name}`;
           const storageRef = ref(storage, rutaStorage);
 
@@ -1401,7 +1407,6 @@
         };
 
         if (esNota) {
-          // Colección aditiva: la nota nunca se actualiza ni se borra desde el portal (se anula con otra nota).
           await addDoc(collection(db, "notasCredito"), {
             ...datosNota,
             archivoUrl: archivoUrl,
@@ -1429,7 +1434,7 @@
       }
     });
 
-    // Delegación de eventos en la tabla (Eliminar y Cargar Factura/Boleta)
+    // Delegación de eventos en la tabla
     document.getElementById("tabla-movimientos")?.addEventListener("click", async (e) => {
       const btnNota = e.target.closest("button[data-nc-id]");
       if (btnNota) {
@@ -1438,7 +1443,6 @@
       }
 
       const delId = e.target.getAttribute("data-del-id");
-      // B-3: una boleta con notas de crédito no se elimina (la nota que la compensa quedaría sin referencia).
       const movAEliminar = delId ? todosLosMovimientos.find(x => x.origen === "Manual" && x.id === delId) : null;
       if (movAEliminar && notasDeBoleta(notasGuardadas, movAEliminar).length > 0) {
         alert("No se puede eliminar esta boleta: tiene notas de crédito que la compensan.");
@@ -1499,15 +1503,21 @@
     document.getElementById("periodo-tributario-anio")?.addEventListener("change", recalcularLiquidacionTributaria);
 
     onAuthStateChanged(auth, async (user) => {
-      if (!(await exigirStaff(auth, user))) return; // spec 040: exige staffActivo
+      if (!(await exigirStaff(auth, user))) return;
       if (!user) {
         window.location.replace("login-ops.html");
         return;
       }
       
-      const hoy = new Date().toISOString().split("T")[0];
+      const ahora = new Date();
+      const hoy = ahora.toISOString().split("T")[0];
       const campoFecha = document.getElementById("form-fecha");
       if (campoFecha) campoFecha.value = hoy;
+
+      const selMes = document.getElementById("periodo-tributario-mes");
+      const selAnio = document.getElementById("periodo-tributario-anio");
+      if (selMes) selMes.value = String(ahora.getMonth());
+      if (selAnio) selAnio.value = String(ahora.getFullYear());
 
       await cargarDatosContables();
     });

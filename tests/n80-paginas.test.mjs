@@ -51,9 +51,9 @@ test('gastos-ingresos.html: el ingreso exige cuentaComoIngreso y toma la fecha d
   const h = lee('gastos-ingresos.html');
   assert.match(h, /import \{ cuentaComoIngreso, fechaDelIngreso \} from "\.\/js\/orden-pagada\.js"/);
   const cuerpo = cuerpoForEachOrdenes(h);
-  const iCond = cuerpo.indexOf('if (totalBruto > 0 && cuentaComoIngreso(ord)) {');
+  const iCond = cuerpo.indexOf('if (totalBruto > 0 && esOrdenPagadaValida(ord)) {');
   const iPush = cuerpo.indexOf('lista.push(');
   assert.ok(iCond > 0 && iCond < iPush, 'la condición de ingreso precede al registro del movimiento');
-  assert.ok(cuerpo.includes('extraerFechaDate(fechaDelIngreso(ord))'), 'la fecha del ingreso sale de fechaDelIngreso');
+  assert.ok(cuerpo.includes('fechaDelIngreso(ord)') && cuerpo.includes('extraerFechaDate(fechaRaw)'), 'la fecha del ingreso sale de fechaDelIngreso');
   assert.ok(!cuerpo.includes('ord.creadoEl || ord.createdAt || ord.fechaPago'), 'ya no prioriza creadoEl sobre fechaPago');
 });
