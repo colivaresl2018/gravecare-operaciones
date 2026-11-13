@@ -233,9 +233,9 @@
     import { transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { construirActualizacionFecha, fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (sin arreglo completo)
-    import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
-    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js"; // estado único por visita
-    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor Ãºnico del nombre del cliente
+    import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js?v=ops13"; // regla única de «Servicio Terminado»
+    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor Ãºnico del nombre del cliente
     import { 
       getFirestore, 
       collection, 

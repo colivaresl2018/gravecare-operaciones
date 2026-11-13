@@ -88,7 +88,7 @@ test('nombre del cliente: titular con nombres + apellidos o solo «nombre» ya n
 // ---------- Parte B ----------
 test('trabajos-terminados.html: usa la regla compartida, filtra pagadas y no usa contador ni fechas de compra', () => {
   const h = lee('trabajos-terminados.html');
-  assert.match(h, /import \{[^}]*evaluarVisitas[^}]*\} from "\.\/js\/servicio-terminado\.js"/);
+  assert.match(h, /import \{[^}]*evaluarVisitas[^}]*\} from "\.\/js\/servicio-terminado\.js(\?v=\w+)?"/);
   assert.match(h, /if \(!esOrdenPagada\(d\)\) return;/);
   assert.doesNotMatch(h, /d\.visitasCompletadas/);
   assert.doesNotMatch(h, /d\.actualizadoEn|d\.creadoEl|d\.fechaPago|v\.fechaEstimada|ultimaVisitaCompletadaFecha/);
@@ -107,7 +107,7 @@ test('trabajos-terminados.html: «Ver Informe» solo se habilita si la visita ti
 
 test('todos-los-trabajos.html: no oculta visitas por el contador y solo deja completar con operador y evidencia', () => {
   const h = lee('todos-los-trabajos.html');
-  assert.match(h, /from "\.\/js\/servicio-terminado\.js"/);
+  assert.match(h, /from "\.\/js\/servicio-terminado\.js(\?v=\w+)?"/);
   assert.doesNotMatch(h, /idx < visitasCompletadasCount/);
   assert.doesNotMatch(h, /Number\(d\.visitasCompletadas/);
   assert.doesNotMatch(h, /visitasCompletadas: numeroVisita/);
@@ -131,7 +131,7 @@ test('planificacion.html y ordenes.html: las visitas realizadas salen de la regl
 test('las 4 listas usan el extractor único del nombre del cliente y ya no el genérico «Cliente» directo', () => {
   for (const pagina of ['trabajos-terminados.html', 'todos-los-trabajos.html', 'ordenes.html', 'planificacion.html']) {
     const h = lee(pagina);
-    assert.match(h, /from "\.\/js\/nombre-cliente\.js"/, pagina);
+    assert.match(h, /from "\.\/js\/nombre-cliente\.js(\?v=\w+)?"/, pagina);
     assert.match(h, /nombreClienteParaMostrar\(/, pagina);
     assert.doesNotMatch(h, /tit\.nombreCompleto \|\| tit\.nombreCliente/, pagina);
     assert.doesNotMatch(h, /Felipe Toledo Toledo/, pagina);
@@ -165,11 +165,11 @@ test('el cierre de la última visita no pisa orden.estado y no escribe el contad
 
 test('clientes.html: el avance sale de las visitas que cumplen la regla (no del contador); mis-trabajos y ordenes usan el nombre único', () => {
   const c = lee('clientes.html');
-  assert.match(c, /from "\.\/js\/servicio-terminado\.js"/);
+  assert.match(c, /from "\.\/js\/servicio-terminado\.js(\?v=\w+)?"/);
   assert.equal([...c.matchAll(/numerosTerminados\(ord, \{ docId: (ordId|docSnap\.id), indiceInformes \}\)\.size/g)].length, 2);
   assert.doesNotMatch(c, /ord\.visitasCompletadas/);
   const m = lee('mis-trabajos.html');
-  assert.match(m, /from "\.\/js\/nombre-cliente\.js"/);
+  assert.match(m, /from "\.\/js\/nombre-cliente\.js(\?v=\w+)?"/);
   assert.match(m, /nombreClienteParaMostrar\(d, /);
   // Mis Trabajos intenta leer informes (en try/catch, solo lectura) para aplicar la misma regla de visita terminada que Órdenes; si no puede, usa el criterio anterior.
   assert.match(m, /collection\(db, "informes"\)/);
