@@ -69,11 +69,11 @@ test('041 · las tres escrituras de fecha (mover, modal, tabla) tocan solo la cl
 
 test('041 · planificación lee fechasPorVisita antes que cualquier respaldo', () => {
   assert.match(src, /import \{[^}]*fechaGuardadaVisita[^}]*\} from "\.\/js\/fechas-visita\.js"/);
-  assert.match(src, /fechaGuardadaVisita\(ord, claveVisita\) \|\| fechasProyectadas\[vIdx\]/);
+  assert.match(src, /fechaVisitaConOrigen\(ord, numVisita\)/); // fecha real primero, luego tentativa del plan (fechas-tentativas.js)
 });
 
 test('041 · órdenes lee fechasPorVisita antes del respaldo (misma fuente que planificación)', () => {
   const o = readFileSync('public/ordenes.html', 'utf8').replace(/\r\n/g, '\n');
   assert.match(o, /from "\.\/js\/fechas-visita\.js"/);
-  assert.match(o, /fechaGuardadaVisita\(d, claveVisita\) \|\| fechasGuardadas\[idx\]/);
+  assert.match(o, /fechaVisitaConOrigen\(d, numeroVisita\)/); // fecha real primero, luego tentativa del plan
 });

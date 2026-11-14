@@ -34,11 +34,12 @@ test('«Sin asignar» siempre se permite (liberar una visita no depende de la fe
   assert.match(leer('ordenes.html'), /opSeleccionado !== "Sin asignar" &&/);
 });
 
+// La fecha de la visita se elige en el calendario del modal de Órdenes de Servicio (diseño de main: ops-14); antes era una casilla en la fila.
 test('Órdenes de Servicio: la fecha de la visita se puede cambiar desde su casilla', () => {
   const src = leer('ordenes.html');
-  assert.match(src, /<input type="date" value="\$\{valorFechaInput\(item\.fechaEstimada\)\}" data-id="\$\{esc\(item\.idVisitaCompleto\)\}" onchange="window\.cambiarFechaVisita\(this\.dataset\.id, this\.value\)"/);
+  assert.match(src, /data-id="\$\{esc\(item\.idVisitaCompleto\)\}" onclick="window\.abrirModalAsignar\(this\.dataset\.id, 'fecha'\)"/);
+  assert.match(src, /<input type="date" id="modal-input-fecha"/);
   assert.match(src, /import \{ fechaGuardadaVisita, guardarFechaVisitaEnOrden \} from "\.\/js\/fechas-visita\.js"/);
-  assert.match(src, /window\.cambiarFechaVisita = async function\(idVisitaCompleto, valor\)/);
   // la escritura pasa por el helper aislado (solo fechasPorVisita y punteros), nunca por el arreglo completo
   assert.match(src, /await guardarFechaVisitaEnOrden\(\{ actualizar: updateDoc/);
   // lectura de fechasProgramadas sigue existiendo; lo que no puede existir es escribirla

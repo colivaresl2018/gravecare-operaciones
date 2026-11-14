@@ -234,8 +234,10 @@
     import { transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { construirActualizacionFecha, fechaGuardadaVisita } from "./js/fechas-visita.js"; // spec 041: fechas por visita (sin arreglo completo)
-    import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
-    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor Ãºnico del nombre del cliente
+    import { crearIndiceInformes, numerosTerminados, esEstadoCompletada } from "./js/servicio-terminado.js?v=ops13"; // regla única de «Servicio Terminado»
+    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita
+    import { fechaVisitaConOrigen } from "./js/fechas-tentativas.js"; // fechas tentativas según el plan (se calculan, no se guardan)
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor Ãºnico del nombre del cliente
     import { 
       getFirestore, 
       collection, 
@@ -522,9 +524,9 @@
 
           const plan = ord.planNombre || ord.servicio?.planNombre || ord.servicio || ord.tipoPlan || ord.plan || "Plan 4";
           const titular = nombreClienteParaMostrar(ord, contratosDeOrden(contratosMap, ord, ordId));
-          const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Tulio Santana");
-          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Parque del Recuerdo Padre Hurtado";
-          cementeriosSet.add(cementerio);
+          const difunto = extraerTexto(ord.difunto || ord.nombreDifunto || ord.fallecido || ord.sepultura, "Sin registrar");
+          const cementerio = ord.ubicacionSepultura?.cementerio || ord.cementerio || "";
+          if (cementerio) cementeriosSet.add(cementerio);
 
           let fInicioDate = new Date(2026, 9, 6);
           const rawInicio = ord.fechaCreacion || ord.createdAt || ord.fechaInicio || ord.fecha;
@@ -555,11 +557,7 @@
             fechasProyectadas = ord.fechasProgramadas.map(f => parseAFecha(f)).filter(Boolean);
           }
 
-          if (fechasProyectadas.length === 0) {
-            fechasProyectadas.push(new Date(2027, 0, 16, 10, 0));
-            fechasProyectadas.push(new Date(2027, 3, 16, 10, 0));
-            fechasProyectadas.push(new Date(2027, 6, 16, 10, 0));
-          }
+          // Sin fechas programadas NO se inventan fechas: la visita queda «Sin fecha programada».
 
           // Mapa individual de operadores guardado en Firestore: ej { V2: "Juan", V3: "Pedro" }
           const operadoresPorVisita = ord.operadoresPorVisita || {};
@@ -571,14 +569,19 @@
           for (let vIdx = 0; vIdx < cantPendientes; vIdx++) {
             const numVisita = numerosPendientes[vIdx];
             const claveVisita = `V${numVisita}`;
-            const fechaDeEstaVisita = fechaGuardadaVisita(ord, claveVisita) || fechasProyectadas[vIdx] || fechasProyectadas[0];
+            const fvis = fechaVisitaConOrigen(ord, numVisita);
+            const fechaDeEstaVisita = fvis ? fvis.fecha : null;
+            const esTentativa = Boolean(fvis && fvis.tentativa);
 
             // Operador asignado exclusivamente a esta visita (por defecto "Sin asignar")
             const operadorDeEstaVisita = operadoresPorVisita[claveVisita] || "Sin asignar";
             // spec 041. Una visita pendiente aquí no está terminada según la regla: un «completada» guardado sin operador/evidencia no vale.
             const estadoCrudo = (ord.estadosPorVisita || {})[claveVisita] || null;
             const estadoGuardado = esEstadoCompletada(estadoCrudo) ? null : estadoCrudo;
-            const tieneFechaGuardada = Boolean(fechaGuardadaVisita(ord, claveVisita) || (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
+            // Estado unificado (programacionVisitas + estadosPorVisita, el más avanzado): también muestra «en revision» y «rechazada».
+            const estadoU = estadoUnificadoVisita(ord, numVisita, { terminada: hechasSet.has(numVisita) });
+            const estadoVigente = estadoU && estadoU !== "completada" ? estadoU : estadoGuardado;
+            const tieneFechaGuardada = !esTentativa && Boolean(fechaGuardadaVisita(ord, claveVisita) || (Array.isArray(ord.fechasProgramadas) && ord.fechasProgramadas.length) || ord.fechaProgramada || ord.proximaVisita);
 
             lista.push({
               id: ordId,
@@ -594,7 +597,7 @@
               plan,
               operadorAsignado: operadorDeEstaVisita,
               estadoPersistido: estadoGuardado,
-              estado: estadoGuardado || (operadorDeEstaVisita !== "Sin asignar" ? "asignado" : "pendiente"),
+              estado: estadoVigente || (operadorDeEstaVisita !== "Sin asignar" ? "asignado" : "pendiente"),
               tieneFechaGuardada,
               operadoresPorVisita: { ...operadoresPorVisita },
               fInicio: fInicioDate,
@@ -604,7 +607,8 @@
               cantPendientes,
               ultimaVisita: visitasHechas[visitasHechas.length - 1] || null,
               proximaVisita: fechaDeEstaVisita,
-              fechasProyectadas: [fechaDeEstaVisita],
+              esTentativa,
+              fechasProyectadas: fechaDeEstaVisita ? [fechaDeEstaVisita] : [],
               fechasProyectadasCompletas: fechasProyectadas,
               visitasHechas: (vIdx === 0 ? visitasHechas : []),
               cementerio,
@@ -625,7 +629,25 @@
 
       } catch (err) {
         console.error("Error cargando planificación:", err);
+        mostrarErrorCarga();
       }
+    }
+
+    // Si la carga falla, se muestra un aviso con botón «Reintentar» en vez de dejar «Cargando…» para siempre.
+    function mostrarErrorCarga() {
+      const aviso = '<div class="py-8 text-center text-slate-600 text-sm">No se pudo cargar la planificación. <button type="button" class="btn-reintentar-carga ml-2 px-3 py-1 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Reintentar</button></div>';
+      const tbodyGantt = document.getElementById("cuerpo-gantt");
+      if (tbodyGantt) tbodyGantt.innerHTML = `<tr><td colspan="20">${aviso}</td></tr>`;
+      const tbodyTabla = document.getElementById("cuerpo-tabla");
+      if (tbodyTabla) tbodyTabla.innerHTML = `<tr><td colspan="11">${aviso}</td></tr>`;
+      const contador = document.getElementById("contador-planes");
+      if (contador) contador.textContent = "Error al cargar";
+      document.querySelectorAll(".btn-reintentar-carga").forEach(b => b.addEventListener("click", () => {
+        if (tbodyGantt) tbodyGantt.innerHTML = '<tr><td colspan="20" class="py-8 text-center text-slate-400">Cargando cronograma...</td></tr>';
+        if (tbodyTabla) tbodyTabla.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-slate-400">Cargando base de datos...</td></tr>';
+        if (contador) contador.textContent = "Cargando contratos...";
+        cargarDatos();
+      }));
     }
 
     // spec 041: etiquetas de control. Sin fecha guardada no se clasifica por fecha (las fechas de relleno no cuentan).
@@ -705,10 +727,12 @@
     // spec 041: tarjeta del Gantt para visitas con estado distinto de pendiente. Mantiene el mismo data-action (clic y doble clic).
     function tarjetaDeEstado(item, fechaAttr) {
       const MAPA = {
-        asignado: ["bg-violet-50 border-violet-300 text-violet-800", "person", "Asignada"],
+        asignado: ["bg-violet-50 border-violet-300 text-violet-800", "person", "Asignado"],
         en_ejecucion: ["bg-sky-50 border-sky-300 text-sky-800", "engineering", "En ejecución"],
         completada: ["bg-emerald-100 border-emerald-400 text-emerald-900", "task_alt", "Completada"],
         reprogramada: ["bg-orange-50 border-orange-300 text-orange-800", "event_repeat", "Reprogramada"],
+        "en revision": ["bg-blue-50 border-blue-300 text-blue-800", "hourglass_top", "Pendiente Revisión"],
+        rechazada: ["bg-rose-50 border-rose-300 text-rose-800", "cancel", "Rechazada"],
       };
       const [clases, icono, texto] = MAPA[item.estado];
       const activa = ordenSeleccionadaId === item.subId ? "tarjeta-activa" : "";
@@ -789,7 +813,7 @@
                 title="Visita programada. Clic para mover o Doble Clic para editar fecha exacta."
               >
                 <span class="material-symbols-outlined text-[13px] text-amber-600 pointer-events-none">touch_app</span>
-                <span class="pointer-events-none">Por Realizar</span>
+                <span class="pointer-events-none">${item.esTentativa ? 'Tentativa' : 'Por Realizar'}</span>
               </div>`;
           }
 
@@ -812,7 +836,9 @@
                 <span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${esc(item.etiquetaVisita)}</span>
               </div>
               <div class="text-[11px] text-[#002d1a] font-semibold mt-0.5">Difunto: ${esc(item.difunto)}</div>
-              <div class="text-[10px] text-slate-500">${esc(item.cementerio)} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${esc(item.plan)}</span></div>
+              ${item.proximaVisita ? "" : '<div class="text-[10px] font-bold text-amber-700">Sin fecha programada</div>'}
+              ${item.esTentativa ? '<div class="text-[10px] italic text-amber-700">Fecha tentativa según el plan</div>' : ""}
+              <div class="text-[10px] text-slate-500">${esc(item.cementerio || "Sin cementerio")} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${esc(item.plan)}</span></div>
               <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
                 <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
                 <strong>Operador:</strong> ${esc(item.operadorAsignado)}
@@ -991,7 +1017,7 @@
               class="px-2 py-1 text-xs border border-amber-300 rounded bg-white text-slate-800 font-medium focus:outline-none focus:border-[#002d1a] shadow-sm cursor-pointer"
             >
           </td>
-          <td class="py-3 px-3 text-slate-600">${esc(item.cementerio)}</td>
+          <td class="py-3 px-3 text-slate-600">${esc(item.cementerio || "Sin cementerio")}</td>
         </tr>`;
       }).join("");
     }

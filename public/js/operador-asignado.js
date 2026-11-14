@@ -9,7 +9,7 @@
  *
  * Solo LEE campos existentes (contrato de datos con la web). Sin Firebase ni DOM: se prueba con node --test.
  */
-import { esOperadorValido, numerosTerminados, esEstadoCompletada } from './servicio-terminado.js';
+import { esOperadorValido, numerosTerminados, esEstadoCompletada } from './servicio-terminado.js?v=ops13';
 
 /** El administrador entra con cualquiera de estos correos y es la misma persona. */
 export const ALIAS_ADMIN = Object.freeze({

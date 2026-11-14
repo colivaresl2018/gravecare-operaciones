@@ -4,7 +4,9 @@
 // interpola un dato (item.campo, inf.campo, err.message…) sin esc(), o lo mete en un manejador inline (onclick="f('${…}')").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -175,6 +177,30 @@ test('toda página que usa esc() importa html-seguro.js (o define la suya)', () 
     const importa = html.includes('./js/html-seguro.js');
     const propia = /function esc\(/.test(html);
     assert.ok(importa || propia, `${archivo} llama a esc() sin importarla`);
+  }
+});
+
+test('ninguna página importa esc() dos veces (una importación duplicada rompe todo el script del módulo)', () => {
+  for (const archivo of PAGINAS) {
+    const html = readFileSync(join(PUBLIC, archivo), 'utf8');
+    const veces = (html.match(/import \{ esc \} from "\.\/js\/html-seguro\.js"/g) || []).length;
+    assert.ok(veces <= 1, `${archivo} importa esc() ${veces} veces`);
+  }
+});
+
+test('los <script> en línea de cada página son JavaScript válido (node --check)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gc-sintaxis-'));
+  try {
+    for (const archivo of PAGINAS) {
+      scriptsEnLinea(readFileSync(join(PUBLIC, archivo), 'utf8')).forEach((codigo, k) => {
+        const ruta = join(dir, `${archivo}.${k}.mjs`);
+        writeFileSync(ruta, codigo);
+        const r = spawnSync(process.execPath, ['--check', ruta], { encoding: 'utf8' });
+        assert.equal(r.status, 0, `${archivo} (script ${k}) tiene un error de sintaxis:\n${r.stderr.split('\n').slice(0, 5).join('\n')}`);
+      });
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

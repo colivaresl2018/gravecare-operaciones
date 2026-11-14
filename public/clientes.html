@@ -188,6 +188,14 @@
           console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
         }
 
+        // Respaldo del nombre del titular: contratos (si el staff no puede leerlos, la lista sigue igual)
+        const contratosMap = await cargarContratos(async () => {
+          const sc = await getDocs(collection(db, "contratos"));
+          const l = [];
+          sc.forEach(c => l.push([c.id, c.data()]));
+          return l;
+        });
+
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         const ordenesPorEmail = new Map();
         const ordenesPorRut = new Map();
@@ -220,7 +228,8 @@
             sector: ord.ubicacionSepultura?.sector || ord.sector || "",
             patio: ord.ubicacionSepultura?.patio || ord.patio || "",
             numeroSepultura: ord.ubicacionSepultura?.numeroSepultura || ord.numeroSepultura || "",
-            difunto: ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || ""
+            difunto: ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || "",
+            titularNombre: nombreClienteDeOrden(ord, contratosDeOrden(contratosMap, ord, ordId))
           };
 
           if (email) {
@@ -299,7 +308,7 @@
             lista.push({
               id: docSnap.id,
               numeroOrdenRef: ordenPrincipal?.numeroOrden || docSnap.id,
-              nombre: c.nombreCompleto || `${c.nombres || c.nombre || ''} ${c.apellidos || c.apellido || ''}`.trim() || "Cliente",
+              nombre: nombreFilaCliente(c, ordenesVinculadas),
               serQuerido: serQueridoTexto || "-",
               rut: c.rut || "-",
               email: c.email || c.correo || "-",
@@ -324,7 +333,7 @@
             const ord = docSnap.data();
             if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
             const tit = ord.titular || {};
-            const nom = tit.nombreCompleto || ord.clienteNombre || "Cliente";
+            const nom = nombreClienteParaMostrar(ord, contratosDeOrden(contratosMap, ord, docSnap.id));
             const dif = ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || "Ser Querido";
             const plan = ord.servicio?.planNombre || ord.planNombre || "Plan 4";
             const cem = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Cementerio";

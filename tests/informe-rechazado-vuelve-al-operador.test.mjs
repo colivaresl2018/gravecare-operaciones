@@ -9,12 +9,12 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const leer = (f) => readFileSync(join(RAIZ, 'public', f), 'utf8');
 
-test('Mis Trabajos usa la regla de rechazo y muestra el estado «Rechazado» en lugar de «Asignado»', () => {
+test('Mis Trabajos usa la regla de rechazo y muestra el estado «Rechazada» (etiqueta estándar) en lugar de «Asignado»', () => {
   const html = leer('mis-trabajos.html');
   assert.ok(html.includes('rechazoDeVisita'), 'importa y usa rechazoDeVisita');
   assert.ok(/rechazoDeVisita\(d, numVisita, \{ docId: docSnap\.id, indiceInformes \}\)/.test(html), 'la evalúa por cada visita con el índice de informes');
   assert.ok(html.includes('item.rechazada'), 'el render distingue la visita rechazada');
-  assert.ok(html.includes('Rechazado'), 'muestra la etiqueta Rechazado');
+  assert.ok(html.includes("item.rechazada ? 'Rechazada' : esc(item.estadoEtiqueta)"), 'muestra la etiqueta estándar «Rechazada» (la de estado-visita-unificado.js)');
   assert.ok(html.includes('Asignado'), 'conserva la etiqueta Asignado para las demás');
 });
 

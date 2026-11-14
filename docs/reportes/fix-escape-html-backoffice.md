@@ -1,6 +1,6 @@
 # C1 · AUD-01: los datos de Firestore se escapan antes de dibujarse en el backoffice
 
-**Fecha:** 2026-11-14 · **Rama:** `fix/escape-html-backoffice` · **Tag:** `ops-11`
+**Fecha:** 2026-11-14 · **Rama:** `fix/escape-html-backoffice` · **Tag:** `ops-16` (une la línea `ops-10` con `main`/`ops-15`; ver «Integración»)
 
 ## Qué pasaba (AUD-01, crítico)
 Las órdenes las crea el navegador de quien compra (campos de texto como nombre del difunto, titular, cementerio, observaciones, etc. solo
@@ -32,8 +32,20 @@ Excepción documentada: `item.estadoServicioHtml` en `clientes.html` (HTML propi
 Se actualizaron 5 pruebas estáticas existentes que buscaban el texto exacto del código anterior (misma intención, ahora con `esc()` / `data-*`).
 
 ## Pruebas
-`node --test tests/ public/js/` → 302 pasan, 0 fallan. Además, los 16 `<script>` en línea de las páginas se revisaron con `node --check` (sin errores de sintaxis).
+`node --test tests/ public/js/` → 330 pasan, 0 fallan (incluye la guarda nueva de sintaxis `node --check` de los 16 `<script>` en línea y la de importación duplicada de `esc`).
 **No se probó en navegador contra datos reales** (no hay emulador propio): ver «Verificación manual» abajo.
+
+## Integración (importante: lo publicado hoy NO tiene el arreglo de informes rechazados)
+Al ir a etiquetar descubrí que `ops-11`…`ops-15` ya existían y salían de `main`, mientras que mi línea (`ops-9`/`ops-10`, rama
+`fix/informe-rechazado-vuelve-al-operador`) nunca se fusionó a `main`. Comprobado en vivo (`gravecare-ops.web.app`): `mis-trabajos.html`
+**no** carga `informe-rechazado.js` y sí `estado-visita-unificado.js`, o sea que hoy está publicado `main` (≈`ops-15`) y **se perdieron
+«Rechazado + motivo + Corregir informe» (ops-9/10)** y los cambios de Mis Trabajos con la fecha de Órdenes (`43dfd4f`, `ee9d1ac`).
+Por eso `ops-16` es una fusión de `origin/main` (ops-15) en esta rama:
+- **Órdenes de Servicio:** gana el diseño de `main` (fecha de ejecución en el calendario del modal, ops-14); mi casilla de fecha en la fila (`0ee0489`) queda reemplazada. Se adaptó mi prueba `asignar-requiere-fecha` a ese diseño (misma garantía: la fecha se guarda solo por `guardarFechaVisitaEnOrden`, nunca `fechasProgramadas`).
+- **Mis Trabajos:** conviven el estado unificado de `main` y el rechazo de ops-9/10. La etiqueta de la visita rechazada es la estándar **«Rechazada»** (la misma de Todos los Trabajos y Planificación; antes decía «Rechazado»), con el motivo y «Corregir informe» (precarga fotos/labores/observaciones).
+- Imports de `main` con `?v=ops13` se conservan.
+- La prueba anti-XSS detectó un `onclick` nuevo de `main` (`abrirModalAsignar('${…}', 'fecha')`) que quedó sin escapar; ya usa `data-id`.
+- **Hay que revisar a mano** (no hay emulador): Mis Trabajos (etiqueta, motivo, Corregir informe, fecha de la visita) y Órdenes (clic en la fecha abre el calendario).
 
 ## Fuera de alcance / pendiente
 - `public/js/gastosIngresos.js` y `public/gastosIngresos.js` **no los carga ninguna página**; contienen `innerHTML` con categorías sin escapar.
@@ -43,8 +55,8 @@ Se actualizaron 5 pruebas estáticas existentes que buscaban el texto exacto del
 - Datos ya guardados con HTML malicioso: no se modifican; quedan inofensivos porque ahora se muestran como texto.
 
 ## Despliegue y reversa
-Solo Hosting de `gravecare-ops`, desde `C:\Despliegue\GravecareOps` en el tag `ops-11`:
-`firebase deploy --project gravecare-2e8d2 --only hosting:gravecare-ops`. Reversa: volver a desplegar `ops-10`.
+Solo Hosting de `gravecare-ops`, desde `C:\Despliegue\GravecareOps` en el tag `ops-16`:
+`firebase deploy --project gravecare-2e8d2 --only hosting:gravecare-ops`. Reversa: volver a desplegar `ops-15` (lo que hoy está publicado).
 
 ## Verificación manual (después de desplegar)
 1. Órdenes de Servicio → abrir «Asignar» en una fila y cambiar la fecha de una visita (usan `data-id`).
