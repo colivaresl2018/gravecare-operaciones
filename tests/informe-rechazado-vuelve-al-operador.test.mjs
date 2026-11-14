@@ -27,7 +27,7 @@ test('Mis Trabajos muestra el motivo del rechazo en el menú de la visita (con t
 test('la visita rechazada ofrece corregir el informe con el mismo enlace de captura', () => {
   const html = leer('mis-trabajos.html');
   assert.ok(html.includes('Corregir informe'), 'texto de la acción');
-  assert.ok(html.includes('informe-captura.html?ordenId=${item.ordenDocId}&v=${item.numeroVisita}'), 'mismo enlace de captura');
+  assert.ok(html.includes('informe-captura.html?ordenId=${esc(item.ordenDocId)}&v=${esc(item.numeroVisita)}'), 'mismo enlace de captura');
 });
 
 test('la captura del informe avisa al operador por qué fue rechazado', () => {

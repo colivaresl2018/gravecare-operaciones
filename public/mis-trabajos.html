@@ -119,6 +119,7 @@
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { crearIndiceInformes } from "./js/servicio-terminado.js"; // regla única de visita terminada (informes como evidencia)
     import { rechazoDeVisita } from "./js/informe-rechazado.js"; // informe rechazado: vuelve al mismo operador con su motivo
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { crearIdentidad, visitaAsignadaA, visitaCerradaParaMisTrabajos } from "./js/operador-asignado.js"; // quién soy y si la visita ya está cerrada
     import { ubicacionDeVisita, agruparMarcadores, resumenMapa, contenidoMarcador, tituloMarcador } from "./js/ubicacion-trabajo.js"; // ubicación de las visitas en el mapa (sepultura o cementerio)
     import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -379,23 +380,23 @@
       tbody.innerHTML = filtradas.map(item => `
         <tr class="hover:bg-slate-50 transition text-slate-700">
           <td class="py-3 px-4 font-mono font-bold text-slate-800">
-            ${item.idVisitaCompleto}
+            ${esc(item.idVisitaCompleto)}
             <span class="inline-block ml-1 text-[10px] font-extrabold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
-              ${item.badgeFraccion}
+              ${esc(item.badgeFraccion)}
             </span>
           </td>
           <td class="py-3 px-4 font-bold text-slate-900">
-            ${item.difunto}${item.esPrueba ? INSIGNIA_PRUEBA : ""}
-            <span class="block font-normal text-[10px] text-slate-500">${item.sepultura}</span>
+            ${esc(item.difunto)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}
+            <span class="block font-normal text-[10px] text-slate-500">${esc(item.sepultura)}</span>
           </td>
-          <td class="py-3 px-4 font-medium text-slate-800">${item.cementerio}</td>
-          <td class="py-3 px-4"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-[11px]">${item.plan}</span></td>
+          <td class="py-3 px-4 font-medium text-slate-800">${esc(item.cementerio)}</td>
+          <td class="py-3 px-4"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-[11px]">${esc(item.plan)}</span></td>
           <td class="py-3 px-4 font-mono font-bold text-[#002d1a]">${formatearFechaChile(item.fechaProgramada)}</td>
           <td class="py-3 px-4 text-center">
             <!-- BOTÓN INTERACTIVO "ASIGNADO" QUE ABRE EL MENÚ DE OBSERVACIONES -->
             <button 
               type="button" 
-              onclick="window.mostrarObservacionesCliente('${item.idVisitaCompleto}')" 
+              data-id="${esc(item.idVisitaCompleto)}" onclick="window.mostrarObservacionesCliente(this.dataset.id)" 
               class="inline-flex items-center gap-1 ${item.rechazada ? 'bg-rose-100 hover:bg-rose-200 text-rose-800' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'} font-bold px-2.5 py-1 rounded-full text-[10px] transition cursor-pointer shadow-xs" 
               title="${item.rechazada ? 'Haz clic para ver el motivo del rechazo' : 'Haz clic para ver las observaciones del cliente'}"
             >
@@ -404,7 +405,7 @@
             </button>
           </td>
           <td class="py-3 px-4 text-center">
-            <a href="informe-captura.html?ordenId=${item.ordenDocId}&v=${item.numeroVisita}" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline text-xs">
+            <a href="informe-captura.html?ordenId=${esc(item.ordenDocId)}&v=${esc(item.numeroVisita)}" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline text-xs">
               <span class="material-symbols-outlined text-sm">${item.rechazada ? 'edit' : 'photo_camera'}</span> ${item.rechazada ? 'Corregir informe' : 'Reportar'}
             </a>
           </td>
@@ -430,7 +431,7 @@
 
       const boxContenido = document.getElementById("obs-contenido");
       if (item.observaciones && item.observaciones.length > 0) {
-        boxContenido.innerHTML = `<span class="font-medium text-slate-800">${item.observaciones}</span>`;
+        boxContenido.innerHTML = `<span class="font-medium text-slate-800">${esc(item.observaciones)}</span>`;
         boxContenido.className = "p-3 bg-amber-50 border border-amber-200 rounded-xl text-slate-800 text-xs leading-relaxed max-h-48 overflow-y-auto";
       } else {
         boxContenido.innerHTML = `<span class="italic text-slate-500 font-semibold">Sin Observaciones</span>`;

@@ -88,6 +88,7 @@
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
     import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js"; // avance real: visitas que cumplen la regla única
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { 
       getFirestore, 
       collection, 
@@ -367,7 +368,7 @@
         const selCem = document.getElementById("filtro-cementerio");
         if (selCem) {
           selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
-            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+            Array.from(cementeriosSet).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
         }
 
         document.getElementById("badge-total-clientes").textContent = `Total: ${clientesConsolidados.length} cliente(s)`;
@@ -410,14 +411,14 @@
         if (cantidadServicios > 1) {
           const opcionesServicios = item.serviciosTotales.map((s, i) => 
             `<li class="py-1 px-2 border-b border-slate-100 last:border-b-0 text-[10px] text-slate-700">
-               <span class="font-bold text-[#002d1a]">#${i + 1}:</span> ${s.plan} <span class="text-slate-400">(${s.cementerio || 'Cementerio'})</span>
+               <span class="font-bold text-[#002d1a]">#${i + 1}:</span> ${esc(s.plan)} <span class="text-slate-400">(${esc(s.cementerio || 'Cementerio')})</span>
              </li>`
           ).join("");
 
           htmlColumnaPlan = `
             <div class="relative inline-block text-center">
               <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] block">
-                ${item.plan}
+                ${esc(item.plan)}
               </span>
               <button type="button" onclick="toggleMenuServicios('menu-serv-${idx}')" class="mt-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 flex items-center justify-center gap-0.5 mx-auto cursor-pointer">
                 <span>+${cantidadServicios - 1} otro(s)</span>
@@ -432,7 +433,7 @@
           htmlColumnaPlan = `
             <div>
               <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] inline-block">
-                ${item.plan}
+                ${esc(item.plan)}
               </span>
               <span class="block text-[9px] text-slate-400 mt-0.5 font-medium">Solo 1 servicio contratado</span>
             </div>`;
@@ -446,35 +447,35 @@
         return `
         <tr class="hover:bg-slate-50 transition text-slate-700">
           <td class="py-3 px-3">
-            <span class="font-bold text-slate-900 block">${item.nombre}</span>
-            <span class="text-[10px] text-slate-400 font-mono">ID: ${item.id.substring(0, 10)}...</span>
+            <span class="font-bold text-slate-900 block">${esc(item.nombre)}</span>
+            <span class="text-[10px] text-slate-400 font-mono">ID: ${esc(item.id.substring(0, 10))}...</span>
           </td>
           <td class="py-3 px-3">
-            <span class="font-bold text-emerald-950 block">${item.serQuerido}</span>
+            <span class="font-bold text-emerald-950 block">${esc(item.serQuerido)}</span>
           </td>
-          <td class="py-3 px-3 font-mono font-bold text-slate-800 text-[11px]">${item.rut}</td>
+          <td class="py-3 px-3 font-mono font-bold text-slate-800 text-[11px]">${esc(item.rut)}</td>
           <td class="py-3 px-3 text-[11px]">
             <div class="flex items-center gap-1 text-slate-600">
               <span class="material-symbols-outlined text-[13px] text-slate-400">mail</span>
-              <span>${item.email}</span>
+              <span>${esc(item.email)}</span>
             </div>
             <div class="flex items-center gap-1 text-slate-600 mt-0.5">
               <span class="material-symbols-outlined text-[13px] text-slate-400">call</span>
-              <span>${item.telefono}</span>
+              <span>${esc(item.telefono)}</span>
             </div>
           </td>
           <td class="py-3 px-3 text-[11px]">
-            <span class="font-semibold block text-slate-800">${item.cementerioDetalle}</span>
-            <span class="text-[10px] text-slate-400">${item.comuna}</span>
+            <span class="font-semibold block text-slate-800">${esc(item.cementerioDetalle)}</span>
+            <span class="text-[10px] text-slate-400">${esc(item.comuna)}</span>
           </td>
           <td class="py-3 px-3 text-center">
             ${htmlColumnaPlan}
           </td>
           <td class="py-3 px-3 text-center font-medium text-slate-700 text-[11px]">
-            ${item.suscripcion}
+            ${esc(item.suscripcion)}
           </td>
           <td class="py-3 px-3 text-center text-[11px] text-slate-600">
-            ${item.ramos}
+            ${esc(item.ramos)}
           </td>
           <td class="py-3 px-3 text-center">
             ${item.estadoServicioHtml}
@@ -483,7 +484,7 @@
             ${fechaTexto}
           </td>
           <td class="py-3 px-3 text-center">
-            <button type="button" onclick="window.eliminarClienteConClave('${item.id}', '${item.nombre}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition cursor-pointer" title="Eliminar cliente con clave">
+            <button type="button" data-id="${esc(item.id)}" data-nombre="${esc(item.nombre)}" onclick="window.eliminarClienteConClave(this.dataset.id, this.dataset.nombre)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition cursor-pointer" title="Eliminar cliente con clave">
               <span class="material-symbols-outlined text-sm">delete</span> Borrar
             </button>
           </td>

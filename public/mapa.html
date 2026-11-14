@@ -100,6 +100,7 @@
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { ubicacionDeVisita, agruparMarcadores, contenidoMarcadorOperativo } from "./js/ubicacion-trabajo.js"; // ubicación: sepultura o catálogo oficial de cementerios
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -258,26 +259,26 @@
 
         const operadorHtml = (v.operador === 'Sin asignar') 
           ? '<span class="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs">Sin asignar</span>'
-          : `<span class="font-bold text-[#002d1a]">${v.operador}</span>`;
+          : `<span class="font-bold text-[#002d1a]">${esc(v.operador)}</span>`;
 
         return `
           <tr>
             <td class="font-extrabold text-slate-800">
-              ${v.difunto}
-              <span class="block text-[11px] font-mono text-slate-400">Orden #${v.numeroOrden}</span>
+              ${esc(v.difunto)}
+              <span class="block text-[11px] font-mono text-slate-400">Orden #${esc(v.numeroOrden)}</span>
             </td>
             <td>
-              <span class="font-bold text-slate-700">Visita ${v.visitaNumero} de ${v.totalVisitas}</span>
+              <span class="font-bold text-slate-700">Visita ${esc(v.visitaNumero)} de ${esc(v.totalVisitas)}</span>
             </td>
-            <td>${v.cementerio}</td>
-            <td>${v.cliente}${v.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
+            <td>${esc(v.cementerio)}</td>
+            <td>${esc(v.cliente)}${v.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
             <td>${operadorHtml}</td>
             <td class="font-mono text-xs text-slate-500">
               ${v.coordenadas ? v.coordenadas.lat.toFixed(4) + ', ' + v.coordenadas.lng.toFixed(4) : '<span class="text-amber-600 font-semibold">Sin GPS</span>'}
             </td>
             <td>
               <span class="px-2 py-0.5 rounded text-xs font-bold border ${badgeColor}">
-                ${v.estadoVisita.toUpperCase()}
+                ${esc(v.estadoVisita.toUpperCase())}
               </span>
             </td>
           </tr>

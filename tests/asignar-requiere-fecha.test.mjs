@@ -36,7 +36,7 @@ test('«Sin asignar» siempre se permite (liberar una visita no depende de la fe
 
 test('Órdenes de Servicio: la fecha de la visita se puede cambiar desde su casilla', () => {
   const src = leer('ordenes.html');
-  assert.match(src, /<input type="date" value="\$\{valorFechaInput\(item\.fechaEstimada\)\}" onchange="window\.cambiarFechaVisita\(/);
+  assert.match(src, /<input type="date" value="\$\{valorFechaInput\(item\.fechaEstimada\)\}" data-id="\$\{esc\(item\.idVisitaCompleto\)\}" onchange="window\.cambiarFechaVisita\(this\.dataset\.id, this\.value\)"/);
   assert.match(src, /import \{ fechaGuardadaVisita, guardarFechaVisitaEnOrden \} from "\.\/js\/fechas-visita\.js"/);
   assert.match(src, /window\.cambiarFechaVisita = async function\(idVisitaCompleto, valor\)/);
   // la escritura pasa por el helper aislado (solo fechasPorVisita y punteros), nunca por el arreglo completo

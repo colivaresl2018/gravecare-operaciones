@@ -37,11 +37,11 @@ test('N193: ninguna página compara una entrada con una clave numérica fija', (
 });
 
 const CON_INSIGNIA = {
-  'ordenes.html': ['esPrueba: esOrdenDePrueba(d)', '${item.cliente}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
-  'todos-los-trabajos.html': ['esPrueba: esOrdenDePrueba(d)', '${item.cliente}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
-  'mis-trabajos.html': ['esPrueba: esOrdenDePrueba(d)', '${item.difunto}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
-  'planificacion.html': ['esPrueba: esOrdenDePrueba(ord)', '${item.titular}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
-  'mapa.html': ['esPrueba: esOrdenDePrueba(ord)', '${v.cliente}${v.esPrueba ? INSIGNIA_PRUEBA : ""}'],
+  'ordenes.html': ['esPrueba: esOrdenDePrueba(d)', '${esc(item.cliente)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
+  'todos-los-trabajos.html': ['esPrueba: esOrdenDePrueba(d)', '${esc(item.cliente)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
+  'mis-trabajos.html': ['esPrueba: esOrdenDePrueba(d)', '${esc(item.difunto)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
+  'planificacion.html': ['esPrueba: esOrdenDePrueba(ord)', '${esc(item.titular)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}'],
+  'mapa.html': ['esPrueba: esOrdenDePrueba(ord)', '${esc(v.cliente)}${v.esPrueba ? INSIGNIA_PRUEBA : ""}'],
 };
 for (const [pagina, [marca, render]] of Object.entries(CON_INSIGNIA)) {
   test(`B-1: ${pagina} marca las órdenes de integración con la insignia PRUEBA`, () => {

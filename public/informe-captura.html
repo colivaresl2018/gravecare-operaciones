@@ -255,6 +255,7 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { rechazoDeVisita, datosParaCorregir } from "./js/informe-rechazado.js"; // informe rechazado: muestra el motivo al operador
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -488,7 +489,7 @@
         document.getElementById("txtCliente").textContent = titular;
         document.getElementById("txtDifunto").textContent = difunto;
         document.getElementById("txtUbicacion").innerHTML = `
-          <strong>${cem}</strong> • Sector: <span class="text-brand font-bold">${sec}</span> • Sepultura / Lote: <span class="text-brand font-bold">#${sep}</span>
+          <strong>${esc(cem)}</strong> • Sector: <span class="text-brand font-bold">${esc(sec)}</span> • Sepultura / Lote: <span class="text-brand font-bold">#${esc(sep)}</span>
         `;
 
         const rechazo = rechazoDeVisita(datosOrden, visitaIndex, { docId: ordenId });

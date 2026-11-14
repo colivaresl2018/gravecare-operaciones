@@ -145,6 +145,7 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { ESTADOS, transicionValida, clasificarVisita, cumpleFiltro } from "./js/estados-visita.js"; // spec 041
     import { guardarEstadoVisita } from "./js/estados-visita-db.js"; // spec 041 (solo estadosPorVisita y ultimaModificacion)
     import { fechaGuardadaVisita, guardarFechaVisitaEnOrden } from "./js/fechas-visita.js"; // spec 041: fechas por visita (lectura y escritura de una fecha)
@@ -252,7 +253,7 @@
       const modalOp = document.getElementById("modal-select-operador");
       if (modalOp) {
         modalOp.innerHTML = '<option value="Sin asignar">Sin asignar</option>' + 
-          listaStaffOperadores.map(o => `<option value="${o.nombre}">${o.nombre}</option>`).join("");
+          listaStaffOperadores.map(o => `<option value="${esc(o.nombre)}">${esc(o.nombre)}</option>`).join("");
       }
     }
 
@@ -402,7 +403,7 @@
         const selCem = document.getElementById("filtro-cementerio");
         if (selCem) {
           selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
-            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+            Array.from(cementeriosSet).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
         }
 
         renderizarTabla();
@@ -468,37 +469,37 @@
         const avisos = [...etiquetasDe(item)].map(e => ({ atrasada: "Atrasada", sinOperador: "Sin operador", proximaVencer: "Próxima a vencer", sinFecha: "Sin fecha (histórica)" }[e])).filter(Boolean)
           .map(t => `<span class="inline-block mt-1 text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">${t}</span>`).join(" ");
         const textoOperador = item.operadorAsignado !== "Sin asignar"
-          ? `<span class="font-bold text-slate-800">${item.operadorAsignado}</span>`
+          ? `<span class="font-bold text-slate-800">${esc(item.operadorAsignado)}</span>`
           : `<span class="text-slate-400 italic">Sin asignar</span>`;
 
         return `
           <tr class="hover:bg-slate-50 transition text-slate-700">
             <td class="py-3.5 px-4">
-              <span class="font-mono font-bold text-slate-800 block text-[11px]">${item.idVisitaCompleto}</span>
+              <span class="font-mono font-bold text-slate-800 block text-[11px]">${esc(item.idVisitaCompleto)}</span>
               <span class="inline-block mt-1 text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                ${item.badgeFraccion}
+                ${esc(item.badgeFraccion)}
               </span>
             </td>
-            <td class="py-3.5 px-4 font-bold text-slate-900">${item.difunto}</td>
-            <td class="py-3.5 px-4 font-medium text-slate-700">${item.cliente}${item.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
-            <td class="py-3.5 px-4 text-[11px] text-slate-600">${item.sepultura}</td>
+            <td class="py-3.5 px-4 font-bold text-slate-900">${esc(item.difunto)}</td>
+            <td class="py-3.5 px-4 font-medium text-slate-700">${esc(item.cliente)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
+            <td class="py-3.5 px-4 text-[11px] text-slate-600">${esc(item.sepultura)}</td>
             <td class="py-3.5 px-3 text-center">
-              <span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold text-[11px]">${item.plan}</span>
+              <span class="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold text-[11px]">${esc(item.plan)}</span>
             </td>
             <td class="py-3.5 px-3 text-center">
               <span class="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-900 font-mono font-bold px-2.5 py-1 rounded-md text-[11px]">
                 <span class="material-symbols-outlined text-[13px] text-amber-600">calendar_today</span>
-                <input type="date" value="${valorFechaInput(item.fechaEstimada)}" onchange="window.cambiarFechaVisita('${item.idVisitaCompleto}', this.value)" title="Cambiar la fecha de esta visita" class="bg-transparent outline-none cursor-pointer font-mono font-bold text-[11px] text-amber-900" />
+                <input type="date" value="${valorFechaInput(item.fechaEstimada)}" data-id="${esc(item.idVisitaCompleto)}" onchange="window.cambiarFechaVisita(this.dataset.id, this.value)" title="Cambiar la fecha de esta visita" class="bg-transparent outline-none cursor-pointer font-mono font-bold text-[11px] text-amber-900" />
               </span>
             </td>
             <td class="py-3.5 px-3 text-center">
               <span class="inline-block capitalize px-2.5 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">
-                ${item.estado}
+                ${esc(item.estado)}
               </span>
             </td>
             <td class="py-3.5 px-4 text-xs">${textoOperador}<div>${avisos}</div></td>
             <td class="py-3.5 px-4 text-center">
-              <button type="button" onclick="window.abrirModalAsignar('${item.idVisitaCompleto}')" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline cursor-pointer text-xs">
+              <button type="button" data-id="${esc(item.idVisitaCompleto)}" onclick="window.abrirModalAsignar(this.dataset.id)" class="inline-flex items-center gap-1 font-bold text-[#002d1a] hover:text-emerald-700 hover:underline cursor-pointer text-xs">
                 Asignar <span class="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
             </td>

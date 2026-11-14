@@ -12,7 +12,7 @@ const lee = (p) => readFileSync(join(PUBLIC, p), 'utf8').replace(/\r/g, '');
 test('N62: «Reportar» de mis-trabajos abre informe-captura.html con ordenId y v', () => {
   const h = lee('mis-trabajos.html');
   assert.equal(h.includes('revision-informe.html'), false, 'no apunta a la página inexistente');
-  assert.ok(h.includes('href="informe-captura.html?ordenId=${item.ordenDocId}&v=${item.numeroVisita}"'));
+  assert.ok(h.includes('href="informe-captura.html?ordenId=${esc(item.ordenDocId)}&v=${esc(item.numeroVisita)}"'));
   const captura = lee('informe-captura.html');
   assert.ok(captura.includes("urlParams.get('ordenId')"), 'la captura lee ordenId');
   assert.ok(captura.includes("urlParams.get('v')"), 'la captura lee v');

@@ -100,7 +100,7 @@ test('trabajos-terminados.html: usa la regla compartida, filtra pagadas y no usa
 
 test('trabajos-terminados.html: «Ver Informe» solo se habilita si la visita tiene informe', () => {
   const h = lee('trabajos-terminados.html');
-  assert.match(h, /\$\{item\.tieneInforme \? `<button type="button" onclick="window\.abrirModalInforme/);
+  assert.match(h, /\$\{item\.tieneInforme \? `<button type="button" data-informe="\$\{esc\(item\.idInforme\)\}" data-orden="\$\{esc\(item\.ordenDocId\)\}" data-operador="\$\{esc\(item\.operador\)\}" onclick="window\.abrirModalInforme\(this\.dataset\.informe/);
   assert.match(h, /disabled class="[^"]*cursor-not-allowed/);
   assert.match(h, /tieneInforme: ev\.tieneInforme/);
 });
