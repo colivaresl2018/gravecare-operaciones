@@ -100,7 +100,7 @@ const NUMERICA_SEGURA = /^(?:idx|i|index|Number\([^()]*\))$/;
 
 // Interpolaciones que llevan HTML generado por la propia página (no datos del usuario). Cada una con su motivo.
 const PERMITIDAS = new Map([
-  ['clientes.html', new Set(['item.estadoServicioHtml'])], // armado en la misma página solo con números (visitas realizadas/total)
+  ['clientes.html', new Set(['s.estadoServicioHtml'])], // armado por estadoDeServicio (public/js/clientes-agrupar.js) solo con números (visitas realizadas/total)
 ]);
 
 function infracciones(archivo) {
