@@ -838,6 +838,11 @@
               <div class="text-[11px] text-[#002d1a] font-semibold mt-0.5">Difunto: ${esc(item.difunto)}</div>
               ${item.proximaVisita ? "" : '<div class="text-[10px] font-bold text-amber-700">Sin fecha programada</div>'}
               ${item.esTentativa ? '<div class="text-[10px] italic text-amber-700">Fecha tentativa según el plan</div>' : ""}
+              <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
+                <span class="material-symbols-outlined text-[13px] text-slate-400">event</span>
+                ${item.proximaVisita ? `<strong>Fecha:</strong> ${esc(formatearFecha(item.proximaVisita))}` : ""}
+                <button type="button" data-action="editar-fecha" data-sub-id="${esc(item.subId)}" class="ml-auto px-2 py-0.5 rounded border border-slate-300 text-[10px] font-bold text-[#002d1a] hover:bg-slate-100 transition">${item.proximaVisita ? "Cambiar fecha" : "Asignar fecha"}</button>
+              </div>
               <div class="text-[10px] text-slate-500">${esc(item.cementerio || "Sin cementerio")} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${esc(item.plan)}</span></div>
               <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
                 <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
@@ -851,9 +856,31 @@
 
     const cuerpoGantt = document.getElementById("cuerpo-gantt");
 
+    // Abre el modal de reprogramación (fecha y operador) de una visita. Lo usan el doble clic en la tarjeta y el botón «Cambiar fecha».
+    function abrirModalReprogramar(item, fechaOrigen) {
+      deseleccionarTarea();
+      ordenEditandoId = item.id;
+      subIdEditando = item.subId;
+      indexVisitaEditando = item.indexVisita;
+      fechaSeleccionadaOriginal = fechaOrigen || null;
+
+      document.getElementById("modal-cliente").textContent = `${item.titular} (${item.etiquetaVisita})`;
+      document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} - ${item.plan}`;
+      document.getElementById("modal-input-fecha").value = fechaSeleccionadaOriginal || convertirAFechaInput(item.proximaVisita);
+      document.getElementById("modal-select-operador").value = item.operadorAsignado || "Sin asignar";
+      document.getElementById("modal-reprogramar").classList.remove("hidden");
+    }
+
     cuerpoGantt?.addEventListener("click", async (e) => {
+      // El botón «Cambiar fecha» de la columna del cliente: no depende de que la tarjeta esté en los días visibles.
+      const botonFecha = e.target.closest("button[data-action='editar-fecha']");
+      if (botonFecha) {
+        const itemBoton = datosConsolidados.find(d => d.subId === botonFecha.dataset.subId);
+        if (itemBoton) abrirModalReprogramar(itemBoton, null);
+        return;
+      }
       const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
-      
+
       if (tarjeta) {
         const sId = tarjeta.dataset.subId;
         const fOrig = tarjeta.dataset.fechaOrigen;
@@ -885,18 +912,7 @@
         const sId = tarjeta.dataset.subId;
         const item = datosConsolidados.find(d => d.subId === sId);
         if (!item) return;
-
-        deseleccionarTarea();
-        ordenEditandoId = item.id;
-        subIdEditando = item.subId;
-        indexVisitaEditando = item.indexVisita;
-        fechaSeleccionadaOriginal = tarjeta.dataset.fechaOrigen;
-
-        document.getElementById("modal-cliente").textContent = `${item.titular} (${item.etiquetaVisita})`;
-        document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} - ${item.plan}`;
-        document.getElementById("modal-input-fecha").value = fechaSeleccionadaOriginal || convertirAFechaInput(item.proximaVisita);
-        document.getElementById("modal-select-operador").value = item.operadorAsignado || "Sin asignar";
-        document.getElementById("modal-reprogramar").classList.remove("hidden");
+        abrirModalReprogramar(item, tarjeta.dataset.fechaOrigen);
       }
     });
 
