@@ -213,6 +213,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { getFirestore, collection, doc, getDoc, getDocs, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -262,7 +263,7 @@
 
       } catch (err) {
         console.error("Error al cargar informes:", err);
-        container.innerHTML = `<div class="col-span-full text-center py-12 text-rose-500 text-xs">Error cargando informes: ${err.message}</div>`;
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-rose-500 text-xs">Error cargando informes: ${esc(err.message)}</div>`;
       }
     }
 
@@ -318,7 +319,7 @@
                   <span class="material-symbols-outlined text-xs transition group-open:rotate-180">expand_more</span>
                 </summary>
                 <div class="mt-1.5 p-2 bg-rose-50 rounded-lg text-[11px] text-rose-950 font-medium leading-relaxed border border-rose-100">
-                  ${motivo}
+                  ${esc(motivo)}
                 </div>
               </details>
             </div>`;
@@ -335,7 +336,7 @@
                     <span class="material-symbols-outlined text-xs transition group-open:rotate-180">expand_more</span>
                   </summary>
                   <div class="mt-1.5 p-2 bg-emerald-50/60 rounded-lg text-[11px] text-emerald-950 font-medium leading-relaxed border border-emerald-100">
-                    ${comentarioCliente}
+                    ${esc(comentarioCliente)}
                   </div>
                 </details>
               </div>`;
@@ -343,15 +344,15 @@
         }
 
         return `
-          <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between" onclick="abrirDetalleInforme('${inf.id}')">
+          <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between" data-id="${esc(inf.id)}" onclick="abrirDetalleInforme(this.dataset.id)">
             <div>
               <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="font-mono text-xs font-bold text-[#002d1a]">#${inf.id}</span>
+                <span class="font-mono text-xs font-bold text-[#002d1a]">#${esc(inf.id)}</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${badgeText}</span>
               </div>
-              <h3 class="font-extrabold text-sm text-slate-800">${inf.difunto || 'Ser Querido'}</h3>
-              <p class="text-xs text-slate-500 font-medium">${inf.cementerio || 'Cementerio'}</p>
-              <div class="text-[11px] text-slate-500 mt-1 font-semibold">${numVisita} • Titular: ${inf.cliente || 'Cliente'}</div>
+              <h3 class="font-extrabold text-sm text-slate-800">${esc(inf.difunto || 'Ser Querido')}</h3>
+              <p class="text-xs text-slate-500 font-medium">${esc(inf.cementerio || 'Cementerio')}</p>
+              <div class="text-[11px] text-slate-500 mt-1 font-semibold">${esc(numVisita)} • Titular: ${esc(inf.cliente || 'Cliente')}</div>
               
               <!-- Comentario Desplegable -->
               ${htmlAcordeon}
@@ -360,7 +361,7 @@
             <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
               <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
                 <span class="material-symbols-outlined text-sm text-emerald-700">engineering</span>
-                <span>${inf.operador || 'Operador'}</span>
+                <span>${esc(inf.operador || 'Operador')}</span>
               </div>
               <span class="text-[11px] font-mono text-slate-400">${fechaStr}</span>
             </div>
@@ -429,7 +430,7 @@
       // Labores
       const ulLabores = document.getElementById('modal-labores');
       const labores = Array.isArray(inf.laboresEjecutadas) ? inf.laboresEjecutadas : ['Limpieza profunda de lápida y placa', 'Retiro de maleza y hojas secas', 'Ornamentación con flores', 'Riego y perfilado de terreno'];
-      ulLabores.innerHTML = labores.map(l => `<li>✓ ${l}</li>`).join('');
+      ulLabores.innerHTML = labores.map(l => `<li>✓ ${esc(l)}</li>`).join('');
 
       document.getElementById('modal-observaciones').textContent = inf.observaciones || inf.observacionesOperador || '(Sin observaciones registradas)';
 

@@ -105,6 +105,7 @@
 
 <script type="module">
     import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
   import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
   import { initializeFirestore } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -125,7 +126,7 @@
   const alertBox = document.getElementById("alertBox");
 
   function showError(msg) {
-    alertBox.innerHTML = `<div class="alert alert-error">${msg}</div>`;
+    alertBox.innerHTML = `<div class="alert alert-error">${esc(msg)}</div>`;
   }
 
   // Spec 040: la barrera de staff cerró la sesión porque la cuenta no tiene el claim staffActivo.

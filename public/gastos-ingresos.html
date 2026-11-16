@@ -836,11 +836,11 @@
       alertaFactura.style.borderColor = "#86efac";
       alertaFactura.style.color = "#166534";
       alertaFactura.innerHTML = `
-        <strong>✓ Factura procesada exitosamente (${datos.tipo}):</strong><br>
-        Proveedor: <strong>${datos.proveedor || datos.rut || "Identificado"}</strong> | 
-        RUT: <strong>${datos.rut || "S/R"}</strong> | 
-        Folio: <strong>#${datos.folio || "S/F"}</strong><br>
-        Giro: <em>${datos.giro || "Asesorías / Servicios"}</em> | 
+        <strong>✓ Factura procesada exitosamente (${esc(datos.tipo)}):</strong><br>
+        Proveedor: <strong>${esc(datos.proveedor || datos.rut || "Identificado")}</strong> | 
+        RUT: <strong>${esc(datos.rut || "S/R")}</strong> | 
+        Folio: <strong>#${esc(datos.folio || "S/F")}</strong><br>
+        Giro: <em>${esc(datos.giro || "Asesorías / Servicios")}</em> | 
         Total: <strong>${formatearDinero(totalFinal)}</strong>.<br>
         <span style="font-size: 0.75rem;">Revisa los campos y pulsa <em>"Registrar Movimiento en el Libro Contable"</em> para guardar en Firebase.</span>
       `;
@@ -1122,7 +1122,7 @@
         let celdaRespaldo = "";
         if (m.archivoUrl) {
           celdaRespaldo = `
-            <a href="${m.archivoUrl}" target="_blank" rel="noopener noreferrer" class="btn-adjunto" title="Abrir documento adjunto">
+            <a href="${esc(/^https?:\/\//i.test(m.archivoUrl) ? m.archivoUrl : '#')}" target="_blank" rel="noopener noreferrer" class="btn-adjunto" title="Abrir documento adjunto">
               <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               Ver Documento
             </a>
@@ -1137,7 +1137,7 @@
 
         // B-3: las notas no se editan (ni se les cambia el documento): solo se anulan con otra nota.
         const botonSubir = m.esNota ? "" : `
-          <button type="button" data-upload-id="${m.id}" data-origen="${m.origen}" class="btn-subir-accion" title="Cargar y asociar factura o boleta electrónica">
+          <button type="button" data-upload-id="${esc(m.id)}" data-origen="${esc(m.origen)}" class="btn-subir-accion" title="Cargar y asociar factura o boleta electrónica">
             <svg style="width: 13px; height: 13px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
             </svg>
@@ -1161,7 +1161,7 @@
         }
 
         const botonEliminar = m.origen === 'Manual' ? `
-          <button type="button" data-del-id="${m.id}" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+          <button type="button" data-del-id="${esc(m.id)}" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.4rem;">
             Eliminar
           </button>
         ` : '';
@@ -1170,20 +1170,20 @@
           <tr>
             <td style="white-space: nowrap;">${fechaStr}</td>
             <td>
-              <strong>${m.dte}</strong><br>
-              <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">Folio: #${m.folio}</span>${detalleNota}
+              <strong>${esc(m.dte)}</strong><br>
+              <span style="font-size: 0.75rem; color: #64748b; font-family: monospace;">Folio: #${esc(m.folio)}</span>${detalleNota}
             </td>
             <td>
-              <strong>${m.concepto}</strong><br>
-              <span style="font-size: 0.75rem; color: #64748b;">${m.rut}</span>
+              <strong>${esc(m.concepto)}</strong><br>
+              <span style="font-size: 0.75rem; color: #64748b;">${esc(m.rut)}</span>
             </td>
-            <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${m.categoria}</span></td>
+            <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${esc(m.categoria)}</span></td>
             <td style="text-align: right; font-weight: 600;">${formatearDinero(m.neto)}</td>
             <td style="text-align: right; color: #475569;">${formatearDinero(m.impuesto)}</td>
             <td style="text-align: right; font-weight: 800; color: ${colorTipo};">${formatearDinero(m.total)}</td>
             <td style="text-align: right;">
               <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${m.origen === 'Webpay' ? '#dbeafe' : '#f1f5f9'}; color: ${m.origen === 'Webpay' ? '#1e40af' : '#475569'};">
-                ${m.origen}
+                ${esc(m.origen)}
               </span>
             </td>
             <td style="text-align: center;">
