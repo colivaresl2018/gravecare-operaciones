@@ -217,6 +217,10 @@
         </div>
       </div>
 
+      <button type="button" id="btn-mover-en-gantt" class="w-full mb-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 font-semibold hover:bg-amber-100 transition text-xs flex items-center justify-center gap-1.5">
+        <span class="material-symbols-outlined text-sm">touch_app</span> Mover eligiendo una casilla del Gantt
+      </button>
+
       <div class="flex gap-2">
         <button type="button" id="btn-cancelar-modal" class="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition text-xs">Cancelar</button>
         <button type="button" id="btn-guardar-modal" class="flex-1 py-2 rounded-lg bg-[#002d1a] text-white font-bold hover:bg-[#003d24] transition text-xs">Guardar</button>
@@ -742,7 +746,7 @@
                 data-sub-id="${esc(item.subId)}"
                 data-fecha-origen="${fechaAttr}"
                 class="${activa} ${clases} border p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer"
-                title="${texto}. Clic para mover o Doble Clic para editar fecha exacta."
+                title="${texto}. Clic para cambiar la fecha y el operador."
               >
                 <span class="material-symbols-outlined text-[13px] pointer-events-none">${icono}</span>
                 <span class="pointer-events-none">${texto}</span>
@@ -810,7 +814,7 @@
                 data-sub-id="${esc(item.subId)}"
                 data-fecha-origen="${fechaAttr}"
                 class="${activa} bg-amber-50 border border-amber-300 text-amber-800 p-1.5 rounded text-[11px] font-semibold flex items-center justify-center gap-1 shadow-sm cursor-pointer hover:bg-amber-100 transition"
-                title="Visita programada. Clic para mover o Doble Clic para editar fecha exacta."
+                title="Visita programada. Clic para cambiar la fecha y el operador."
               >
                 <span class="material-symbols-outlined text-[13px] text-amber-600 pointer-events-none">touch_app</span>
                 <span class="pointer-events-none">${item.esTentativa ? 'Tentativa' : 'Por Realizar'}</span>
@@ -830,7 +834,7 @@
 
         return `
           <tr class="hover:bg-slate-50/80 transition ${claseFila}">
-            <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200">
+            <td class="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200 cursor-pointer" data-action="fila-visita" data-sub-id="${esc(item.subId)}" title="Clic para cambiar la fecha y el operador de esta visita.">
               <div class="flex items-center justify-between">
                 <span class="font-bold text-slate-800">${esc(item.titular)}</span>
                 <span class="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${esc(item.etiquetaVisita)}</span>
@@ -839,6 +843,7 @@
               ${item.proximaVisita ? "" : '<div class="text-[10px] font-bold text-amber-700">Sin fecha programada</div>'}
               ${item.esTentativa ? '<div class="text-[10px] italic text-amber-700">Fecha tentativa según el plan</div>' : ""}
               <div class="text-[10px] text-slate-500">${esc(item.cementerio || "Sin cementerio")} · <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold">${esc(item.plan)}</span></div>
+              ${item.proximaVisita ? `<div class="text-[11px] font-semibold text-[#002d1a] flex items-center gap-1" data-fecha-visita><span class="material-symbols-outlined text-[13px] text-slate-400">event</span>Fecha: ${esc(formatearFecha(item.proximaVisita))}</div>` : ""}
               <div class="mt-1 text-[11px] flex items-center gap-1 text-slate-700">
                 <span class="material-symbols-outlined text-[13px] text-slate-400">engineering</span>
                 <strong>Operador:</strong> ${esc(item.operadorAsignado)}
@@ -851,23 +856,54 @@
 
     const cuerpoGantt = document.getElementById("cuerpo-gantt");
 
+    // Entra al modo «mover»: la visita queda marcada y el siguiente clic en una casilla de su fila la reprograma.
+    function iniciarMovimiento(sId, fOrig) {
+      const item = datosConsolidados.find(d => d.subId === sId);
+      if (!item) return;
+      ordenSeleccionadaId = sId;
+      fechaSeleccionadaOriginal = fOrig;
+      document.getElementById("texto-aviso-movimiento").textContent = `Moviendo ${item.etiquetaVisita} de ${item.titular}: Haz clic en la casilla del nuevo día para guardar.`;
+      document.getElementById("barra-aviso-movimiento").classList.remove("hidden");
+      renderizarTodo();
+    }
+
+    // Menú de la visita marcada: cambiar su fecha y su operador (guarda solo esa visita).
+    function abrirMenuVisita(sId, fOrig) {
+      const item = datosConsolidados.find(d => d.subId === sId);
+      if (!item) return;
+
+      deseleccionarTarea();
+      ordenEditandoId = item.id;
+      subIdEditando = item.subId;
+      indexVisitaEditando = item.indexVisita;
+      fechaSeleccionadaOriginal = fOrig || null;
+
+      document.getElementById("modal-cliente").textContent = `${item.titular} (${item.etiquetaVisita})`;
+      document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} - ${item.plan}`;
+      document.getElementById("modal-input-fecha").value = fOrig || convertirAFechaInput(item.proximaVisita);
+      document.getElementById("modal-select-operador").value = item.operadorAsignado || "Sin asignar";
+      document.getElementById("modal-reprogramar").classList.remove("hidden");
+    }
+
     cuerpoGantt?.addEventListener("click", async (e) => {
       const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
-      
+      const filaVisita = e.target.closest("td[data-action='fila-visita']");
+
       if (tarjeta) {
         const sId = tarjeta.dataset.subId;
         const fOrig = tarjeta.dataset.fechaOrigen;
 
         if (ordenSeleccionadaId === sId && fechaSeleccionadaOriginal === fOrig) {
-          deseleccionarTarea();
+          deseleccionarTarea(); // segundo clic sobre la visita en modo mover: se cancela
         } else {
-          ordenSeleccionadaId = sId;
-          fechaSeleccionadaOriginal = fOrig;
-          const item = datosConsolidados.find(d => d.subId === sId);
-          document.getElementById("texto-aviso-movimiento").textContent = `Moviendo ${item.etiquetaVisita} de ${item.titular}: Haz clic en la casilla del nuevo día para guardar.`;
-          document.getElementById("barra-aviso-movimiento").classList.remove("hidden");
-          renderizarTodo();
+          abrirMenuVisita(sId, fOrig);
         }
+        return;
+      }
+
+      if (filaVisita) {
+        if (ordenSeleccionadaId === filaVisita.dataset.subId) deseleccionarTarea();
+        else abrirMenuVisita(filaVisita.dataset.subId, "");
         return;
       }
 
@@ -879,25 +915,12 @@
       }
     });
 
-    cuerpoGantt?.addEventListener("dblclick", (e) => {
-      const tarjeta = e.target.closest("div[data-action='tarjeta-amarilla']");
-      if (tarjeta) {
-        const sId = tarjeta.dataset.subId;
-        const item = datosConsolidados.find(d => d.subId === sId);
-        if (!item) return;
-
-        deseleccionarTarea();
-        ordenEditandoId = item.id;
-        subIdEditando = item.subId;
-        indexVisitaEditando = item.indexVisita;
-        fechaSeleccionadaOriginal = tarjeta.dataset.fechaOrigen;
-
-        document.getElementById("modal-cliente").textContent = `${item.titular} (${item.etiquetaVisita})`;
-        document.getElementById("modal-difunto").textContent = `Difunto: ${item.difunto} - ${item.plan}`;
-        document.getElementById("modal-input-fecha").value = fechaSeleccionadaOriginal || convertirAFechaInput(item.proximaVisita);
-        document.getElementById("modal-select-operador").value = item.operadorAsignado || "Sin asignar";
-        document.getElementById("modal-reprogramar").classList.remove("hidden");
-      }
+    document.getElementById("btn-mover-en-gantt")?.addEventListener("click", () => {
+      if (!subIdEditando) return;
+      const sId = subIdEditando;
+      const fOrig = fechaSeleccionadaOriginal;
+      cerrarModal();
+      iniciarMovimiento(sId, fOrig);
     });
 
     function cerrarModal() {
