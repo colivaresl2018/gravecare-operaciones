@@ -85,8 +85,9 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
-    import { crearIndiceInformes, numerosTerminados, evaluarVisita, construirCierreVisita } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
-    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
+    import { crearIndiceInformes, numerosTerminados, evaluarVisita, construirCierreVisita } from "./js/servicio-terminado.js?v=ops13"; // regla única de «Servicio Terminado»
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor único del nombre del cliente
+    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -325,7 +326,24 @@
         renderizarTabla();
       } catch (err) {
         console.error("Error al cargar trabajos:", err);
+        mostrarErrorCarga();
       }
+    }
+
+    // Si la carga falla, se muestra un aviso con botón «Reintentar» en vez de dejar «Cargando…» para siempre.
+    function mostrarErrorCarga() {
+      const tbody = document.getElementById("cuerpo-tabla-activos");
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-12 text-center text-slate-600 text-sm">No se pudieron cargar los trabajos. <button type="button" class="btn-reintentar-carga ml-2 px-3 py-1 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Reintentar</button></td></tr>';
+        tbody.querySelectorAll(".btn-reintentar-carga").forEach(b => b.addEventListener("click", () => {
+          tbody.innerHTML = '<tr><td colspan="8" class="py-12 text-center text-slate-400"><div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#002d1a] border-t-transparent mb-2"></div><p>Cargando cronograma operativo de visitas...</p></td></tr>';
+          const contador = document.getElementById("contador-activos");
+          if (contador) contador.textContent = "Cargando tareas operativas...";
+          cargarTrabajosActivos();
+        }));
+      }
+      const contador = document.getElementById("contador-activos");
+      if (contador) contador.textContent = "Error al cargar";
     }
 
     window.completarVisitaIndividual = async function(ordenId, numeroVisita, totalVisitas) {
