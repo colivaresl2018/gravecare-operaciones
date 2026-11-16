@@ -61,3 +61,34 @@ test('los arreglos antiguos fechasProgramadas no se usan como fecha real', () =>
   const orden = { planNombre: 'Plan 4', fechasProgramadas: ['2027-01-16', '2027-04-16'] };
   assert.equal(fechaVisitaConOrigen(orden, 1), null, 'sin inicio ni fecha real: no hay nada que mostrar');
 });
+
+// ── Spot: la fecha la elige el cliente al contratar; la web la guarda en la orden (fechaProgramada / fechaServicio) ──
+test('Spot sin fechasPorVisita: usa fechaProgramada (AAAA-MM-DD) como fecha real, no tentativa', () => {
+  const orden = { planNombre: 'Spot', fechaProgramada: '2026-12-05', fechaContratacion: '2026-11-10' };
+  const r = fechaVisitaConOrigen(orden, 1);
+  assert.equal(ymd(r.fecha), '2026-12-05');
+  assert.equal(r.tentativa, false);
+});
+
+test('Spot sin fechaProgramada: usa fechaServicio (DD/MM/AAAA)', () => {
+  const orden = { servicio: { planNombre: 'Spot' }, fechaServicio: '05/12/2026' };
+  const r = fechaVisitaConOrigen(orden, 1);
+  assert.equal(ymd(r.fecha), '2026-12-05');
+  assert.equal(r.tentativa, false);
+});
+
+test('Spot: la fecha real de la visita (fechasPorVisita.V1) gana sobre la elegida al contratar', () => {
+  const orden = { planNombre: 'Spot', fechaProgramada: '2026-12-05', fechasPorVisita: { V1: '2026-12-20T15:00:00.000Z' } };
+  assert.equal(ymd(fechaVisitaConOrigen(orden, 1).fecha), '2026-12-20');
+});
+
+test('Spot: fechas inválidas no inventan nada', () => {
+  assert.equal(fechaVisitaConOrigen({ planNombre: 'Spot', fechaServicio: '31/02/2026' }, 1), null);
+  assert.equal(fechaVisitaConOrigen({ planNombre: 'Spot', fechaProgramada: 'mañana' }, 1), null);
+  assert.equal(fechaVisitaConOrigen({ planNombre: 'Spot' }, 1), null);
+});
+
+test('planes de varias visitas: fechaProgramada (puntero a la próxima visita) NO se toma como fecha de la visita', () => {
+  const orden = { planNombre: 'Plan 4', fechaProgramada: '2026-12-05' };
+  assert.equal(fechaVisitaConOrigen(orden, 1), null);
+});

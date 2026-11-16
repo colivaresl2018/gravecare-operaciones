@@ -4,7 +4,9 @@
  * - Se calcula en pantalla; NO se escribe en Firestore. Una fecha real (fechasPorVisita.<clave>) siempre gana.
  * - Visita n de un plan = fecha de inicio + n × intervalo (12 visitas → cada 1 mes; 6 → cada 2; 4 → cada 3),
  *   el mismo criterio que usaban Órdenes y Planificación.
- * - Spot (1 visita): su fecha la elige el cliente al comprar; sin fecha guardada no hay tentativa.
+ * - Spot (1 visita): su fecha la elige el cliente al comprar y la web la guarda en la orden (`fechaProgramada`
+ *   AAAA-MM-DD o `fechaServicio` DD/MM/AAAA). Se muestra como fecha REAL (no tentativa); `fechasPorVisita.V1` la supera.
+ *   Sin ninguna de las dos no hay fecha: Spot no tiene tentativa.
  * - Sin fecha de inicio conocida no hay tentativa (no se usa ninguna fecha por defecto).
  * Sin Firebase ni DOM.
  */
@@ -67,6 +69,19 @@ export function planDeOrden(orden) {
   return o.servicio?.planNombre || o.planNombre || o.tipoPlan || o.plan || 'Plan 4';
 }
 
+/** Fecha elegida por el cliente al contratar un Spot, guardada por la web en la orden. Solo se acepta una fecha de calendario válida. */
+export function fechaSpotDelCliente(orden) {
+  const o = orden || {};
+  let y, mo, d;
+  let m = typeof o.fechaProgramada === 'string' && o.fechaProgramada.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) [, y, mo, d] = m;
+  else if ((m = typeof o.fechaServicio === 'string' && o.fechaServicio.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) [, d, mo, y] = m;
+  else return null;
+  const f = new Date(Number(y), Number(mo) - 1, Number(d), 10, 0, 0);
+  const valida = f.getFullYear() === Number(y) && f.getMonth() === Number(mo) - 1 && f.getDate() === Number(d);
+  return valida ? f : null;
+}
+
 /** Fecha tentativa de la visita `numero` según el plan y la fecha de inicio, o null. */
 export function fechaTentativaVisita(orden, numero) {
   const plan = planDeOrden(orden);
@@ -86,6 +101,12 @@ export function fechaVisitaConOrigen(orden, numero) {
   const clave = `V${numero}`;
   const real = fechaGuardadaVisita(orden, clave);
   if (real) return { fecha: real, tentativa: false };
+  // Spot: la fecha que eligió el cliente al contratar. Solo la visita 1 de un plan de 1 visita; en los demás planes
+  // `fechaProgramada` es el puntero a la próxima visita y no es la fecha de ninguna en particular.
+  if (numero === 1 && totalVisitasPlan(planDeOrden(orden)) === 1) {
+    const delCliente = fechaSpotDelCliente(orden);
+    if (delCliente) return { fecha: delCliente, tentativa: false };
+  }
   const tentativa = fechaTentativaVisita(orden, numero);
   return tentativa ? { fecha: tentativa, tentativa: true } : null;
 }
