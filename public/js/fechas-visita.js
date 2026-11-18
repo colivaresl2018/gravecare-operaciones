@@ -9,17 +9,45 @@
 const CLAVE = /^V\d{1,3}$/;
 export const CAMPO_PROHIBIDO = 'fechasProgramadas';
 
-/** Fecha guardada para una visita, o null si no existe o no es válida. */
+/** Un servicio Spot tiene una sola visita. */
+export function esServicioSpot(ord) {
+  const tipo = String((ord && ord.tipoServicio) || '').trim().toLowerCase();
+  const plan = String((ord && (ord.plan || ord.planContratado)) || '').toLowerCase();
+  return tipo === 'spot' || plan.includes('spot');
+}
+
+/**
+ * Fecha que eligió el cliente al comprar un servicio Spot (fechaProgramada / fechaServicio de la orden).
+ * Acepta AAAA-MM-DD o DD/MM/AAAA. Se toma a mediodía local para que no cambie de día por la zona horaria.
+ */
+export function fechaSpotDelCliente(ord) {
+  if (!esServicioSpot(ord)) return null;
+  const crudo = String((ord && (ord.fechaProgramada || ord.fechaServicio)) || '').trim();
+  let y, m, d;
+  let r = /^(\d{4})-(\d{2})-(\d{2})/.exec(crudo);
+  if (r) { y = +r[1]; m = +r[2]; d = +r[3]; }
+  else if ((r = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(crudo))) { d = +r[1]; m = +r[2]; y = +r[3]; }
+  else return null;
+  const f = new Date(y, m - 1, d, 12, 0, 0);
+  return f.getFullYear() === y && f.getMonth() === m - 1 && f.getDate() === d ? f : null;
+}
+
+/**
+ * Fecha guardada para una visita, o null si no existe o no es válida.
+ * Si la orden es Spot y aún no tiene fechasPorVisita.V1, se usa la fecha que eligió el cliente (la misma que muestra la orden).
+ */
 export function fechaGuardadaVisita(ord, clave) {
   if (!CLAVE.test(String(clave || ''))) return null;
   const mapa = ord && ord.fechasPorVisita && typeof ord.fechasPorVisita === 'object' ? ord.fechasPorVisita : null;
-  if (!mapa) return null;
-  const v = mapa[clave];
+  const v = mapa ? mapa[clave] : undefined;
   let f = null;
   if (v && typeof v.toDate === 'function') f = v.toDate();
   else if (v instanceof Date) f = v;
+  else if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) f = new Date(+v.slice(0, 4), +v.slice(5, 7) - 1, +v.slice(8, 10), 12, 0, 0);
   else if (typeof v === 'string' || typeof v === 'number') f = new Date(v);
-  return f && !isNaN(f.getTime()) ? f : null;
+  if (f && !isNaN(f.getTime())) return f;
+  if (clave === 'V1') return fechaSpotDelCliente(ord);
+  return null;
 }
 
 /** Bloquea cualquier payload que intente escribir el arreglo completo. Lanza si lo encuentra. */
