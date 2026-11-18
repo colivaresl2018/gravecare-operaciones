@@ -88,6 +88,7 @@
     import { crearIndiceInformes, numerosTerminados, evaluarVisita, construirCierreVisita } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
+    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita (restaurado tras la fusión)
 
     const firebaseConfig = FIREBASE_CONFIG;
 
