@@ -88,6 +88,7 @@
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
     import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js"; // avance real: visitas que cumplen la regla única
+    import { nombreClienteParaMostrar, nombreClienteDeOrden, nombreFilaCliente, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor único del nombre del cliente (restaurado tras la fusión)
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { 
       getFirestore, 
