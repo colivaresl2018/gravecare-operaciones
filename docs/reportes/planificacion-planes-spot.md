@@ -1,6 +1,6 @@
 # Planificación Planes y Spot: pestaña nueva con subpestañas «Planes» y «Spot»
 
-**Fecha:** 2026-11-18 · **Rama:** `feat/planificacion-planes-spot` · **Tag propuesto:** `ops-planserv-1` (no creado)
+**Fecha:** 2026-11-18 · **Rama:** `feat/planificacion-planes-spot` · **Tag:** `ops-planserv-2` (no usar `ops-planserv-1`: ver «Despliegue»)
 
 ## Qué se hizo
 Una pantalla nueva e independiente, **«Planificación Planes y Spot»**, con dos subpestañas, accesible desde el menú lateral (solo administradores):
@@ -38,7 +38,7 @@ El código lo desarrolló otra IA y llegó como zip. Se revisó, se encontraron 
 12. **Pruebas:** las del zip simulaban los módulos de fechas y por eso pasaban con el código roto; se reescribieron con los módulos reales.
 
 ## Pruebas
-`node --test tests/ public/js/` → **383 pasan, 0 fallan** (343 de la base + 40 nuevas: 21 de lógica con módulos reales y 19 estáticas de integración).
+`node --test tests/ public/js/` → **392 pasan, 0 fallan** (la base más 40 nuevas de esta pantalla: 21 de lógica con módulos reales y 19 estáticas de integración).
 
 **Verificado en el navegador** con los emuladores de la web (puertos desplazados `GC_OFFSET=2100`, proyecto `demo-gravecare`, datos ficticios; nada contra producción):
 - Dentro del portal, como administrador: aparece «Planificación Planes y Spot» en el menú, abre en el marco, el título de la barra cambia y el botón queda activo. Como operador el botón no se ve.
@@ -53,17 +53,26 @@ El código lo desarrolló otra IA y llegó como zip. Se revisó, se encontraron 
 Los módulos de esta pantalla llevan `?v=ps1` (`planificacion-servicios.js`, `fechas-visita.js`, `fechas-tentativas.js`) para que ningún navegador use una copia vieja de `fechas-visita.js`, que ya cambió (`fechaSpotDelCliente`). Si se vuelve a cambiar alguno, hay que subir ese número.
 
 ## Despliegue y reversa
-Solo Hosting de `gravecare-ops`, desde un clon limpio en un tag. Esta rama **incluye** `feat/spot-fecha-automatica` (fecha del Spot en Órdenes y Planificación, ya desplegada como `e065984`) y la base de `fix/escape-html-backoffice` (`ops-16`), así que no retrocede nada de lo publicado.
+Solo Hosting de `gravecare-ops`, desde un clon limpio en el tag **`ops-planserv-2`**.
+
+**Por qué no `ops-planserv-1`:** al comparar el sitio en vivo con el tag (archivo por archivo) se vio que el tag 1 no incluía `clientes.html` con la agrupación por RUT que **ya está publicada** (commit `9c6a956`, rama `feat/clientes-agrupar-publicado`); desplegarlo habría vuelto a separar a los clientes. El tag 2 fusiona esa rama.
+
+**Comparación con el sitio en vivo (`gravecare-ops.web.app`), tag 2:** de 46 archivos de `public/` (sin pruebas) 42 son idénticos. Los 4 distintos son los previstos:
+- `planificacion-servicios.html` y `js/planificacion-servicios.js`: nuevos (hoy dan 404).
+- `portal.html`: +6 líneas (botón y título del módulo).
+- `js/fechas-visita.js`: añade `fechaSpotDelCliente` y el respaldo de la fecha del Spot en V1. Hoy en vivo está la versión anterior (`1b7f21e`, tags ops-10…ops-17), o sea que el arreglo de la fecha del Spot en Órdenes y Planificación **no** estaba publicado; con este tag queda publicado.
+
+Los tags `ops-17`…`ops-20` y `ops-clientes-1/2` no son ancestros de este tag, pero su contenido en vivo coincide con lo que este tag publica (comparado por archivo), salvo lo indicado arriba.
 ```powershell
-cd C:\Despliegue\GravecareOps
+cd C:DespliegueGravecareOps
 git fetch --all --tags
-git checkout <tag>
+git checkout ops-planserv-2
 git status --short                      # vacío
 firebase deploy --only hosting:gravecare-ops --project gravecare-2e8d2
 ```
 - **Antes:** anotar la versión vigente de `gravecare-ops` (consola de Hosting) como punto de reversa.
-- **Reversa:** historial de versiones de Hosting del sitio `gravecare-ops`. La pantalla es nueva y el único cambio en una página existente son 6 líneas de `portal.html`.
+- **Reversa:** historial de versiones de Hosting del sitio `gravecare-ops`.
 
 ## Pendiente
 - Decisiones del dueño sobre las reglas v5.1 (ejes, feriados, +30 ±3 días) y sobre si el Spot debe moverse al día del eje (hoy no se mueve).
-- `main` no tiene aún `html-seguro.js` ni `fechaSpotDelCliente`: esta rama depende de que esas ramas se integren juntas (o de desplegar desde esta).
+- `main` no tiene aún `html-seguro.js`, `fechaSpotDelCliente` ni la agrupación de Clientes: esta rama los trae fusionados. Conviene integrar todo a `main` para que la próxima rama parta de una base completa.
