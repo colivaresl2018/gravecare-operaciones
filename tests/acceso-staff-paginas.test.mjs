@@ -12,7 +12,7 @@ const lee = (p) => readFileSync(join(PUBLIC, p), 'utf8').replace(/\r/g, '');
 // Páginas con la barrera ya desde la spec 040 + las seis cerradas en B-13.
 const PAGINAS = [
   'ordenes.html', 'planificacion.html', 'todos-los-trabajos.html', 'trabajos-terminados.html', 'gastos-ingresos.html',
-  'clientes.html', 'informe-captura.html', 'informe-revision.html', 'mapa.html', 'mis-trabajos.html', 'portal.html',
+  'clientes.html', 'planificacion-servicios.html', 'informe-captura.html', 'informe-revision.html', 'mapa.html', 'mis-trabajos.html', 'portal.html',
 ];
 
 for (const pagina of PAGINAS) {
