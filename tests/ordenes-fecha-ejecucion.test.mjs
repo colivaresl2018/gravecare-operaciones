@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 const html = readFileSync(new URL('../public/ordenes.html', import.meta.url), 'utf8').replace(/\r/g, '');
 
 test('la celda de fecha abre el modal con el calendario', () => {
-  assert.match(html, /onclick="window\.abrirModalAsignar\('\$\{item\.idVisitaCompleto\}', 'fecha'\)"/);
+  assert.match(html, /data-id="\$\{esc\(item\.idVisitaCompleto\)\}" onclick="window\.abrirModalAsignar\(this\.dataset\.id, 'fecha'\)"/);
   assert.match(html, /window\.abrirModalAsignar = function\(idVisitaCompleto, foco\)/);
   assert.match(html, /if \(foco === "fecha"\)/);
   assert.match(html, /inputFecha\.showPicker\?\.\(\)/);

@@ -183,6 +183,7 @@
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
     import { crearIndiceInformes, evaluarVisitas } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
     import { resolverFotosInforme } from "./js/fotos-informe.js"; // las 4 fotos del informe, igual que informe-revision.html
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
 
     const firebaseConfig = FIREBASE_CONFIG;
 
@@ -300,7 +301,7 @@
         const selCem = document.getElementById("filtro-cementerio");
         if (selCem) {
           selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
-            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+            Array.from(cementeriosSet).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
         }
 
         renderizarTabla();
@@ -417,17 +418,17 @@
       tbody.innerHTML = filtradas.map(item => `
         <tr class="hover:bg-slate-50 transition text-slate-700">
           <td class="py-3.5 px-4">
-            <span class="font-mono font-bold text-[#002d1a] block">#${item.numeroOrden}</span>
-            <span class="text-[11px] text-emerald-800 font-extrabold">${item.etiquetaVisita}</span>
+            <span class="font-mono font-bold text-[#002d1a] block">#${esc(item.numeroOrden)}</span>
+            <span class="text-[11px] text-emerald-800 font-extrabold">${esc(item.etiquetaVisita)}</span>
           </td>
-          <td class="py-3.5 px-4 font-semibold text-slate-900">${item.cliente}</td>
-          <td class="py-3.5 px-4 font-medium text-emerald-950">${item.difunto}</td>
+          <td class="py-3.5 px-4 font-semibold text-slate-900">${esc(item.cliente)}</td>
+          <td class="py-3.5 px-4 font-medium text-emerald-950">${esc(item.difunto)}</td>
           <td class="py-3.5 px-4">
-            <span class="font-semibold block text-slate-800">${item.cementerio}</span>
-            <span class="text-[11px] text-slate-500">${item.ubicacion}</span>
+            <span class="font-semibold block text-slate-800">${esc(item.cementerio)}</span>
+            <span class="text-[11px] text-slate-500">${esc(item.ubicacion)}</span>
           </td>
           <td class="py-3.5 px-4">
-            <span class="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-bold text-[11px] inline-block">${item.plan}</span>
+            <span class="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-bold text-[11px] inline-block">${esc(item.plan)}</span>
           </td>
           <td class="py-3.5 px-4 font-mono text-[11px]">${formatearFecha(item.fechaTermino)}</td>
           <td class="py-3.5 px-4 text-center">
@@ -438,12 +439,12 @@
           <!-- COLUMNA OPERADOR -->
           <td class="py-3.5 px-4 text-center">
             <span class="font-bold text-slate-800 text-[11px] bg-slate-100 px-2.5 py-1 rounded-lg inline-block border border-slate-200">
-              ${item.operador}
+              ${esc(item.operador)}
             </span>
           </td>
           <!-- COLUMNA INFORME -->
           <td class="py-3.5 px-4 text-center">
-            ${item.tieneInforme ? `<button type="button" onclick="window.abrirModalInforme('${item.idInforme}', '${item.ordenDocId}', '${item.operador}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#002d1a] hover:bg-[#003d24] text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Ver informe fotográfico">
+            ${item.tieneInforme ? `<button type="button" data-informe="${esc(item.idInforme)}" data-orden="${esc(item.ordenDocId)}" data-operador="${esc(item.operador)}" onclick="window.abrirModalInforme(this.dataset.informe, this.dataset.orden, this.dataset.operador)" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#002d1a] hover:bg-[#003d24] text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Ver informe fotográfico">
               <span class="material-symbols-outlined text-sm">visibility</span>
               <span>Ver Informe</span>
             </button>` : `<button type="button" disabled class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-200 text-slate-500 font-bold text-xs shadow-sm cursor-not-allowed" title="Esta visita no tiene informe registrado">

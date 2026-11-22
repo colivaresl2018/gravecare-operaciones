@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planificación Planes y Spot | GraveCare Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+  <!-- Encabezado y subpestañas -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-[#002d1a]">Planificación Planes y Spot</h1>
+      <p class="text-xs text-slate-500 mt-1">Visitas de los servicios con plan y servicios Spot con pago confirmado. Vista de consulta: las fechas y los operadores se cambian en «Planificación &amp; Gantt».</p>
+    </div>
+
+    <div class="flex items-center bg-slate-200/80 p-1 rounded-xl" role="tablist" aria-label="Subpestañas de planificación">
+      <button type="button" id="tab-planes" data-tab="planes" role="tab" aria-selected="true" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_view_month</span> Planes
+        <span id="contador-planes" class="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">0</span>
+      </button>
+      <button type="button" id="tab-spot" data-tab="spot" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">event</span> Spot
+        <span id="contador-spot" class="ml-1 px-1.5 py-0.5 rounded-full bg-slate-300/70 text-[10px]">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Aviso de error de carga -->
+  <div id="aviso-error" class="hidden mb-4 p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-center justify-between shadow-sm" role="alert">
+    <span class="text-xs font-bold text-rose-800">No se pudo cargar la planificación.</span>
+    <button type="button" id="btn-reintentar" class="px-3 py-1 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Reintentar</button>
+  </div>
+
+  <div id="estado-carga" class="bg-white rounded-xl border border-slate-200 shadow-sm py-8 text-center text-slate-400 text-sm">Cargando planificación...</div>
+
+  <!-- Subpestaña PLANES -->
+  <div id="panel-planes" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-3 items-center">
+      <div class="w-full sm:w-60">
+        <input type="text" id="planes-busqueda" placeholder="Buscar cliente, difunto o N°..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="planes-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="planes-operador" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Operadores</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="planes-estado" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Estados</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <th class="py-3.5 px-3">Fecha de la visita</th>
+              <th class="py-3.5 px-3">N° orden</th>
+              <th class="py-3.5 px-3">Cliente</th>
+              <th class="py-3.5 px-3">Ser Querido</th>
+              <th class="py-3.5 px-3">Plan</th>
+              <th class="py-3.5 px-3">Visita</th>
+              <th class="py-3.5 px-3">Cementerio</th>
+              <th class="py-3.5 px-3">Operador</th>
+              <th class="py-3.5 px-3">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-planes" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Subpestaña SPOT -->
+  <div id="panel-spot" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-3 items-center">
+      <div class="w-full sm:w-60">
+        <input type="text" id="spot-busqueda" placeholder="Buscar cliente, difunto o N°..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="spot-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <th class="py-3.5 px-3">Fecha elegida por el cliente</th>
+              <th class="py-3.5 px-3">N° orden</th>
+              <th class="py-3.5 px-3">Cliente</th>
+              <th class="py-3.5 px-3">Ser Querido</th>
+              <th class="py-3.5 px-3">Cementerio</th>
+              <th class="py-3.5 px-3">Operador</th>
+              <th class="py-3.5 px-3">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-spot" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
+    import { esOrdenPagada, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
+    import { crearIndiceInformes } from "./js/servicio-terminado.js?v=ops13"; // regla única de visita terminada
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor único del nombre del cliente
+    import { construirFilasPlanificacion, filtrarPlanes, filtrarSpot } from "./js/planificacion-servicios.js?v=ps1";
+
+    const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let filasPlanes = [];
+    let filasSpot = [];
+    let pestanaActiva = "planes";
+
+    const $ = (id) => document.getElementById(id);
+
+    function cambiarPestana(tab) {
+      pestanaActiva = tab === "spot" ? "spot" : "planes";
+      const esSpotActiva = pestanaActiva === "spot";
+      $("panel-planes").classList.toggle("hidden", esSpotActiva);
+      $("panel-spot").classList.toggle("hidden", !esSpotActiva);
+      const ACTIVA = ["bg-[#002d1a]", "text-white", "shadow-sm"];
+      const INACTIVA = ["text-slate-700", "hover:text-[#002d1a]"];
+      [["planes", "contador-planes"], ["spot", "contador-spot"]].forEach(([nombre, idContador]) => {
+        const activa = nombre === pestanaActiva;
+        const btn = $("tab-" + nombre);
+        btn.classList.remove(...(activa ? INACTIVA : ACTIVA));
+        btn.classList.add(...(activa ? ACTIVA : INACTIVA));
+        btn.setAttribute("aria-selected", activa ? "true" : "false");
+        const cont = $(idContador);
+        cont.classList.toggle("bg-white/20", activa);
+        cont.classList.toggle("bg-slate-300/70", !activa);
+      });
+    }
+
+    function llenarMenu(idSelect, valores, etiquetaTodos) {
+      const select = $(idSelect);
+      const actual = select.value;
+      const unicos = [...new Set(valores.filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+      select.innerHTML = `<option value="">${esc(etiquetaTodos)}</option>` +
+        unicos.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+      if (unicos.includes(actual)) select.value = actual;
+    }
+
+    function celdaFecha(f) {
+      const insignia = f.esTentativa
+        ? ' <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold">Tentativa</span>'
+        : "";
+      const clase = f.fechaIso ? "font-bold text-slate-800" : "text-slate-400 italic";
+      return `<td class="py-3 px-3 whitespace-nowrap ${clase}">${esc(f.fechaTexto)}${insignia}</td>`;
+    }
+
+    function celdaEstado(f) {
+      return `<td class="py-3 px-3 whitespace-nowrap"><span class="inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold ${esc(f.estadoClases)}">${esc(f.estado)}</span></td>`;
+    }
+
+    function renderPlanes() {
+      const filtradas = filtrarPlanes(filasPlanes, {
+        busqueda: $("planes-busqueda").value,
+        cementerio: $("planes-cementerio").value,
+        operador: $("planes-operador").value,
+        estado: $("planes-estado").value,
+      });
+      $("contador-planes").textContent = String(filtradas.length);
+      $("tbody-planes").innerHTML = filtradas.length === 0
+        ? '<tr><td colspan="9" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>'
+        : filtradas.map(f => `
+          <tr class="hover:bg-slate-50 transition">
+            ${celdaFecha(f)}
+            <td class="py-3 px-3 whitespace-nowrap font-mono text-slate-700">${esc(f.numeroOrden)}</td>
+            <td class="py-3 px-3 font-semibold text-slate-800">${esc(f.cliente)}${f.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.serQuerido)}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.plan)}</td>
+            <td class="py-3 px-3 whitespace-nowrap text-slate-600">${esc(f.visitaTexto)}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.cementerio)}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.operador)}</td>
+            ${celdaEstado(f)}
+          </tr>`).join("");
+    }
+
+    function renderSpot() {
+      const filtradas = filtrarSpot(filasSpot, {
+        busqueda: $("spot-busqueda").value,
+        cementerio: $("spot-cementerio").value,
+      });
+      $("contador-spot").textContent = String(filtradas.length);
+      $("tbody-spot").innerHTML = filtradas.length === 0
+        ? '<tr><td colspan="7" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>'
+        : filtradas.map(f => `
+          <tr class="hover:bg-slate-50 transition">
+            ${celdaFecha(f)}
+            <td class="py-3 px-3 whitespace-nowrap font-mono text-slate-700">${esc(f.numeroOrden)}</td>
+            <td class="py-3 px-3 font-semibold text-slate-800">${esc(f.cliente)}${f.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.serQuerido)}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.cementerio)}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.operador)}</td>
+            ${celdaEstado(f)}
+          </tr>`).join("");
+    }
+
+    // Respaldo del nombre del cliente: contratos. Si no se pueden leer, el nombre queda como esté en la orden.
+    function leerContratos() {
+      return cargarContratos(async () => {
+        const sc = await getDocs(collection(db, "contratos"));
+        const l = [];
+        sc.forEach(c => l.push([c.id, c.data()]));
+        return l;
+      });
+    }
+
+    // Evidencia de visitas terminadas. Si no se pueden leer los informes, ninguna visita se da por hecha.
+    async function leerIndiceInformes() {
+      try {
+        const snap = await getDocs(collection(db, "informes"));
+        const entradas = [];
+        snap.forEach(i => entradas.push([i.id, i.data()]));
+        return crearIndiceInformes(entradas);
+      } catch (e) {
+        console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        return crearIndiceInformes([]);
+      }
+    }
+
+    // Lista de operadores para el filtro (activos). Si falla, el filtro usa solo los operadores que aparecen en las visitas.
+    async function leerOperadores() {
+      const nombres = [];
+      try {
+        const snap = await getDocs(collection(db, "staff"));
+        snap.forEach(d => {
+          const s = d.data();
+          if (s.activo !== false) nombres.push(s.nombre || s.email || "");
+        });
+      } catch (e) {
+        console.warn("Aviso consultando staff:", e && e.code ? e.code : "ERROR");
+      }
+      return nombres;
+    }
+
+    async function cargarDatos() {
+      $("aviso-error").classList.add("hidden");
+      $("estado-carga").classList.remove("hidden");
+      try {
+        const contratosMap = await leerContratos();
+        const indiceInformes = await leerIndiceInformes();
+        const operadores = await leerOperadores();
+
+        const snapOrdenes = await getDocs(collection(db, "ordenes"));
+        const ordenesPagadas = [];
+        snapOrdenes.forEach(docSnap => {
+          const ord = docSnap.data();
+          if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
+          ordenesPagadas.push({ id: docSnap.id, data: ord });
+        });
+
+        const resultado = construirFilasPlanificacion(ordenesPagadas, {
+          indiceInformes,
+          nombreCliente: (orden, id) => nombreClienteParaMostrar(orden, contratosDeOrden(contratosMap, orden, id)),
+        });
+        filasPlanes = resultado.planes;
+        filasSpot = resultado.spot;
+
+        llenarMenu("planes-cementerio", filasPlanes.map(f => f.cementerio), "Todos los Cementerios");
+        llenarMenu("planes-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
+        llenarMenu("planes-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
+        llenarMenu("spot-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
+
+        $("estado-carga").classList.add("hidden");
+        cambiarPestana(pestanaActiva);
+        renderPlanes();
+        renderSpot();
+      } catch (err) {
+        console.error("Error cargando planificación de servicios:", err && err.code ? err.code : "ERROR");
+        $("estado-carga").classList.add("hidden");
+        $("panel-planes").classList.add("hidden");
+        $("panel-spot").classList.add("hidden");
+        $("aviso-error").classList.remove("hidden");
+      }
+    }
+
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
+    $("btn-reintentar").addEventListener("click", () => cargarDatos());
+    ["planes-busqueda", "planes-cementerio", "planes-operador", "planes-estado"].forEach(id => {
+      $(id).addEventListener("input", renderPlanes);
+      $(id).addEventListener("change", renderPlanes);
+    });
+    ["spot-busqueda", "spot-cementerio"].forEach(id => {
+      $(id).addEventListener("input", renderSpot);
+      $(id).addEventListener("change", renderSpot);
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!(await exigirStaff(auth, user))) return; // spec 040: exige staffActivo
+      await cargarDatos();
+    });
+  </script>
+</body>
+</html>
