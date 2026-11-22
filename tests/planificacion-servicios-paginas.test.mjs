@@ -27,7 +27,7 @@ test('todos los módulos que importa la página y su lógica existen en public/j
 test('usa los módulos compartidos reales y con ?v= (no una copia vieja del navegador)', () => {
   assert.match(html, /from "\.\/js\/nombre-cliente\.js\?v=ops13"/);
   assert.match(html, /from "\.\/js\/servicio-terminado\.js\?v=ops13"/);
-  assert.match(html, /from "\.\/js\/planificacion-servicios\.js\?v=ps1"/);
+  assert.match(html, /from "\.\/js\/planificacion-servicios\.js\?v=b5"/);
   assert.match(js, /from '\.\/fechas-visita\.js\?v=ps1'/);
   assert.match(js, /from '\.\/fechas-tentativas\.js\?v=ps1'/);
   assert.doesNotMatch(html, /\.\/js\/(contratos|visitas-estado)\.js/);
@@ -120,4 +120,95 @@ test('portal.html: botón solo para administradores y título del módulo', () =
 test('la pantalla existente «Planificación & Gantt» no se tocó', () => {
   const gantt = lee('planificacion.html');
   assert.ok(!gantt.includes('planificacion-servicios'));
+});
+
+// ─── Directriz B5, etapa 1: pestañas Planes · matriz, Spot · matriz y Resumen de Ventas ───────────────────────
+
+const NUEVOS = ['rutas-planificacion', 'fechas-semana', 'matriz-planificacion', 'matriz-vistas', 'resumen-ventas', 'resumen-vistas'];
+
+test('B5: los módulos nuevos existen y todo lo que importan existe (un import roto deja la pantalla en blanco)', () => {
+  for (const nombre of NUEVOS) {
+    const ruta = join(PUBLIC, 'js', `${nombre}.js`);
+    assert.ok(existsSync(ruta), `falta ${nombre}.js`);
+    for (const r of importsRelativos(lee(`js/${nombre}.js`))) assert.ok(existsSync(join(PUBLIC, 'js', r)), `${nombre}.js importa ${r}, que no existe`);
+    assert.match(html, new RegExp(`from "\\./js/${nombre}\\.js\\?v=b5"`)) ;
+  }
+});
+
+test('B5: la página tiene las 5 pestañas (Planes, Spot, Planes · matriz, Spot · matriz, Resumen de Ventas)', () => {
+  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "resumen"\];/);
+  for (const [id, texto] of [['matriz-planes', 'Planes · matriz'], ['matriz-spot', 'Spot · matriz'], ['resumen', 'Resumen de Ventas']]) {
+    assert.match(html, new RegExp(`id="tab-${id}" data-tab="${id}"`));
+    assert.ok(html.includes(texto), texto);
+    assert.match(html, new RegExp(`id="panel-${id}" class="hidden"`));
+  }
+});
+
+test('B5: la lista de Planes trae las columnas Tipo de servicio, Ramos adicionales y Eje, en el orden de la directriz', () => {
+  const cabecera = html.slice(html.indexOf('<th class="py-3.5 px-3">Fecha de la visita</th>'), html.indexOf('id="tbody-planes"'));
+  const orden = ['Plan', 'Tipo de servicio', 'Visita', 'Ramos adicionales', 'Cementerio', 'Eje', 'Operador', 'Estado'].map((t) => cabecera.indexOf(`>${t}</th>`));
+  assert.ok(orden.every((i) => i > 0), JSON.stringify(orden));
+  assert.deepEqual([...orden].sort((x, y) => x - y), orden);
+  assert.equal((cabecera.match(/<th /g) || []).length, 12);
+  assert.match(html, /colspan="12" class="py-8/);
+  assert.match(html, /\$\{esc\(f\.nivel\)\}/);
+  assert.match(html, /\$\{esc\(f\.ramosAdicionales\)\}/);
+  assert.match(html, /\$\{esc\(f\.eje\)\}/);
+});
+
+test('B5: filtros Eje y Mes en las listas, y Mes que lleva cada matriz a su semana o mes', () => {
+  for (const id of ['planes-eje', 'planes-mes', 'spot-mes', 'mp-eje', 'mp-mes', 'mp-operador', 'ms-operador', 'ms-mes']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(html, /mes: \$\("planes-mes"\)\.value/);
+  assert.match(html, /mes: \$\("spot-mes"\)\.value/);
+  assert.match(html, /lunesMatriz = lunesDeLaSemana\(\$\("mp-mes"\)\.value \+ "-01"\)/);
+});
+
+test('B5: los ejes y los feriados se LEEN de las colecciones rutas y feriados, sin copia en el código ni en el repo', () => {
+  assert.match(html, /getDocs\(collection\(db, "rutas"\)\)/);
+  assert.match(html, /getDocs\(collection\(db, "feriados"\)\)/);
+  assert.match(html, /rutas = await leerRutas\(\);/);
+  assert.match(html, /construirFilasPlanificacion\(ordenesPagadas, \{[\s\S]*?\brutas,\s*\}\)/);
+  const codigo = NUEVOS.map((n) => lee(`js/${n}.js`)).join('\n') + js + html;
+  for (const nombre of ['Eje Santiago Norte', 'Eje Santiago Poniente', 'Eje Santiago Sur', 'Eje Rancagua']) assert.ok(!codigo.includes(nombre), `el eje «${nombre}» no debe estar escrito en el código`);
+  assert.doesNotMatch(codigo, /Todos los Santos|Año Nuevo|Navidad|Viernes Santo/); // los feriados no se copian al código
+  assert.equal(existsSync(join(PUBLIC, '..', 'firestore.rules')), false); // el backoffice no tiene copia de reglas
+  assert.equal(existsSync(join(PUBLIC, '..', 'storage.rules')), false);
+});
+
+test('B5: una lectura que falla (rutas, feriados) no tumba la pantalla: se avisa y el cementerio queda «Sin eje»', () => {
+  assert.match(html, /async function leerRutas\(\) \{\s*try \{/);
+  assert.match(html, /async function leerFeriados\(\) \{\s*try \{/);
+  assert.match(html, /rutasFallo = true;/);
+  assert.match(html, /Todos los cementerios aparecen como «Sin eje»/);
+  assert.match(html, /No se pudieron leer los feriados/);
+});
+
+test('B5: sigue siendo de solo lectura (sin reprogramar ni asignar operador): nada que ocultar a un operador', () => {
+  const todo = NUEVOS.map((n) => lee(`js/${n}.js`)).join('\n') + html;
+  assert.doesNotMatch(todo, /\b(updateDoc|setDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
+  assert.doesNotMatch(todo, /operadoresPorVisita\s*[:=]|fechasPorVisita\s*[:=]|guardarEstadoVisita|moverTareaACasillero|reprogramar/i);
+  assert.doesNotMatch(lee('js/matriz-vistas.js'), /onclick|<input|<select|draggable/);
+});
+
+test('B5: el resumen usa montoTotal del servidor y nunca recalcula montos ni usa tablas de precios', () => {
+  const resumen = lee('js/resumen-ventas.js');
+  assert.match(resumen, /orden\.montoTotal|\.montoTotal/);
+  assert.doesNotMatch(resumen, /precioNumerico|TARIFAS|tarifas|valores_ramos|PRECIO|\bprecio\b/i);
+  assert.match(resumen, /esOrdenPagada/);
+  assert.match(html, /if \(!esOrdenPagada\(ord\)\) return;/);
+});
+
+test('B5: la matriz y el resumen no escriben en el DOM sin escapar los datos de Firestore (todo pasa por esc)', () => {
+  for (const nombre of ['matriz-vistas', 'resumen-vistas']) {
+    const src = lee(`js/${nombre}.js`);
+    assert.match(src, /from '\.\/html-seguro\.js'/);
+    assert.ok((src.match(/esc\(/g) || []).length >= 10, nombre);
+  }
+  assert.match(html, /\$\("mp-tbody"\)\.innerHTML = htmlCuerpoSemana\(matriz\)/);
+});
+
+test('B5: no se tocó la regla de acceso ni el Gantt (planificacion.html sigue en su lugar) y el menú no cambió en esta etapa', () => {
+  assert.ok(existsSync(join(PUBLIC, 'planificacion.html')));
+  assert.match(portal, /B4 \(2026-11-22\): «Planificación & Gantt» oculto del menú/);
+  assert.match(portal, /cargarModulo\('planificacion-servicios'\)/);
 });
