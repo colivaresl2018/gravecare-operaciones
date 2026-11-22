@@ -139,7 +139,7 @@ test('B5: los módulos nuevos existen y todo lo que importan existe (un import r
 });
 
 test('B5: la página tiene las 5 pestañas (Planes, Spot, Planes · matriz, Spot · matriz, Resumen de Ventas)', () => {
-  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "resumen"(, "compra", "valores")?\];/); // las 5 de la etapa 1, en ese orden (la etapa 2 agrega 2)
+  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "compra", "valores", "resumen"\];/); // las 5 de la etapa 1 siguen; el orden es el del simulador aprobado (Compra y Valores antes del Resumen)
   for (const [id, texto] of [['matriz-planes', 'Planes · matriz'], ['matriz-spot', 'Spot · matriz'], ['resumen', 'Resumen de Ventas']]) {
     assert.match(html, new RegExp(`id="tab-${id}" data-tab="${id}"`));
     assert.ok(html.includes(texto), texto);
@@ -231,7 +231,7 @@ test('B5 etapa 2: los módulos nuevos existen, todo lo que importan existe y la 
 });
 
 test('B5 etapa 2: la página tiene 7 pestañas (se agregan Compra de flores y Valores de ramos)', () => {
-  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "resumen", "compra", "valores"\];/);
+  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "compra", "valores", "resumen"\];/);
   for (const [id, texto] of [['compra', 'Compra de flores'], ['valores', 'Valores de ramos']]) {
     assert.match(html, new RegExp(`id="tab-${id}" data-tab="${id}"`));
     assert.ok(html.includes(texto), texto);
@@ -282,4 +282,51 @@ test('B5 etapa 2: Gantt, menú y reglas siguen como estaban (sin firestore.rules
   assert.equal(existsSync(join(PUBLIC, '..', 'firestore.rules')), false);
   assert.equal(existsSync(join(PUBLIC, '..', 'storage.rules')), false);
   assert.match(portal, /B4 \(2026-11-22\): «Planificación & Gantt» oculto del menú/);
+});
+
+// ─── Orden de las pestañas y encabezado por pestaña (igual que el simulador aprobado por el dueño) ────────────────
+
+test('orden de las pestañas: Planes, Spot, matrices, Compra de flores, Valores de ramos y Resumen de Ventas (en la página y en el código)', () => {
+  const orden = ['planes', 'spot', 'matriz-planes', 'matriz-spot', 'compra', 'valores', 'resumen'].map((id) => html.indexOf(`id="tab-${id}"`));
+  assert.ok(orden.every((i) => i > 0), JSON.stringify(orden));
+  assert.deepEqual([...orden].sort((x, y) => x - y), orden, 'los botones deben aparecer en este orden');
+});
+
+test('las dos primeras pestañas se llaman «Planificación Planes» y «Planificación Spot»', () => {
+  const boton = (id) => html.slice(html.indexOf(`id="tab-${id}"`), html.indexOf('</button>', html.indexOf(`id="tab-${id}"`)));
+  assert.match(boton('planes'), /Planificación Planes/);
+  assert.match(boton('spot'), /Planificación Spot/);
+  assert.match(boton('planes'), /id="contador-planes"/); // el contador sigue
+  assert.match(boton('spot'), /id="contador-spot"/);
+});
+
+test('el encabezado (título y texto) cambia con la pestaña, con los textos del simulador', () => {
+  assert.match(html, /<h1 id="titulo-planificacion"/);
+  assert.match(html, /<p id="descripcion-planificacion"/);
+  const bloque = html.slice(html.indexOf('const ENCABEZADO = {'), html.indexOf('function cambiarPestana'));
+  const esperado = {
+    planes: ['Planificación Planes', 'Visitas de los servicios con plan con pago confirmado.'],
+    'matriz-planes': ['Planificación Planes', 'Visitas de los servicios con plan con pago confirmado.'],
+    spot: ['Planificación Spot', 'Visitas de los servicios Spot con pago confirmado.'],
+    'matriz-spot': ['Planificación Spot', 'Visitas de los servicios Spot con pago confirmado.'],
+    compra: ['Compra de Flores', ''],
+    valores: ['Valores de los Ramos', ''],
+    resumen: ['Resumen de Ventas', ''],
+  };
+  for (const [tab, [titulo, texto]] of Object.entries(esperado)) {
+    const clave = tab.includes('-') ? `"${tab}"` : tab;
+    assert.ok(bloque.includes(`${clave}: { titulo: "${titulo}", texto: "${texto}" }`), `falta el encabezado de ${tab}`);
+  }
+  assert.match(html, /document\.title = enc\.titulo \+ " \| GraveCare Ops"/);
+  assert.match(html, /hTexto\.style\.display = enc\.texto \? "" : "none"/);
+});
+
+test('el encabezado inicial (antes de cargar) ya es el de Planes y se aplica al abrir la página', () => {
+  assert.match(html, /<h1 id="titulo-planificacion"[^>]*>Planificación Planes<\/h1>/);
+  assert.match(html, /<title>Planificación Planes \| GraveCare Ops<\/title>/);
+  assert.match(html, /cambiarPestana\(pestanaActiva\);\s*\n\s*onAuthStateChanged/); // también si la carga falla
+});
+
+test('el nombre de la página en el menú del portal no cambia', () => {
+  assert.match(portal, /"planificacion-servicios": \{ title: "Planificación Planes y Spot", icon: "fa-solid fa-calendar-check" \}/);
 });
