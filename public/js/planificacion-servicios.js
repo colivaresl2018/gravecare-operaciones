@@ -7,13 +7,14 @@
  *     fecha tentativa       → fechas-tentativas.js    (se calcula, no se guarda)
  *     visita terminada      → servicio-terminado.js   (operador + evidencia + estado propio)
  *     estado de la visita   → estado-visita-unificado.js
- * - No aplica las reglas nuevas de la especificación v5.1 (ejes, feriados, +30 ±3): están pendientes de decisión del dueño.
- *   Cuando se aprueben se cambian en fechas-tentativas.js y esta pantalla las recoge sola.
+ * - El eje de cada cementerio (y su día de ruta) se LEE de la colección `rutas` (directriz B5): aquí solo se muestra; no cambia las fechas.
+ *   Las reglas de fechas tentativas (+30 ±3, feriados) siguen en fechas-tentativas.js y esta pantalla las recoge sola.
  * - Las rutas llevan `?v=` para no usar una copia vieja del navegador (ya nos pasó con fechas-visita.js).
  */
 import { fechaGuardadaVisita } from './fechas-visita.js?v=ps1';
 import { fechaVisitaConOrigen, totalVisitasPlan } from './fechas-tentativas.js?v=ps1';
 import { esOrdenDePrueba } from './orden-pagada.js';
+import { SIN_EJE } from './rutas-planificacion.js?v=b5';
 import { numerosTerminados } from './servicio-terminado.js?v=ops13';
 import { estadoUnificadoVisita, normalizarEstadoVisita } from './estado-visita-unificado.js?v=ops13';
 
@@ -22,6 +23,28 @@ export const SIN_FECHA_PLAN = 'Sin fecha programada';
 export const SIN_FECHA_SPOT = 'Sin fecha del cliente';
 
 const texto = (v) => String(v ?? '').trim();
+
+export const MAX_RAMOS_ADICIONALES = 10;
+
+/** Nivel de la orden (tipo de servicio): Standard, Premium o Deluxe; por defecto Standard, igual que el servidor de la web. */
+export function nivelDeOrden(orden) {
+  const o = orden || {};
+  const servicio = o.servicio && typeof o.servicio === 'object' ? o.servicio : {};
+  const bruto = texto(servicio.nivel || o.nivel || o.nivelServicio || 'Standard').toLowerCase();
+  if (bruto.includes('deluxe')) return 'Deluxe';
+  if (bruto.includes('premium')) return 'Premium';
+  return 'Standard';
+}
+
+/** Ramos adicionales por visita de la orden (0 a 10; Deluxe no admite), con el mismo criterio con que el servidor cobra. */
+export function ramosAdicionalesDeOrden(orden) {
+  const o = orden || {};
+  const servicio = o.servicio && typeof o.servicio === 'object' ? o.servicio : {};
+  if (nivelDeOrden(o) === 'Deluxe') return 0;
+  let n = parseInt(o.cantidadRamosAdicionales || o.ramosAdicionales || servicio.cantidadRamosAdicionales || 0, 10);
+  if (!Number.isFinite(n) || n < 0) n = 0;
+  return Math.min(n, MAX_RAMOS_ADICIONALES);
+}
 
 /** Nombre del plan tal como lo guarda la orden (mismos campos que las demás pantallas), sin valor por defecto. */
 export function nombrePlanDeOrden(orden) {
@@ -154,23 +177,29 @@ export function ordenarFilasPorFecha(filas) {
  * Construye las filas de las dos subpestañas. Las órdenes deben venir YA filtradas con esOrdenPagada.
  *
  * @param {Array<{id: string, data: object}>} ordenes
- * @param {{ indiceInformes?: object, nombreCliente?: (orden: object, id: string) => string }} [ctx]
+ * @param {{ indiceInformes?: object, nombreCliente?: (orden: object, id: string) => string, rutas?: { rutaDe: (cementerio: string) => object|null } }} [ctx]
  * @returns {{ planes: object[], spot: object[] }}
  */
-export function construirFilasPlanificacion(ordenes, { indiceInformes = null, nombreCliente = null } = {}) {
+export function construirFilasPlanificacion(ordenes, { indiceInformes = null, nombreCliente = null, rutas = null } = {}) {
   const planes = [];
   const spot = [];
 
   for (const item of ordenes || []) {
     const docId = item && item.id ? String(item.id) : '';
     const orden = (item && item.data) || {};
+    const cementerio = obtenerCementerio(orden);
+    const ruta = rutas ? rutas.rutaDe(cementerio) : null; // sin eje en `rutas` → «Sin eje» (nunca se inventa)
     const base = {
       docId,
       numeroOrden: obtenerNumeroOrden(orden, docId),
       cliente: (nombreCliente ? nombreCliente(orden, docId) : '') || 'Sin registrar',
       esPrueba: esOrdenDePrueba(orden), // B-1: orden pagada en integración de Transbank (insignia PRUEBA, como en la Gantt)
       serQuerido: obtenerSerQuerido(orden),
-      cementerio: obtenerCementerio(orden),
+      cementerio,
+      nivel: nivelDeOrden(orden),
+      ramosAdicionales: ramosAdicionalesDeOrden(orden),
+      eje: ruta ? ruta.eje : SIN_EJE,
+      diaRuta: ruta ? ruta.diaSemana : null,
     };
     const terminadas = numerosTerminados(orden, { docId, indiceInformes });
 
@@ -233,20 +262,27 @@ function coincideBusqueda(fila, q) {
   return [fila.cliente, fila.serQuerido, fila.numeroOrden].some((v) => String(v || '').toLowerCase().includes(q));
 }
 
-/** Filtra la pestaña «Planes» por búsqueda, cementerio, operador y estado. */
+/** Mes (AAAA-MM) elegido: solo quedan las visitas con fecha de ese mes; sin mes, todas. */
+function coincideMes(fila, mes) {
+  return !mes || Boolean(fila.fechaIso && fila.fechaIso.startsWith(`${mes}-`));
+}
+
+/** Filtra la pestaña «Planes» por búsqueda, cementerio, eje, operador, estado y mes. */
 export function filtrarPlanes(filas, filtros = {}) {
   const q = texto(filtros.busqueda).toLowerCase();
-  const { cementerio = '', operador = '', estado = '' } = filtros;
+  const { cementerio = '', eje = '', operador = '', estado = '', mes = '' } = filtros;
   return (filas || []).filter((f) =>
     coincideBusqueda(f, q) &&
     (!cementerio || f.cementerio === cementerio) &&
+    (!eje || f.eje === eje) &&
     (!operador || f.operador === operador) &&
-    (!estado || f.estado === estado));
+    (!estado || f.estado === estado) &&
+    coincideMes(f, mes));
 }
 
-/** Filtra la pestaña «Spot» por búsqueda y cementerio. */
+/** Filtra la pestaña «Spot» por búsqueda, cementerio y mes. */
 export function filtrarSpot(filas, filtros = {}) {
   const q = texto(filtros.busqueda).toLowerCase();
-  const { cementerio = '' } = filtros;
-  return (filas || []).filter((f) => coincideBusqueda(f, q) && (!cementerio || f.cementerio === cementerio));
+  const { cementerio = '', mes = '' } = filtros;
+  return (filas || []).filter((f) => coincideBusqueda(f, q) && (!cementerio || f.cementerio === cementerio) && coincideMes(f, mes));
 }

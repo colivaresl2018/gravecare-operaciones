@@ -20,7 +20,7 @@
       <p class="text-xs text-slate-500 mt-1">Visitas de los servicios con plan y servicios Spot con pago confirmado. Vista de consulta: las fechas y los operadores se cambian en «Planificación &amp; Gantt».</p>
     </div>
 
-    <div class="flex items-center bg-slate-200/80 p-1 rounded-xl" role="tablist" aria-label="Subpestañas de planificación">
+    <div class="flex flex-wrap items-center bg-slate-200/80 p-1 rounded-xl" role="tablist" aria-label="Subpestañas de planificación">
       <button type="button" id="tab-planes" data-tab="planes" role="tab" aria-selected="true" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
         <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_view_month</span> Planes
         <span id="contador-planes" class="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">0</span>
@@ -28,6 +28,15 @@
       <button type="button" id="tab-spot" data-tab="spot" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
         <span class="material-symbols-outlined text-sm align-middle mr-1">event</span> Spot
         <span id="contador-spot" class="ml-1 px-1.5 py-0.5 rounded-full bg-slate-300/70 text-[10px]">0</span>
+      </button>
+      <button type="button" id="tab-matriz-planes" data-tab="matriz-planes" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">grid_view</span> Planes · matriz
+      </button>
+      <button type="button" id="tab-matriz-spot" data-tab="matriz-spot" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">calendar_month</span> Spot · matriz
+      </button>
+      <button type="button" id="tab-resumen" data-tab="resumen" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">payments</span> Resumen de Ventas
       </button>
     </div>
   </header>
@@ -52,6 +61,11 @@
         </select>
       </div>
       <div class="w-full sm:w-44">
+        <select id="planes-eje" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Ejes</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-44">
         <select id="planes-operador" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
           <option value="">Todos los Operadores</option>
         </select>
@@ -60,6 +74,10 @@
         <select id="planes-estado" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
           <option value="">Todos los Estados</option>
         </select>
+      </div>
+      <div class="w-full sm:w-40">
+        <label for="planes-mes" class="sr-only">Mes</label>
+        <input type="month" id="planes-mes" title="Mes: deja solo las visitas de ese mes" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
       </div>
     </section>
 
@@ -73,8 +91,11 @@
               <th class="py-3.5 px-3">Cliente</th>
               <th class="py-3.5 px-3">Ser Querido</th>
               <th class="py-3.5 px-3">Plan</th>
+              <th class="py-3.5 px-3">Tipo de servicio</th>
               <th class="py-3.5 px-3">Visita</th>
+              <th class="py-3.5 px-3">Ramos adicionales</th>
               <th class="py-3.5 px-3">Cementerio</th>
+              <th class="py-3.5 px-3">Eje</th>
               <th class="py-3.5 px-3">Operador</th>
               <th class="py-3.5 px-3">Estado</th>
             </tr>
@@ -95,6 +116,10 @@
         <select id="spot-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
           <option value="">Todos los Cementerios</option>
         </select>
+      </div>
+      <div class="w-full sm:w-40">
+        <label for="spot-mes" class="sr-only">Mes</label>
+        <input type="month" id="spot-mes" title="Mes: deja solo los servicios de ese mes" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
       </div>
     </section>
 
@@ -118,6 +143,201 @@
     </section>
   </div>
 
+  <!-- Subpestaña PLANES · MATRIZ (solo lectura) -->
+  <div id="panel-matriz-planes" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="mp-titulo" class="text-sm font-bold text-[#002d1a]"></span>
+          <span id="mp-contador" class="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-semibold text-slate-700">0 visitas esta semana</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-1">
+          <button type="button" id="mp-menos-mes" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" title="Retroceder 4 semanas">&#171; &minus;1 mes</button>
+          <button type="button" id="mp-anterior" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">&#8249; Semana anterior</button>
+          <button type="button" id="mp-hoy" class="px-3 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Hoy</button>
+          <button type="button" id="mp-siguiente" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">Semana siguiente &#8250;</button>
+          <button type="button" id="mp-mas-mes" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition" title="Avanzar 4 semanas">+1 mes &#187;</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] text-slate-500 font-semibold">
+        <span>&minus;26 sem.</span>
+        <input type="range" id="mp-slider" min="-26" max="78" value="0" class="flex-1 accent-[#002d1a]" aria-label="Moverse entre semanas">
+        <span>+78 sem.</span>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4 flex flex-wrap gap-3 items-center">
+      <div class="w-full sm:w-60">
+        <input type="text" id="mp-busqueda" placeholder="Buscar cliente, difunto, cementerio o N°..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="mp-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="mp-eje" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Ejes</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-40">
+        <select id="mp-estado" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Estados</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="mp-operador" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Operadores</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-40">
+        <label for="mp-mes" class="sr-only">Ir a mes</label>
+        <input type="month" id="mp-mes" title="Mes: lleva la matriz a la primera semana de ese mes" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-56">
+        <select id="mp-modo" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="con-visita">Solo con visita esta semana</option>
+          <option value="todos">Mostrar todos los planes</option>
+        </select>
+      </div>
+    </section>
+
+    <div id="mp-avisos" class="space-y-2 mb-4"></div>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead id="mp-thead"></thead>
+          <tbody id="mp-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Subpestaña SPOT · MATRIZ (solo lectura) -->
+  <div id="panel-matriz-spot" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="ms-titulo" class="text-sm font-bold text-[#002d1a]"></span>
+          <span id="ms-contador" class="px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-semibold text-slate-700">0 servicios Spot</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-1">
+          <button type="button" id="ms-menos-3" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">&#171; &minus;3 meses</button>
+          <button type="button" id="ms-anterior" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">&#8249; Mes anterior</button>
+          <button type="button" id="ms-hoy" class="px-3 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Hoy</button>
+          <button type="button" id="ms-siguiente" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">Mes siguiente &#8250;</button>
+          <button type="button" id="ms-mas-3" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">+3 meses &#187;</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] text-slate-500 font-semibold">
+        <span>&minus;6 meses</span>
+        <input type="range" id="ms-slider" min="-6" max="18" value="0" class="flex-1 accent-[#002d1a]" aria-label="Moverse entre meses">
+        <span>+18 meses</span>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4 flex flex-wrap gap-3 items-center">
+      <div class="w-full sm:w-40">
+        <label for="ms-mes" class="sr-only">Ir a mes y año</label>
+        <input type="month" id="ms-mes" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-60">
+        <input type="text" id="ms-busqueda" placeholder="Buscar cliente, difunto, cementerio o N°..." class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="ms-cementerio" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Cementerios</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-40">
+        <select id="ms-estado" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Estados</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-44">
+        <select id="ms-operador" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Operadores</option>
+        </select>
+      </div>
+    </section>
+
+    <div id="ms-avisos" class="space-y-2 mb-4"></div>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead id="ms-thead"></thead>
+          <tbody id="ms-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Subpestaña RESUMEN DE VENTAS (solo lectura; el monto es el montoTotal que guarda el servidor) -->
+  <div id="panel-resumen" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4 flex flex-wrap gap-3 items-end">
+      <div class="w-full sm:w-44">
+        <label for="rv-fecha" class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Día de referencia</label>
+        <input type="date" id="rv-fecha" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-44">
+        <label for="rv-desde" class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Periodo desde</label>
+        <input type="date" id="rv-desde" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <div class="w-full sm:w-44">
+        <label for="rv-hasta" class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Periodo hasta</label>
+        <input type="date" id="rv-hasta" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+      </div>
+      <p class="text-[11px] text-slate-500 flex-1 min-w-[16rem]">Una venta es una orden con pago confirmado, contada en su fecha de pago. El monto es el total que guardó el servidor.</p>
+    </section>
+
+    <div id="rv-avisos" class="space-y-2 mb-4"></div>
+
+    <section id="rv-tarjetas" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6"></section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="px-4 py-3 bg-slate-100 border-b border-slate-200 text-xs font-bold text-[#002d1a]" id="rv-titulo-diaria">Ventas por día</div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead><tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]"><th class="py-3 px-3">Período</th><th class="py-3 px-3 text-right">Ventas</th><th class="py-3 px-3 text-right">Planes</th><th class="py-3 px-3 text-right">Spot</th><th class="py-3 px-3 text-right">Ramos adicionales</th><th class="py-3 px-3 text-right">Monto</th><th class="py-3 px-3 text-right">Ticket promedio</th></tr></thead>
+          <tbody id="rv-diaria" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="px-4 py-3 bg-slate-100 border-b border-slate-200 text-xs font-bold text-[#002d1a]" id="rv-titulo-semanal">Ventas por semana</div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead><tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]"><th class="py-3 px-3">Período</th><th class="py-3 px-3 text-right">Ventas</th><th class="py-3 px-3 text-right">Planes</th><th class="py-3 px-3 text-right">Spot</th><th class="py-3 px-3 text-right">Ramos adicionales</th><th class="py-3 px-3 text-right">Monto</th><th class="py-3 px-3 text-right">Ticket promedio</th></tr></thead>
+          <tbody id="rv-semanal" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="px-4 py-3 bg-slate-100 border-b border-slate-200 text-xs font-bold text-[#002d1a]" id="rv-titulo-mensual">Ventas por mes</div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead><tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]"><th class="py-3 px-3">Período</th><th class="py-3 px-3 text-right">Ventas</th><th class="py-3 px-3 text-right">Planes</th><th class="py-3 px-3 text-right">Spot</th><th class="py-3 px-3 text-right">Ramos adicionales</th><th class="py-3 px-3 text-right">Monto</th><th class="py-3 px-3 text-right">Ticket promedio</th></tr></thead>
+          <tbody id="rv-mensual" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Detalle de una visita (solo lectura): se cierra con ×, clic fuera o Escape -->
+  <div id="modal-visita" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="modal-visita-titulo">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-4 py-3 bg-[#002d1a] text-white rounded-t-xl">
+        <h2 id="modal-visita-titulo" class="text-sm font-bold">Detalle de la visita</h2>
+        <button type="button" id="modal-visita-cerrar" aria-label="Cerrar" class="text-white text-xl leading-none px-2">&times;</button>
+      </div>
+      <div id="modal-visita-contenido" class="p-4"></div>
+    </div>
+  </div>
+
   <script type="module">
     import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -128,7 +348,13 @@
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { crearIndiceInformes } from "./js/servicio-terminado.js?v=ops13"; // regla única de visita terminada
     import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor único del nombre del cliente
-    import { construirFilasPlanificacion, filtrarPlanes, filtrarSpot } from "./js/planificacion-servicios.js?v=ps1";
+    import { construirFilasPlanificacion, filtrarPlanes, filtrarSpot } from "./js/planificacion-servicios.js?v=b5";
+    import { crearIndiceRutas, crearIndiceFeriados, SIN_EJE } from "./js/rutas-planificacion.js?v=b5"; // ejes (colección rutas) y feriados: solo lectura
+    import { construirMatrizSemana, construirMatrizMes } from "./js/matriz-planificacion.js?v=b5";
+    import { htmlCabeceraSemana, htmlCuerpoSemana, htmlCabeceraMes, htmlCuerpoMes, htmlDetalle } from "./js/matriz-vistas.js?v=b5";
+    import { construirResumenVentas } from "./js/resumen-ventas.js?v=b5"; // el monto es el montoTotal del servidor (no se recalcula)
+    import { htmlTarjetasResumen, htmlFilasResumen, textosAvisosResumen } from "./js/resumen-vistas.js?v=b5";
+    import { lunesDeLaSemana, sumarDias, hoyIso, mesDeIso, sumarMeses, nombreMes } from "./js/fechas-semana.js?v=b5";
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
@@ -136,26 +362,32 @@
 
     let filasPlanes = [];
     let filasSpot = [];
+    let ordenesPagadas = [];
+    let rutas = crearIndiceRutas([]); // ejes por cementerio (colección rutas)
+    let feriados = crearIndiceFeriados([]); // feriados (colección feriados): solo se pintan
+    let rutasFallo = false;
+    let feriadosFallo = false;
+    const PESTANAS = ["planes", "spot", "matriz-planes", "matriz-spot", "resumen"];
     let pestanaActiva = "planes";
 
     const $ = (id) => document.getElementById(id);
 
     function cambiarPestana(tab) {
-      pestanaActiva = tab === "spot" ? "spot" : "planes";
-      const esSpotActiva = pestanaActiva === "spot";
-      $("panel-planes").classList.toggle("hidden", esSpotActiva);
-      $("panel-spot").classList.toggle("hidden", !esSpotActiva);
+      pestanaActiva = PESTANAS.includes(tab) ? tab : "planes";
       const ACTIVA = ["bg-[#002d1a]", "text-white", "shadow-sm"];
       const INACTIVA = ["text-slate-700", "hover:text-[#002d1a]"];
-      [["planes", "contador-planes"], ["spot", "contador-spot"]].forEach(([nombre, idContador]) => {
+      PESTANAS.forEach((nombre) => {
         const activa = nombre === pestanaActiva;
+        $("panel-" + nombre).classList.toggle("hidden", !activa);
         const btn = $("tab-" + nombre);
         btn.classList.remove(...(activa ? INACTIVA : ACTIVA));
         btn.classList.add(...(activa ? ACTIVA : INACTIVA));
         btn.setAttribute("aria-selected", activa ? "true" : "false");
-        const cont = $(idContador);
-        cont.classList.toggle("bg-white/20", activa);
-        cont.classList.toggle("bg-slate-300/70", !activa);
+        const cont = $("contador-" + nombre); // solo Planes y Spot tienen contador
+        if (cont) {
+          cont.classList.toggle("bg-white/20", activa);
+          cont.classList.toggle("bg-slate-300/70", !activa);
+        }
       });
     }
 
@@ -184,12 +416,14 @@
       const filtradas = filtrarPlanes(filasPlanes, {
         busqueda: $("planes-busqueda").value,
         cementerio: $("planes-cementerio").value,
+        eje: $("planes-eje").value,
         operador: $("planes-operador").value,
         estado: $("planes-estado").value,
+        mes: $("planes-mes").value,
       });
       $("contador-planes").textContent = String(filtradas.length);
       $("tbody-planes").innerHTML = filtradas.length === 0
-        ? '<tr><td colspan="9" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>'
+        ? '<tr><td colspan="12" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>'
         : filtradas.map(f => `
           <tr class="hover:bg-slate-50 transition">
             ${celdaFecha(f)}
@@ -197,8 +431,11 @@
             <td class="py-3 px-3 font-semibold text-slate-800">${esc(f.cliente)}${f.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
             <td class="py-3 px-3 text-slate-700">${esc(f.serQuerido)}</td>
             <td class="py-3 px-3 text-slate-700">${esc(f.plan)}</td>
+            <td class="py-3 px-3 text-slate-700">${esc(f.nivel)}</td>
             <td class="py-3 px-3 whitespace-nowrap text-slate-600">${esc(f.visitaTexto)}</td>
+            <td class="py-3 px-3 text-center text-slate-700">${esc(f.ramosAdicionales)}</td>
             <td class="py-3 px-3 text-slate-700">${esc(f.cementerio)}</td>
+            <td class="py-3 px-3 ${f.eje === SIN_EJE ? "text-slate-400 italic" : "text-slate-700"}">${esc(f.eje)}</td>
             <td class="py-3 px-3 text-slate-700">${esc(f.operador)}</td>
             ${celdaEstado(f)}
           </tr>`).join("");
@@ -208,6 +445,7 @@
       const filtradas = filtrarSpot(filasSpot, {
         busqueda: $("spot-busqueda").value,
         cementerio: $("spot-cementerio").value,
+        mes: $("spot-mes").value,
       });
       $("contador-spot").textContent = String(filtradas.length);
       $("tbody-spot").innerHTML = filtradas.length === 0
@@ -222,6 +460,161 @@
             <td class="py-3 px-3 text-slate-700">${esc(f.operador)}</td>
             ${celdaEstado(f)}
           </tr>`).join("");
+    }
+
+    // ---------------------------------------------------------------- Matrices y resumen (solo lectura)
+    const LUNES_BASE = lunesDeLaSemana(hoyIso()); // semana de hoy: el deslizador de Planes es relativo a ella
+    const MES_BASE = mesDeIso(hoyIso()); // mes de hoy: el deslizador de Spot es relativo a él
+    let lunesMatriz = LUNES_BASE;
+    let mesSpot = MES_BASE;
+
+    const limitar = (n, min, max) => Math.max(min, Math.min(max, n));
+    const semanasEntre = (desdeIso, hastaIso) => Math.round((new Date(hastaIso + "T12:00:00") - new Date(desdeIso + "T12:00:00")) / (7 * 86400000));
+    const mesesEntre = (desde, hasta) => {
+      const [y0, m0] = desde.split("-").map(Number);
+      const [y1, m1] = hasta.split("-").map(Number);
+      return (y1 * 12 + m1) - (y0 * 12 + m0);
+    };
+    const plural = (n, singular, pluralTexto) => `${n} ${n === 1 ? singular : pluralTexto}`;
+    const aviso = (clases, textoSeguro) => `<div class="p-3 rounded-xl border text-xs font-semibold ${clases}" role="status">${textoSeguro}</div>`;
+
+    // Avisos sobre las colecciones auxiliares: siempre se dice por qué un cementerio sale «Sin eje» o un feriado no se pinta.
+    function avisosDeColecciones(conEjes) {
+      const l = [];
+      if (conEjes && rutasFallo) l.push(aviso("bg-rose-50 border-rose-300 text-rose-800", "No se pudieron leer los ejes de ruta (colección rutas). Todos los cementerios aparecen como «Sin eje»."));
+      else if (conEjes && rutas.vacio) l.push(aviso("bg-amber-50 border-amber-300 text-amber-800", "Todavía no hay ejes de ruta cargados: todos los cementerios aparecen como «Sin eje». Los define el dueño."));
+      if (feriadosFallo) l.push(aviso("bg-amber-50 border-amber-300 text-amber-800", "No se pudieron leer los feriados: no se pintan en el calendario."));
+      return l;
+    }
+
+    function renderMatrizPlanes() {
+      const matriz = construirMatrizSemana(filasPlanes, {
+        lunesIso: lunesMatriz,
+        busqueda: $("mp-busqueda").value,
+        cementerio: $("mp-cementerio").value,
+        eje: $("mp-eje").value,
+        estado: $("mp-estado").value,
+        operador: $("mp-operador").value,
+        soloConVisita: $("mp-modo").value !== "todos",
+        rutas,
+        feriados,
+      });
+      $("mp-titulo").textContent = `Semana del ${matriz.dias[0].display} al ${matriz.dias[6].display}`;
+      $("mp-contador").textContent = `${plural(matriz.totalVisitas, "visita", "visitas")} esta semana`;
+      $("mp-slider").value = String(limitar(semanasEntre(LUNES_BASE, lunesMatriz), -26, 78));
+
+      const avisos = avisosDeColecciones(true);
+      const finDeSemana = matriz.dias[5].visitas + matriz.dias[6].visitas;
+      if (matriz.sinFecha > 0) {
+        avisos.push(aviso("bg-slate-50 border-slate-300 text-slate-700",
+          `${esc(plural(matriz.sinFecha, "visita no tiene fecha", "visitas no tienen fecha"))} y no se puede mostrar en la matriz (se ve en la pestaña «Planes»).`));
+      }
+      if (matriz.fueraDeRuta > 0) {
+        avisos.push(aviso("bg-amber-50 border-amber-300 text-amber-800",
+          `${esc(plural(matriz.fueraDeRuta, "visita cae", "visitas caen"))} en un día distinto al de su ruta. Se muestran en su fecha real y llevan la marca «Fuera de su día de ruta».`));
+      }
+      if (finDeSemana > 0) {
+        avisos.push(aviso("bg-slate-50 border-slate-300 text-slate-700",
+          `${esc(plural(finDeSemana, "visita cae", "visitas caen"))} en sábado o domingo (columnas de fin de semana).`));
+      }
+      $("mp-avisos").innerHTML = avisos.join("");
+      $("mp-thead").innerHTML = htmlCabeceraSemana(matriz);
+      $("mp-tbody").innerHTML = htmlCuerpoSemana(matriz);
+    }
+
+    function renderMatrizSpot() {
+      const matriz = construirMatrizMes(filasSpot, {
+        mesIso: mesSpot,
+        busqueda: $("ms-busqueda").value,
+        cementerio: $("ms-cementerio").value,
+        estado: $("ms-estado").value,
+        operador: $("ms-operador").value,
+        feriados,
+      });
+      const titulo = nombreMes(mesSpot);
+      $("ms-titulo").textContent = titulo;
+      $("ms-contador").textContent = plural(matriz.total, "servicio Spot", "servicios Spot");
+      $("ms-mes").value = mesSpot;
+      $("ms-slider").value = String(limitar(mesesEntre(MES_BASE, mesSpot), -6, 18));
+      const avisos = avisosDeColecciones(false);
+      if (matriz.sinFecha > 0) {
+        avisos.push(aviso("bg-slate-50 border-slate-300 text-slate-700",
+          `${esc(plural(matriz.sinFecha, "servicio Spot no tiene fecha del cliente", "servicios Spot no tienen fecha del cliente"))} y no se puede mostrar en la matriz (se ve en la pestaña «Spot»).`));
+      }
+      $("ms-avisos").innerHTML = avisos.join("");
+      $("ms-thead").innerHTML = htmlCabeceraMes(matriz);
+      $("ms-tbody").innerHTML = htmlCuerpoMes(matriz, titulo);
+    }
+
+    function renderResumen() {
+      const r = construirResumenVentas(ordenesPagadas, {
+        referenciaIso: $("rv-fecha").value || hoyIso(),
+        desdeIso: $("rv-desde").value,
+        hastaIso: $("rv-hasta").value,
+      });
+      $("rv-avisos").innerHTML = textosAvisosResumen(r.avisos).map(t => aviso("bg-amber-50 border-amber-300 text-amber-800", esc(t))).join("");
+      $("rv-tarjetas").innerHTML = htmlTarjetasResumen(r);
+      $("rv-titulo-diaria").textContent = r.periodoActivo ? "Ventas por día del periodo" : `Ventas por día de ${nombreMes(mesDeIso(r.referencia))}`;
+      $("rv-titulo-semanal").textContent = `Ventas por semana de ${r.referencia.slice(0, 4)}`;
+      $("rv-titulo-mensual").textContent = `Ventas por mes de ${r.referencia.slice(0, 4)}`;
+      $("rv-diaria").innerHTML = htmlFilasResumen(r.diaria);
+      $("rv-semanal").innerHTML = htmlFilasResumen(r.semanal);
+      $("rv-mensual").innerHTML = htmlFilasResumen(r.mensual);
+    }
+
+    // Detalle de una visita (solo lectura). `data-visita="docId|n"` en las tarjetas; `data-orden="docId"` en «Sin visita esta semana».
+    function abrirDetalleVisita(docId, visitaNumero, esSpot) {
+      const lista = (esSpot ? filasSpot : filasPlanes).filter(f => f.docId === docId);
+      const visita = lista.find(f => String(f.visitaNumero) === String(visitaNumero)) || lista[0];
+      if (!visita) return;
+      $("modal-visita-titulo").textContent = `${esSpot ? "Servicio Spot" : "Visita"} · ${visita.cliente}`;
+      $("modal-visita-contenido").innerHTML = htmlDetalle(visita, lista);
+      $("modal-visita").classList.remove("hidden");
+    }
+
+    function cerrarDetalleVisita() { $("modal-visita").classList.add("hidden"); }
+
+    function alHacerClicEnMatriz(esSpot) {
+      return (e) => {
+        const tarjeta = e.target.closest("[data-visita],[data-orden]");
+        if (!tarjeta) return;
+        if (tarjeta.dataset.visita) {
+          const clave = tarjeta.dataset.visita;
+          const corte = clave.lastIndexOf("|");
+          abrirDetalleVisita(clave.slice(0, corte), clave.slice(corte + 1), esSpot);
+        } else {
+          abrirDetalleVisita(tarjeta.dataset.orden, "", esSpot);
+        }
+      };
+    }
+
+    // Ejes y feriados: lecturas auxiliares. Si fallan, la pantalla sigue y lo avisa (nunca se inventa un eje).
+    async function leerRutas() {
+      try {
+        const snap = await getDocs(collection(db, "rutas"));
+        const docs = [];
+        snap.forEach(d => docs.push({ id: d.id, data: d.data() }));
+        rutasFallo = false;
+        return crearIndiceRutas(docs);
+      } catch (e) {
+        console.warn("Aviso leyendo rutas:", e && e.code ? e.code : "ERROR");
+        rutasFallo = true;
+        return crearIndiceRutas([]);
+      }
+    }
+
+    async function leerFeriados() {
+      try {
+        const snap = await getDocs(collection(db, "feriados"));
+        const docs = [];
+        snap.forEach(d => docs.push({ id: d.id, data: d.data() }));
+        feriadosFallo = false;
+        return crearIndiceFeriados(docs);
+      } catch (e) {
+        console.warn("Aviso leyendo feriados:", e && e.code ? e.code : "ERROR");
+        feriadosFallo = true;
+        return crearIndiceFeriados([]);
+      }
     }
 
     // Respaldo del nombre del cliente: contratos. Si no se pueden leer, el nombre queda como esté en la orden.
@@ -269,9 +662,11 @@
         const contratosMap = await leerContratos();
         const indiceInformes = await leerIndiceInformes();
         const operadores = await leerOperadores();
+        rutas = await leerRutas();
+        feriados = await leerFeriados();
 
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
-        const ordenesPagadas = [];
+        ordenesPagadas = [];
         snapOrdenes.forEach(docSnap => {
           const ord = docSnap.data();
           if (!esOrdenPagada(ord)) return; // N80: una orden sin pago confirmado no se lista ni se cuenta (B-2)
@@ -281,6 +676,7 @@
         const resultado = construirFilasPlanificacion(ordenesPagadas, {
           indiceInformes,
           nombreCliente: (orden, id) => nombreClienteParaMostrar(orden, contratosDeOrden(contratosMap, orden, id)),
+          rutas,
         });
         filasPlanes = resultado.planes;
         filasSpot = resultado.spot;
@@ -289,30 +685,81 @@
         llenarMenu("planes-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
         llenarMenu("planes-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
         llenarMenu("spot-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
+        const ejes = [...rutas.ejes.map(e => e.eje), ...filasPlanes.map(f => f.eje)];
+        llenarMenu("planes-eje", ejes, "Todos los Ejes");
+        llenarMenu("mp-eje", ejes, "Todos los Ejes");
+        llenarMenu("mp-cementerio", filasPlanes.map(f => f.cementerio), "Todos los Cementerios");
+        llenarMenu("mp-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
+        llenarMenu("mp-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
+        llenarMenu("ms-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
+        llenarMenu("ms-estado", filasSpot.map(f => f.estado), "Todos los Estados");
+        llenarMenu("ms-operador", [...operadores, ...filasSpot.map(f => f.operador)], "Todos los Operadores");
 
         $("estado-carga").classList.add("hidden");
         cambiarPestana(pestanaActiva);
         renderPlanes();
         renderSpot();
+        renderMatrizPlanes();
+        renderMatrizSpot();
+        renderResumen();
       } catch (err) {
         console.error("Error cargando planificación de servicios:", err && err.code ? err.code : "ERROR");
         $("estado-carga").classList.add("hidden");
-        $("panel-planes").classList.add("hidden");
-        $("panel-spot").classList.add("hidden");
+        PESTANAS.forEach(n => $("panel-" + n).classList.add("hidden"));
         $("aviso-error").classList.remove("hidden");
       }
     }
 
     document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
     $("btn-reintentar").addEventListener("click", () => cargarDatos());
-    ["planes-busqueda", "planes-cementerio", "planes-operador", "planes-estado"].forEach(id => {
+    ["planes-busqueda", "planes-cementerio", "planes-eje", "planes-operador", "planes-estado", "planes-mes"].forEach(id => {
       $(id).addEventListener("input", renderPlanes);
       $(id).addEventListener("change", renderPlanes);
     });
-    ["spot-busqueda", "spot-cementerio"].forEach(id => {
+    ["spot-busqueda", "spot-cementerio", "spot-mes"].forEach(id => {
       $(id).addEventListener("input", renderSpot);
       $(id).addEventListener("change", renderSpot);
     });
+
+    // Matriz de Planes: barra de tiempo, filtros y detalle
+    $("mp-menos-mes").addEventListener("click", () => { lunesMatriz = sumarDias(lunesMatriz, -28); renderMatrizPlanes(); });
+    $("mp-anterior").addEventListener("click", () => { lunesMatriz = sumarDias(lunesMatriz, -7); renderMatrizPlanes(); });
+    $("mp-hoy").addEventListener("click", () => { lunesMatriz = LUNES_BASE; renderMatrizPlanes(); });
+    $("mp-siguiente").addEventListener("click", () => { lunesMatriz = sumarDias(lunesMatriz, 7); renderMatrizPlanes(); });
+    $("mp-mas-mes").addEventListener("click", () => { lunesMatriz = sumarDias(lunesMatriz, 28); renderMatrizPlanes(); });
+    $("mp-slider").addEventListener("input", () => { lunesMatriz = sumarDias(LUNES_BASE, Number($("mp-slider").value) * 7); renderMatrizPlanes(); });
+    $("mp-mes").addEventListener("change", () => { if (/^\d{4}-\d{2}$/.test($("mp-mes").value)) { lunesMatriz = lunesDeLaSemana($("mp-mes").value + "-01"); renderMatrizPlanes(); } });
+    ["mp-busqueda", "mp-cementerio", "mp-eje", "mp-estado", "mp-operador", "mp-modo"].forEach(id => {
+      $(id).addEventListener("input", renderMatrizPlanes);
+      $(id).addEventListener("change", renderMatrizPlanes);
+    });
+    $("mp-tbody").addEventListener("click", alHacerClicEnMatriz(false));
+
+    // Matriz de Spot: barra de tiempo, filtros y detalle
+    $("ms-menos-3").addEventListener("click", () => { mesSpot = sumarMeses(mesSpot, -3); renderMatrizSpot(); });
+    $("ms-anterior").addEventListener("click", () => { mesSpot = sumarMeses(mesSpot, -1); renderMatrizSpot(); });
+    $("ms-hoy").addEventListener("click", () => { mesSpot = MES_BASE; renderMatrizSpot(); });
+    $("ms-siguiente").addEventListener("click", () => { mesSpot = sumarMeses(mesSpot, 1); renderMatrizSpot(); });
+    $("ms-mas-3").addEventListener("click", () => { mesSpot = sumarMeses(mesSpot, 3); renderMatrizSpot(); });
+    $("ms-slider").addEventListener("input", () => { mesSpot = sumarMeses(MES_BASE, Number($("ms-slider").value)); renderMatrizSpot(); });
+    $("ms-mes").addEventListener("change", () => { if (/^\d{4}-\d{2}$/.test($("ms-mes").value)) { mesSpot = $("ms-mes").value; renderMatrizSpot(); } });
+    ["ms-busqueda", "ms-cementerio", "ms-estado", "ms-operador"].forEach(id => {
+      $(id).addEventListener("input", renderMatrizSpot);
+      $(id).addEventListener("change", renderMatrizSpot);
+    });
+    $("ms-tbody").addEventListener("click", alHacerClicEnMatriz(true));
+
+    // Resumen de Ventas
+    $("rv-fecha").value = hoyIso();
+    ["rv-fecha", "rv-desde", "rv-hasta"].forEach(id => {
+      $(id).addEventListener("input", renderResumen);
+      $(id).addEventListener("change", renderResumen);
+    });
+
+    // Detalle de la visita: botón, clic fuera y Escape
+    $("modal-visita-cerrar").addEventListener("click", cerrarDetalleVisita);
+    $("modal-visita").addEventListener("click", (e) => { if (e.target === $("modal-visita")) cerrarDetalleVisita(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarDetalleVisita(); });
 
     onAuthStateChanged(auth, async (user) => {
       if (!(await exigirStaff(auth, user))) return; // spec 040: exige staffActivo
