@@ -64,8 +64,11 @@ test('exige staff antes de cargar datos y filtra las órdenes pagadas antes de l
   assert.equal(html.split('getDocs(collection(db, "ordenes"))').length - 1, 1);
 });
 
-test('es de solo lectura: ninguna escritura y nunca fechasProgramadas', () => {
-  assert.doesNotMatch(html, /\b(updateDoc|setDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
+test('solo escribe los valores de ramos (etapa 2): ninguna otra escritura y nunca fechasProgramadas', () => {
+  assert.doesNotMatch(html, /\b(updateDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
+  // setDoc solo aparece en el import y como `guardar: setDoc` (la única escritura, de valores_ramos/compra)
+  const sinPermitidos = html.replace('getFirestore, collection, getDocs, getDoc, doc, setDoc }', '').replace('guardar: setDoc', '');
+  assert.doesNotMatch(sinPermitidos, /\bsetDoc\b/);
   assert.doesNotMatch(html + js, /fechasProgramadas/);
   assert.doesNotMatch(js, /construirActualizacionFecha|guardarFechaVisitaEnOrden/);
 });
@@ -136,7 +139,7 @@ test('B5: los módulos nuevos existen y todo lo que importan existe (un import r
 });
 
 test('B5: la página tiene las 5 pestañas (Planes, Spot, Planes · matriz, Spot · matriz, Resumen de Ventas)', () => {
-  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "resumen"\];/);
+  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "resumen"(, "compra", "valores")?\];/); // las 5 de la etapa 1, en ese orden (la etapa 2 agrega 2)
   for (const [id, texto] of [['matriz-planes', 'Planes · matriz'], ['matriz-spot', 'Spot · matriz'], ['resumen', 'Resumen de Ventas']]) {
     assert.match(html, new RegExp(`id="tab-${id}" data-tab="${id}"`));
     assert.ok(html.includes(texto), texto);
@@ -183,9 +186,9 @@ test('B5: una lectura que falla (rutas, feriados) no tumba la pantalla: se avisa
   assert.match(html, /No se pudieron leer los feriados/);
 });
 
-test('B5: sigue siendo de solo lectura (sin reprogramar ni asignar operador): nada que ocultar a un operador', () => {
+test('B5: sigue sin reprogramar ni asignar operador, y los módulos de la etapa 1 no escriben: nada que ocultar a un operador', () => {
   const todo = NUEVOS.map((n) => lee(`js/${n}.js`)).join('\n') + html;
-  assert.doesNotMatch(todo, /\b(updateDoc|setDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
+  assert.doesNotMatch(NUEVOS.map((n) => lee(`js/${n}.js`)).join('\n'), /\b(updateDoc|setDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
   assert.doesNotMatch(todo, /operadoresPorVisita\s*[:=]|fechasPorVisita\s*[:=]|guardarEstadoVisita|moverTareaACasillero|reprogramar/i);
   assert.doesNotMatch(lee('js/matriz-vistas.js'), /onclick|<input|<select|draggable/);
 });
@@ -211,4 +214,72 @@ test('B5: no se tocó la regla de acceso ni el Gantt (planificacion.html sigue e
   assert.ok(existsSync(join(PUBLIC, 'planificacion.html')));
   assert.match(portal, /B4 \(2026-11-22\): «Planificación & Gantt» oculto del menú/);
   assert.match(portal, /cargarModulo\('planificacion-servicios'\)/);
+});
+
+// ─── Directriz B5, etapa 2: pestañas Compra de flores y Valores de ramos ───────────────────────────────────────
+
+const NUEVOS_E2 = ['compra-ramos', 'compra-vistas', 'valores-ramos-db'];
+
+test('B5 etapa 2: los módulos nuevos existen, todo lo que importan existe y la página los importa', () => {
+  for (const nombre of NUEVOS_E2) {
+    assert.ok(existsSync(join(PUBLIC, 'js', `${nombre}.js`)), `falta ${nombre}.js`);
+    for (const r of importsRelativos(lee(`js/${nombre}.js`))) assert.ok(existsSync(join(PUBLIC, 'js', r)), `${nombre}.js importa ${r}, que no existe`);
+  }
+  assert.match(html, /from "\.\/js\/compra-ramos\.js\?v=b5e2"/);
+  assert.match(html, /from "\.\/js\/compra-vistas\.js\?v=b5e2"/);
+  assert.match(html, /from "\.\/js\/valores-ramos-db\.js\?v=b5e2"/);
+});
+
+test('B5 etapa 2: la página tiene 7 pestañas (se agregan Compra de flores y Valores de ramos)', () => {
+  assert.match(html, /const PESTANAS = \["planes", "spot", "matriz-planes", "matriz-spot", "resumen", "compra", "valores"\];/);
+  for (const [id, texto] of [['compra', 'Compra de flores'], ['valores', 'Valores de ramos']]) {
+    assert.match(html, new RegExp(`id="tab-${id}" data-tab="${id}"`));
+    assert.ok(html.includes(texto), texto);
+    assert.match(html, new RegExp(`id="panel-${id}" class="hidden"`));
+  }
+});
+
+test('B5 etapa 2: la lista de compra usa las visitas de Planes y de Spot y los valores leídos de valores_ramos', () => {
+  assert.match(html, /construirListaCompra\(\[\.\.\.filasPlanes, \.\.\.filasSpot\]/);
+  assert.match(html, /valores: valoresCompra/);
+  assert.match(html, /leerValoresRamos\(\{ obtener: getDoc, referencia: referenciaValores \}\)/);
+  assert.match(html, /doc\(db, \.\.\.RUTA_VALORES\)/);
+});
+
+test('B5 etapa 2: la lectura de valores no tumba la pantalla (se avisa) y guardar usa el usuario y avisa si falla', () => {
+  assert.match(html, /valoresLecturaFallo = true;/);
+  assert.match(html, /No se pudieron leer los valores de ramos/);
+  assert.match(html, /guardarValoresRamos\(\{[\s\S]*?guardar: setDoc[\s\S]*?uid: auth\.currentUser/);
+  assert.match(html, /No se pudieron guardar los valores/);
+  assert.match(html, /boton\.disabled = false/);
+});
+
+test('B5 etapa 2: no hay precios escritos en el código (salen de valores_ramos) ni se tocan otras colecciones', () => {
+  for (const nombre of NUEVOS_E2) assert.doesNotMatch(lee(`js/${nombre}.js`), /\b\d{4,}\b/, `${nombre}.js no debe tener precios`);
+  assert.doesNotMatch(html, /valoresCompra\s*=\s*\{[^}]*\d{4,}/);
+  // «Órdenes de Compra» (spec 055) NO está en esta etapa: sus colecciones no tienen reglas publicadas
+  assert.doesNotMatch(html + NUEVOS_E2.map((n) => lee(`js/${n}.js`)).join('\n'), /["']materiales["']|["']ordenesCompra["']|["']contadores["']/);
+  assert.doesNotMatch(html, /id="tab-ordenes-compra"/);
+});
+
+test('B5 etapa 2: la única escritura es valores_ramos/compra, con merge y solo los 5 valores y quién/cuándo', () => {
+  const db = lee('js/valores-ramos-db.js');
+  assert.match(db, /RUTA_VALORES = \['valores_ramos', 'compra'\]/);
+  assert.match(db, /\{ merge: true \}/);
+  assert.equal((db.match(/await guardar\(/g) || []).length, 1);
+  assert.doesNotMatch(lee('js/compra-ramos.js') + lee('js/compra-vistas.js'), /\b(setDoc|updateDoc|addDoc|deleteDoc|getDocs|getDoc|collection)\b/);
+});
+
+test('B5 etapa 2: lo que viene de Firestore (cementerios, valores) pasa por esc en las vistas de compra', () => {
+  const src = lee('js/compra-vistas.js');
+  assert.match(src, /from '\.\/html-seguro\.js'/);
+  assert.ok((src.match(/esc\(/g) || []).length >= 15);
+  assert.match(html, /\$\("cr-tbody"\)\.innerHTML = htmlCuerpoCompra\(lista\)/);
+});
+
+test('B5 etapa 2: Gantt, menú y reglas siguen como estaban (sin firestore.rules en este repo)', () => {
+  assert.ok(existsSync(join(PUBLIC, 'planificacion.html')));
+  assert.equal(existsSync(join(PUBLIC, '..', 'firestore.rules')), false);
+  assert.equal(existsSync(join(PUBLIC, '..', 'storage.rules')), false);
+  assert.match(portal, /B4 \(2026-11-22\): «Planificación & Gantt» oculto del menú/);
 });
