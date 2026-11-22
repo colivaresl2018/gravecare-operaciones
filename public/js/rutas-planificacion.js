@@ -3,6 +3,7 @@
  *
  * - `rutas/{idCementerio}`: `cementerio` (nombre del catálogo), `eje`, `diaSemana` (1 = lunes … 5 = viernes). Lo mantiene solo el dueño.
  * - `feriados/{AAAA-MM-DD}`: `nombre` y, si es regional, `alcance`. Solo se PINTAN: no bloquean ni mueven visitas.
+ * - Un documento con `activo: false` (lo que hace «Quitar» en la pantalla Rutas y feriados) se ignora; sin el campo sigue valiendo.
  * - Nunca se inventa un eje: un cementerio que no está en `rutas` es «Sin eje». No hay una distribución escrita en el código.
  * - El cementerio se reconoce por su nombre completo (sin tildes ni mayúsculas) o por el id del documento; sin parecidos.
  */
@@ -43,6 +44,7 @@ export function crearIndiceRutas(docs) {
   for (const item of lista) {
     const d = item && item.data && typeof item.data === 'object' ? item.data : null;
     if (!d) continue;
+    if (d.activo === false) continue; // «quitada» desde la pantalla Rutas y feriados: se ignora (no se borra)
     const eje = texto(d.eje);
     if (!eje) continue; // sin eje no hay ruta: el cementerio queda «Sin eje»
     const diaSemana = diaDeRuta(d.diaSemana);
@@ -77,6 +79,7 @@ export function crearIndiceFeriados(docs) {
     const id = texto(item && item.id);
     if (!esFechaIso(id)) continue;
     const d = item.data && typeof item.data === 'object' ? item.data : {};
+    if (d.activo === false) continue; // «quitado» desde la pantalla Rutas y feriados: no se pinta (no se borra)
     const alcance = normalizarNombre(d.alcance);
     if (alcance && alcance !== 'nacional') continue; // un feriado regional no aplica a las rutas de Santiago ni de Rancagua
     feriados.set(id, texto(d.nombre) || 'Feriado');
