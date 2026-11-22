@@ -38,6 +38,12 @@
       <button type="button" id="tab-resumen" data-tab="resumen" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
         <span class="material-symbols-outlined text-sm align-middle mr-1">payments</span> Resumen de Ventas
       </button>
+      <button type="button" id="tab-compra" data-tab="compra" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">local_florist</span> Compra de flores
+      </button>
+      <button type="button" id="tab-valores" data-tab="valores" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">sell</span> Valores de ramos
+      </button>
     </div>
   </header>
 
@@ -327,6 +333,53 @@
     </section>
   </div>
 
+  <!-- Subpestaña COMPRA DE FLORES (solo lectura; los precios salen de «Valores de ramos») -->
+  <div id="panel-compra" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div id="cr-titulo" class="text-sm font-bold text-[#002d1a]">Semana</div>
+          <div class="text-[11px] text-slate-500">1 ramo del nivel contratado por visita, más los ramos adicionales de la orden (Deluxe no admite adicionales).</div>
+        </div>
+        <div class="flex flex-wrap items-center gap-1">
+          <button type="button" id="cr-anterior" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">&#8249; Semana anterior</button>
+          <button type="button" id="cr-hoy" class="px-3 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Hoy</button>
+          <button type="button" id="cr-siguiente" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition">Semana siguiente &#8250;</button>
+        </div>
+      </div>
+      <label class="mt-3 inline-flex items-center gap-2 text-xs text-slate-700 font-semibold">
+        <input type="checkbox" id="cr-completadas" class="accent-[#002d1a]"> Incluir visitas ya completadas
+      </label>
+    </section>
+
+    <div id="cr-avisos" class="space-y-2 mb-4"></div>
+
+    <section id="cr-resumen" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6"></section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead><tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]"><th class="py-3 px-3">Día / Cementerio</th><th class="py-3 px-3">Visitas</th><th class="py-3 px-3">Ramos a comprar</th><th class="py-3 px-3 text-right">Total</th></tr></thead>
+          <tbody id="cr-tbody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Subpestaña VALORES DE RAMOS (colección valores_ramos, documento compra): la única pantalla que escribe -->
+  <div id="panel-valores" class="hidden">
+    <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-4">
+      <div class="text-sm font-bold text-[#002d1a] mb-1">Valores de compra de los ramos</div>
+      <p class="text-[11px] text-slate-500 mb-3">Pesos por ramo. Estos valores alimentan «Compra de flores». Si dejas un campo vacío no se cambia el valor guardado. No se inventan precios: un valor que falta queda «sin valor».</p>
+      <div id="valores-form" class="flex flex-wrap gap-3 items-end"></div>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <button type="button" id="valores-guardar" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Guardar valores</button>
+        <span id="valores-actualizado" class="text-[11px] text-slate-500"></span>
+      </div>
+      <div id="valores-aviso" class="hidden mt-3 p-3 rounded-xl border text-xs font-semibold" role="status"></div>
+    </section>
+  </div>
+
   <!-- Detalle de una visita (solo lectura): se cierra con ×, clic fuera o Escape -->
   <div id="modal-visita" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="modal-visita-titulo">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[85vh] overflow-y-auto">
@@ -342,7 +395,7 @@
     import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
@@ -355,6 +408,9 @@
     import { construirResumenVentas } from "./js/resumen-ventas.js?v=b5"; // el monto es el montoTotal del servidor (no se recalcula)
     import { htmlTarjetasResumen, htmlFilasResumen, textosAvisosResumen } from "./js/resumen-vistas.js?v=b5";
     import { lunesDeLaSemana, sumarDias, hoyIso, mesDeIso, sumarMeses, nombreMes } from "./js/fechas-semana.js?v=b5";
+    import { construirListaCompra, normalizarValores } from "./js/compra-ramos.js?v=b5e2"; // lista de compra de ramos: el precio sale de valores_ramos
+    import { htmlCuerpoCompra, htmlResumenCompra, textosAvisosCompra, htmlFormularioValores, textoActualizacion } from "./js/compra-vistas.js?v=b5e2";
+    import { RUTA_VALORES, leerValoresRamos, guardarValoresRamos } from "./js/valores-ramos-db.js?v=b5e2"; // ÚNICA escritura de esta pantalla
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
@@ -367,7 +423,10 @@
     let feriados = crearIndiceFeriados([]); // feriados (colección feriados): solo se pintan
     let rutasFallo = false;
     let feriadosFallo = false;
-    const PESTANAS = ["planes", "spot", "matriz-planes", "matriz-spot", "resumen"];
+    let valoresCompra = normalizarValores({}); // valores_ramos/compra: lo que no esté guardado queda «sin valor»
+    let valoresActualizado = "";
+    let valoresLecturaFallo = false;
+    const PESTANAS = ["planes", "spot", "matriz-planes", "matriz-spot", "resumen", "compra", "valores"];
     let pestanaActiva = "planes";
 
     const $ = (id) => document.getElementById(id);
@@ -562,6 +621,86 @@
       $("rv-mensual").innerHTML = htmlFilasResumen(r.mensual);
     }
 
+    // ---------------------------------------------------------------- Compra de flores y Valores de ramos
+    let lunesCompra = LUNES_BASE;
+
+    function renderCompra() {
+      const lista = construirListaCompra([...filasPlanes, ...filasSpot], {
+        lunesIso: lunesCompra,
+        incluirCompletadas: $("cr-completadas").checked,
+        valores: valoresCompra,
+      });
+      $("cr-titulo").textContent = `Semana del ${lista.dias[0].display} al ${lista.dias[6].display}`;
+      const avisos = textosAvisosCompra(lista).map(t => aviso("bg-amber-50 border-amber-300 text-amber-800", esc(t)));
+      if (valoresLecturaFallo) avisos.unshift(aviso("bg-rose-50 border-rose-300 text-rose-800", "No se pudieron leer los valores de ramos (colección valores_ramos): todas las líneas aparecen «sin valor»."));
+      $("cr-avisos").innerHTML = avisos.join("");
+      $("cr-resumen").innerHTML = htmlResumenCompra(lista);
+      $("cr-tbody").innerHTML = htmlCuerpoCompra(lista);
+    }
+
+    function mostrarAvisoValores(clases, texto) {
+      const caja = $("valores-aviso");
+      caja.className = "mt-3 p-3 rounded-xl border text-xs font-semibold " + clases;
+      caja.textContent = texto;
+    }
+
+    function renderValores() {
+      $("valores-form").innerHTML = htmlFormularioValores(valoresCompra);
+      $("valores-actualizado").textContent = valoresActualizado;
+      if (valoresLecturaFallo) {
+        mostrarAvisoValores("bg-amber-50 border-amber-300 text-amber-800", "No se pudieron leer los valores guardados (permiso de lectura). Puedes escribirlos, pero puede que no se guarden hasta que se habilite el permiso.");
+      } else {
+        $("valores-aviso").classList.add("hidden");
+      }
+    }
+
+    const referenciaValores = () => doc(db, ...RUTA_VALORES);
+
+    // Lee los valores guardados. Si no se pueden leer, la pantalla sigue con todo «sin valor» y lo avisa.
+    async function leerValores() {
+      valoresLecturaFallo = false;
+      try {
+        const r = await leerValoresRamos({ obtener: getDoc, referencia: referenciaValores });
+        valoresCompra = r.valores;
+        valoresActualizado = r.existe ? textoActualizacion(r.actualizadoEn) : "Aún no hay valores guardados.";
+      } catch (e) {
+        console.warn("No se pudieron leer los valores de ramos:", e && e.code ? e.code : "ERROR");
+        valoresLecturaFallo = true;
+        valoresCompra = normalizarValores({});
+        valoresActualizado = "";
+      }
+    }
+
+    // Única escritura de la pantalla: valores_ramos/compra (colección aditiva). Los campos vacíos no se escriben.
+    async function guardarValores() {
+      const escritos = {};
+      document.querySelectorAll(".valor-input").forEach(inp => { escritos[inp.dataset.clave] = inp.value; });
+      const boton = $("valores-guardar");
+      boton.disabled = true;
+      try {
+        const datos = await guardarValoresRamos({
+          guardar: setDoc,
+          referencia: referenciaValores,
+          valores: escritos,
+          uid: auth.currentUser ? auth.currentUser.uid : "",
+        });
+        valoresCompra = normalizarValores({ ...valoresCompra, ...datos });
+        valoresActualizado = textoActualizacion(datos.actualizadoEn);
+        valoresLecturaFallo = false;
+        renderValores();
+        renderCompra();
+        mostrarAvisoValores("bg-emerald-50 border-emerald-300 text-emerald-800", "Valores guardados. La lista de compra ya los usa.");
+      } catch (e) {
+        const permiso = e && e.code === "permission-denied";
+        console.error("No se pudieron guardar los valores de ramos:", e && e.code ? e.code : "ERROR");
+        // Los errores de validación traen su propio texto en español (sin datos de Firestore); los de red o permiso, uno genérico.
+        const texto = e && !e.code && e.message ? e.message : (permiso ? "No se pudieron guardar los valores: tu cuenta no tiene permiso para escribirlos." : "No se pudieron guardar los valores. Revisa tu conexión e inténtalo de nuevo.");
+        mostrarAvisoValores("bg-rose-50 border-rose-300 text-rose-800", texto);
+      } finally {
+        boton.disabled = false;
+      }
+    }
+
     // Detalle de una visita (solo lectura). `data-visita="docId|n"` en las tarjetas; `data-orden="docId"` en «Sin visita esta semana».
     function abrirDetalleVisita(docId, visitaNumero, esSpot) {
       const lista = (esSpot ? filasSpot : filasPlanes).filter(f => f.docId === docId);
@@ -664,6 +803,7 @@
         const operadores = await leerOperadores();
         rutas = await leerRutas();
         feriados = await leerFeriados();
+        await leerValores();
 
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         ordenesPagadas = [];
@@ -702,6 +842,8 @@
         renderMatrizPlanes();
         renderMatrizSpot();
         renderResumen();
+        renderCompra();
+        renderValores();
       } catch (err) {
         console.error("Error cargando planificación de servicios:", err && err.code ? err.code : "ERROR");
         $("estado-carga").classList.add("hidden");
@@ -755,6 +897,15 @@
       $(id).addEventListener("input", renderResumen);
       $(id).addEventListener("change", renderResumen);
     });
+
+    // Compra de flores: semana y visitas completadas
+    $("cr-anterior").addEventListener("click", () => { lunesCompra = sumarDias(lunesCompra, -7); renderCompra(); });
+    $("cr-hoy").addEventListener("click", () => { lunesCompra = LUNES_BASE; renderCompra(); });
+    $("cr-siguiente").addEventListener("click", () => { lunesCompra = sumarDias(lunesCompra, 7); renderCompra(); });
+    $("cr-completadas").addEventListener("change", renderCompra);
+
+    // Valores de ramos
+    $("valores-guardar").addEventListener("click", guardarValores);
 
     // Detalle de la visita: botón, clic fuera y Escape
     $("modal-visita-cerrar").addEventListener("click", cerrarDetalleVisita);
