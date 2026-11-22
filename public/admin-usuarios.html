@@ -112,6 +112,7 @@
   <script type="module">
     import { db } from "./js/firebaseConfig.js";
     import { requireStaffAccess, wireLogoutButton } from "./js/portal-common.js";
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { 
       collection, getDocs, doc, setDoc, updateDoc, serverTimestamp 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -140,11 +141,11 @@
           return `
             <tr>
               <td>
-                <strong>${item.nombre || 'Sin nombre'}</strong> ${esPropioUsuario ? '<span style="font-size: 0.75rem; color: var(--color-primary, #002d1a); font-weight: 700;">(Tú)</span>' : ''}<br>
-                <span style="font-size: 0.75rem; color: var(--color-text-light, #64748b); font-family: monospace;">${item.email || '-'}</span>
+                <strong>${esc(item.nombre || 'Sin nombre')}</strong> ${esPropioUsuario ? '<span style="font-size: 0.75rem; color: var(--color-primary, #002d1a); font-weight: 700;">(Tú)</span>' : ''}<br>
+                <span style="font-size: 0.75rem; color: var(--color-text-light, #64748b); font-family: monospace;">${esc(item.email || '-')}</span>
               </td>
               <td>
-                <select class="select-rol" data-uid="${item.uid}" ${esPropioUsuario ? 'disabled title="No puedes degradar tu propio rol de Administrador"' : ''} style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">
+                <select class="select-rol" data-uid="${esc(item.uid)}" ${esPropioUsuario ? 'disabled title="No puedes degradar tu propio rol de Administrador"' : ''} style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">
                   <option value="operador" ${rolNormalizado === 'operador' ? 'selected' : ''}>Operador</option>
                   <option value="supervisor" ${rolNormalizado === 'supervisor' ? 'selected' : ''}>Supervisor</option>
                   <option value="administrador" ${(rolNormalizado === 'administrador' || rolNormalizado === 'admin') ? 'selected' : ''}>Administrador</option>
@@ -156,7 +157,7 @@
                 </span>
               </td>
               <td class="text-right">
-                <button class="btn-toggle-estado" data-uid="${item.uid}" data-activo="${item.activo}" ${esPropioUsuario ? 'disabled style="display:none;"' : ''} style="background:none; border:none; color: ${item.activo ? 'var(--color-error, #c53030)' : 'var(--color-success, #276749)'}; font-size: 0.8rem; font-weight: bold; cursor: pointer;">
+                <button class="btn-toggle-estado" data-uid="${esc(item.uid)}" data-activo="${esc(item.activo)}" ${esPropioUsuario ? 'disabled style="display:none;"' : ''} style="background:none; border:none; color: ${item.activo ? 'var(--color-error, #c53030)' : 'var(--color-success, #276749)'}; font-size: 0.8rem; font-weight: bold; cursor: pointer;">
                   ${item.activo ? 'Desactivar' : 'Activar'}
                 </button>
               </td>
@@ -224,7 +225,7 @@
 
       } catch (err) {
         console.error("Error al consultar miembros del staff:", err);
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-600">Error al cargar datos: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-red-600">Error al cargar datos: ${esc(err.message)}</td></tr>`;
       } finally {
         cargandoStaff = false;
       }
