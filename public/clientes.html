@@ -87,8 +87,10 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2)
-    import { nombreClienteParaMostrar, nombreClienteDeOrden, nombreFilaCliente, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor único del nombre del cliente
-    import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js?v=ops13"; // avance real: visitas que cumplen la regla única
+    import { crearIndiceInformes, numerosTerminados } from "./js/servicio-terminado.js"; // avance real: visitas que cumplen la regla única
+    import { nombreClienteParaMostrar, nombreClienteDeOrden, nombreFilaCliente, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13"; // extractor único del nombre del cliente (restaurado tras la fusión)
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
+    import { agruparPorCliente, estadoDeServicio } from "./js/clientes-agrupar.js"; // agrupa los servicios por RUT (un cliente, una fila)
     import { 
       getFirestore, 
       collection, 
@@ -229,6 +231,7 @@
             patio: ord.ubicacionSepultura?.patio || ord.patio || "",
             numeroSepultura: ord.ubicacionSepultura?.numeroSepultura || ord.numeroSepultura || "",
             difunto: ord.difunto?.nombreCompleto || ord.difunto?.nombre || ord.nombreCompletoDifunto || ord.difuntoNombre || "",
+            rut: titular.rut || ord.rut || "",
             titularNombre: nombreClienteDeOrden(ord, contratosDeOrden(contratosMap, ord, ordId))
           };
 
@@ -252,6 +255,8 @@
           console.warn("Aviso consultando clientes:", e);
         }
 
+        // Un registro por servicio (orden). La ficha sin órdenes queda con un registro «Sin servicio».
+        // Después se agrupan por RUT: cada cliente aparece una sola vez (ver public/js/clientes-agrupar.js).
         const lista = [];
 
         if (snapClientes && !snapClientes.empty) {
@@ -261,73 +266,58 @@
             const rut = (c.rut || "").replace(/\./g, "").replace(/-/g, "").toLowerCase().trim();
 
             const ordenesVinculadas = ordenesPorEmail.get(email) || ordenesPorRut.get(rut) || ordenesPorId.get(docSnap.id) || [];
-            const ordenPrincipal = ordenesVinculadas[0] || null;
 
-            let serQueridoTexto = c.difunto || c.nombreDifunto || (ordenPrincipal ? ordenPrincipal.difunto : "-");
-            let planTexto = "-";
-            let suscripcionTexto = "-";
-            let ramosTexto = "-";
-            let estadoServicioTexto = `<span class="text-slate-400 italic text-[11px]">Sin servicio</span>`;
-            
-            let fechaRegistroVal = obtenerFechaContratacion(ordenPrincipal, c);
-            let cementerioVal = c.cementerio || c.comuna || c.ciudad || "-";
-            let cantServicios = ordenesVinculadas.length || Number(c.cantidadServicios || 0);
-
-            if (ordenPrincipal) {
-              if (ordenPrincipal.difunto && (!c.difunto && !c.nombreDifunto)) {
-                serQueridoTexto = ordenPrincipal.difunto;
-              }
-              planTexto = ordenPrincipal.plan;
-              suscripcionTexto = ordenPrincipal.suscripcion;
-              ramosTexto = ordenPrincipal.ramos;
-
-              if (ordenPrincipal.cementerio) {
-                cementerioVal = ordenPrincipal.cementerio;
-                if (ordenPrincipal.patio || ordenPrincipal.numeroSepultura) {
-                  cementerioVal += ` (Pat: ${ordenPrincipal.patio || '-'} N°: ${ordenPrincipal.numeroSepultura || '-'})`;
-                }
-              }
-
-              let totalVisitas = 4;
-              const pL = String(planTexto).toLowerCase();
-              if (pL.includes("spot")) totalVisitas = 1;
-              else if (pL.includes("12")) totalVisitas = 12;
-              else if (pL.includes("6")) totalVisitas = 6;
-              else if (pL.includes("4")) totalVisitas = 4;
-
-              const realizadas = ordenPrincipal.visitasCompletadas;
-              const enCurso = Math.min(totalVisitas, realizadas + 1);
-
-              if (realizadas >= totalVisitas) {
-                estadoServicioTexto = `<span class="bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">Completado (${totalVisitas}/${totalVisitas})</span>`;
-              } else {
-                estadoServicioTexto = `<span class="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">V${enCurso}/${totalVisitas}</span>`;
-              }
-            }
-
-            lista.push({
-              id: docSnap.id,
-              numeroOrdenRef: ordenPrincipal?.numeroOrden || docSnap.id,
+            const datosCliente = {
+              clienteId: docSnap.id,
               nombre: nombreFilaCliente(c, ordenesVinculadas),
-              serQuerido: serQueridoTexto || "-",
-              rut: c.rut || "-",
+              rut: c.rut || (ordenesVinculadas[0] && ordenesVinculadas[0].rut) || "-",
               email: c.email || c.correo || "-",
               telefono: c.telefono || c.celular || "-",
-              comuna: c.comuna || c.ciudad || c.direccion || "-",
-              cementerio: ordenPrincipal?.cementerio || "",
-              cementerioDetalle: cementerioVal,
-              cantServicios: cantServicios,
-              plan: planTexto,
-              suscripcion: suscripcionTexto,
-              ramos: ramosTexto,
-              estadoServicioHtml: estadoServicioTexto,
-              fechaRegistro: fechaRegistroVal,
-              serviciosTotales: ordenesVinculadas
+              comuna: c.comuna || c.ciudad || c.direccion || "-"
+            };
+            const serQueridoCliente = c.difunto || c.nombreDifunto || "";
+            const cementerioCliente = c.cementerio || c.comuna || c.ciudad || "-";
+
+            if (ordenesVinculadas.length === 0) {
+              lista.push({
+                ...datosCliente,
+                id: docSnap.id,
+                ordenId: "",
+                numeroOrdenRef: docSnap.id,
+                tieneServicio: false,
+                serQuerido: serQueridoCliente || "-",
+                cementerio: "",
+                cementerioDetalle: cementerioCliente,
+                plan: "-",
+                suscripcion: "-",
+                ramos: "-",
+                estadoServicioHtml: `<span class="text-slate-400 italic text-[11px]">Sin servicio</span>`,
+                fechaRegistro: obtenerFechaContratacion(null, c)
+              });
+              return;
+            }
+
+            ordenesVinculadas.forEach(dato => {
+              lista.push({
+                ...datosCliente,
+                id: docSnap.id,
+                ordenId: dato.id,
+                numeroOrdenRef: dato.numeroOrden || docSnap.id,
+                tieneServicio: true,
+                serQuerido: serQueridoCliente || dato.difunto || "-",
+                cementerio: dato.cementerio,
+                cementerioDetalle: dato.cementerio ? detalleCementerio(dato) : cementerioCliente,
+                plan: dato.plan,
+                suscripcion: dato.suscripcion,
+                ramos: dato.ramos,
+                estadoServicioHtml: estadoDeServicio(dato.plan, dato.visitasCompletadas),
+                fechaRegistro: dato.fechaRegistro || obtenerFechaContratacion(null, c)
+              });
             });
           });
         }
 
-        // Si la colección clientes está vacía o se crearon como órdenes directas
+        // Si la colección clientes está vacía, cada orden pagada es un servicio (sin ficha de cliente).
         if (lista.length === 0 && !snapOrdenes.empty) {
           snapOrdenes.forEach(docSnap => {
             const ord = docSnap.data();
@@ -338,21 +328,14 @@
             const plan = ord.servicio?.planNombre || ord.planNombre || "Plan 4";
             const cem = ord.ubicacionSepultura?.cementerio || ord.cementerio || "Cementerio";
 
-            let totalVisitas = 4;
-            const pL = String(plan).toLowerCase();
-            if (pL.includes("spot")) totalVisitas = 1;
-            else if (pL.includes("12")) totalVisitas = 12;
-            else if (pL.includes("6")) totalVisitas = 6;
-            else if (pL.includes("4")) totalVisitas = 4;
-
             const realizadas = numerosTerminados(ord, { docId: docSnap.id, indiceInformes }).size; // avance real (regla única)
-            const enCurso = Math.min(totalVisitas, realizadas + 1);
-
-            const fRaw = obtenerFechaContratacion(ord);
 
             lista.push({
+              clienteId: docSnap.id,
+              ordenId: docSnap.id,
               id: docSnap.id,
               numeroOrdenRef: ord.numeroOrden || docSnap.id,
+              tieneServicio: true,
               nombre: nom,
               serQuerido: dif,
               rut: tit.rut || ord.rut || "-",
@@ -361,23 +344,21 @@
               comuna: tit.comuna || tit.direccion || "-",
               cementerio: cem,
               cementerioDetalle: `${cem} (Pat: ${ord.ubicacionSepultura?.patio || '-'} N°: ${ord.ubicacionSepultura?.numeroSepultura || '-'})`,
-              cantServicios: 1,
               plan: plan,
               suscripcion: ord.tipoServicio === "SPOT" ? "Única" : "Anual",
               ramos: ord.ramosAdicionales || "Sin ramos adicionales",
-              estadoServicioHtml: `<span class="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[10px]">V${enCurso}/${totalVisitas}</span>`,
-              fechaRegistro: fRaw,
-              serviciosTotales: [{ plan: plan, cementerio: cem }]
+              estadoServicioHtml: estadoDeServicio(plan, realizadas),
+              fechaRegistro: obtenerFechaContratacion(ord)
             });
           });
         }
 
-        clientesConsolidados = lista;
+        clientesConsolidados = agruparPorCliente(lista);
 
         const selCem = document.getElementById("filtro-cementerio");
         if (selCem) {
           selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
-            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+            Array.from(cementeriosSet).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
         }
 
         document.getElementById("badge-total-clientes").textContent = `Total: ${clientesConsolidados.length} cliente(s)`;
@@ -387,13 +368,58 @@
       }
     };
 
+    // Texto de la ubicación de un servicio: cementerio + patio y N° de sepultura si los hay.
+    function detalleCementerio(o) {
+      let texto = o.cementerio || "";
+      if (o.patio || o.numeroSepultura) texto += ` (Pat: ${o.patio || '-'} N°: ${o.numeroSepultura || '-'})`;
+      return texto;
+    }
+
+    // Clientes con varios servicios que están desplegados (clave = RUT normalizado).
+    const gruposAbiertos = new Set();
+
+    // Filas de los servicios de un cliente (una línea por servicio, con su botón Borrar).
+    function filaDetalleServicios(g) {
+      const items = g.servicios.filter(s => s.tieneServicio).map((s, i) => {
+        const fecha = formatearFechaUniversal(s.fechaRegistro, s.numeroOrdenRef || s.id);
+        return `
+          <li class="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2 text-[11px] text-slate-700">
+            <span class="font-bold text-[#002d1a]">Servicio #${i + 1}</span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Plan</span><span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded inline-block">${esc(s.plan)}</span></span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Ser querido</span><span class="font-bold text-emerald-950">${esc(s.serQuerido)}</span></span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Ubicación</span>${esc(s.cementerioDetalle)}</span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Suscripción</span>${esc(s.suscripcion)}</span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Ramos</span>${esc(s.ramos)}</span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Estado</span>${s.estadoServicioHtml}</span>
+            <span><span class="block text-[9px] uppercase font-bold text-slate-400">Fecha registro</span><span class="font-mono font-bold text-[#002d1a]">${fecha}</span></span>
+            <button type="button" data-id="${esc(s.id)}" data-nombre="${esc(g.nombre)}" onclick="window.eliminarClienteConClave(this.dataset.id, this.dataset.nombre)" class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition cursor-pointer" title="Eliminar cliente con clave">
+              <span class="material-symbols-outlined text-sm">delete</span> Borrar
+            </button>
+          </li>`;
+      }).join("");
+      return `
+        <tr class="bg-slate-50" data-detalle-de="${esc(g.clave)}">
+          <td colspan="11" class="px-3 pb-3 pt-1">
+            <ul class="rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">${items}</ul>
+          </td>
+        </tr>`;
+    }
+
     function renderizarTabla() {
       const q = (document.getElementById("filtro-cliente")?.value || "").toLowerCase().trim();
-      const c = document.getElementById("filtro-cementerio")?.value || "";
+      const c = (document.getElementById("filtro-cementerio")?.value || "").toLowerCase();
 
-      const filtrados = clientesConsolidados.filter(item => {
-        if (q && !item.nombre.toLowerCase().includes(q) && !item.serQuerido.toLowerCase().includes(q) && !item.rut.toLowerCase().includes(q) && !item.email.toLowerCase().includes(q)) return false;
-        if (c && !item.cementerio.toLowerCase().includes(c.toLowerCase()) && !item.cementerioDetalle.toLowerCase().includes(c.toLowerCase())) return false;
+      const filtrados = clientesConsolidados.filter(g => {
+        if (q) {
+          const coincide = [g.nombre, g.rut, g.email, ...g.servicios.map(s => s.serQuerido)]
+            .some(v => String(v || "").toLowerCase().includes(q));
+          if (!coincide) return false;
+        }
+        if (c) {
+          const coincide = g.servicios.some(s =>
+            String(s.cementerio || "").toLowerCase().includes(c) || String(s.cementerioDetalle || "").toLowerCase().includes(c));
+          if (!coincide) return false;
+        }
         return true;
       });
 
@@ -413,36 +439,27 @@
         return;
       }
 
-      tbody.innerHTML = filtrados.map((item, idx) => {
-        let htmlColumnaPlan = "";
-        const cantidadServicios = item.serviciosTotales ? item.serviciosTotales.length : (item.cantServicios || 0);
+      tbody.innerHTML = filtrados.map(g => {
+        const p = g.principal;
+        const varios = g.cantServicios > 1;
+        const abierto = varios && gruposAbiertos.has(g.clave);
 
-        if (cantidadServicios > 1) {
-          const opcionesServicios = item.serviciosTotales.map((s, i) => 
-            `<li class="py-1 px-2 border-b border-slate-100 last:border-b-0 text-[10px] text-slate-700">
-               <span class="font-bold text-[#002d1a]">#${i + 1}:</span> ${s.plan} <span class="text-slate-400">(${s.cementerio || 'Cementerio'})</span>
-             </li>`
-          ).join("");
+        // Formateo infalible de la fecha de contratación / registro
+        const fechaTexto = formatearFechaUniversal(p.fechaRegistro, p.numeroOrdenRef || p.id);
 
+        let htmlColumnaPlan;
+        if (varios) {
+          const planes = g.servicios.filter(s => s.tieneServicio).map(s => s.plan).join(" · ");
           htmlColumnaPlan = `
-            <div class="relative inline-block text-center">
-              <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] block">
-                ${item.plan}
-              </span>
-              <button type="button" onclick="toggleMenuServicios('menu-serv-${idx}')" class="mt-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 flex items-center justify-center gap-0.5 mx-auto cursor-pointer">
-                <span>+${cantidadServicios - 1} otro(s)</span>
-                <span class="material-symbols-outlined text-xs">expand_more</span>
-              </button>
-              <div id="menu-serv-${idx}" class="hidden absolute z-20 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg text-left left-1/2 -translate-x-1/2 p-1">
-                <div class="text-[9px] uppercase font-bold text-slate-400 px-2 py-0.5">Todos los servicios:</div>
-                <ul class="divide-y divide-slate-50">${opcionesServicios}</ul>
-              </div>
+            <div>
+              <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] inline-block">${g.cantServicios} servicios</span>
+              <span class="block text-[9px] text-slate-400 mt-0.5 font-medium">${esc(planes)}</span>
             </div>`;
-        } else if (cantidadServicios === 1) {
+        } else if (g.cantServicios === 1) {
           htmlColumnaPlan = `
             <div>
               <span class="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px] inline-block">
-                ${item.plan}
+                ${esc(p.plan)}
               </span>
               <span class="block text-[9px] text-slate-400 mt-0.5 font-medium">Solo 1 servicio contratado</span>
             </div>`;
@@ -450,65 +467,61 @@
           htmlColumnaPlan = `<span class="text-slate-400 italic text-[11px]">-</span>`;
         }
 
-        // Formateo infalible de la fecha de contratación / registro
-        const fechaTexto = formatearFechaUniversal(item.fechaRegistro, item.numeroOrdenRef || item.id);
+        const accion = varios
+          ? `<button type="button" aria-expanded="${abierto}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-emerald-200 text-emerald-900 hover:bg-emerald-50 text-[11px] font-bold transition cursor-pointer">
+               <span class="material-symbols-outlined text-sm">${abierto ? "expand_less" : "expand_more"}</span> ${abierto ? "Ocultar servicios" : "Ver servicios"}
+             </button>`
+          : `<button type="button" data-id="${esc(p.id)}" data-nombre="${esc(g.nombre)}" onclick="window.eliminarClienteConClave(this.dataset.id, this.dataset.nombre)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition cursor-pointer" title="Eliminar cliente con clave">
+               <span class="material-symbols-outlined text-sm">delete</span> Borrar
+             </button>`;
 
-        return `
-        <tr class="hover:bg-slate-50 transition text-slate-700">
+        const filaPrincipal = `
+        <tr class="hover:bg-slate-50 transition text-slate-700${varios ? " cursor-pointer" : ""}"${varios ? ` data-grupo="${esc(g.clave)}"` : ""}>
           <td class="py-3 px-3">
-            <span class="font-bold text-slate-900 block">${item.nombre}</span>
-            <span class="text-[10px] text-slate-400 font-mono">ID: ${item.id.substring(0, 10)}...</span>
+            <span class="font-bold text-slate-900 block">${esc(g.nombre)}</span>
+            <span class="text-[10px] text-slate-400 font-mono">ID: ${esc(String(p.id).substring(0, 10))}...</span>
           </td>
           <td class="py-3 px-3">
-            <span class="font-bold text-emerald-950 block">${item.serQuerido}</span>
+            <span class="font-bold text-emerald-950 block">${esc(p.serQuerido)}</span>
           </td>
-          <td class="py-3 px-3 font-mono font-bold text-slate-800 text-[11px]">${item.rut}</td>
+          <td class="py-3 px-3 font-mono font-bold text-slate-800 text-[11px]">${esc(g.rut)}</td>
           <td class="py-3 px-3 text-[11px]">
             <div class="flex items-center gap-1 text-slate-600">
               <span class="material-symbols-outlined text-[13px] text-slate-400">mail</span>
-              <span>${item.email}</span>
+              <span>${esc(g.email)}</span>
             </div>
             <div class="flex items-center gap-1 text-slate-600 mt-0.5">
               <span class="material-symbols-outlined text-[13px] text-slate-400">call</span>
-              <span>${item.telefono}</span>
+              <span>${esc(g.telefono)}</span>
             </div>
           </td>
           <td class="py-3 px-3 text-[11px]">
-            <span class="font-semibold block text-slate-800">${item.cementerioDetalle}</span>
-            <span class="text-[10px] text-slate-400">${item.comuna}</span>
+            <span class="font-semibold block text-slate-800">${esc(p.cementerioDetalle)}</span>
+            <span class="text-[10px] text-slate-400">${esc(g.comuna)}</span>
           </td>
           <td class="py-3 px-3 text-center">
             ${htmlColumnaPlan}
           </td>
           <td class="py-3 px-3 text-center font-medium text-slate-700 text-[11px]">
-            ${item.suscripcion}
+            ${varios ? "—" : esc(p.suscripcion)}
           </td>
           <td class="py-3 px-3 text-center text-[11px] text-slate-600">
-            ${item.ramos}
+            ${varios ? "—" : esc(p.ramos)}
           </td>
           <td class="py-3 px-3 text-center">
-            ${item.estadoServicioHtml}
+            ${varios ? "—" : p.estadoServicioHtml}
           </td>
           <td class="py-3 px-3 text-center font-mono font-bold text-[#002d1a] text-[11px]">
-            ${fechaTexto}
+            ${varios ? "—" : fechaTexto}
           </td>
           <td class="py-3 px-3 text-center">
-            <button type="button" onclick="window.eliminarClienteConClave('${item.id}', '${item.nombre}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition cursor-pointer" title="Eliminar cliente con clave">
-              <span class="material-symbols-outlined text-sm">delete</span> Borrar
-            </button>
+            ${accion}
           </td>
         </tr>`;
+
+        return filaPrincipal + (abierto ? filaDetalleServicios(g) : "");
       }).join("");
     }
-
-    // Toggle desplegable
-    window.toggleMenuServicios = function(idMenu) {
-      document.querySelectorAll("[id^='menu-serv-']").forEach(m => {
-        if (m.id !== idMenu) m.classList.add("hidden");
-      });
-      const el = document.getElementById(idMenu);
-      if (el) el.classList.toggle("hidden");
-    };
 
     // N193 (B-2): se retiró la clave fija que protegía el borrado desde el navegador (era visible para cualquiera).
     // Las reglas publicadas no permiten borrar clientes/{id}; un borrado real necesita su propia spec con regla para staff con claim.
@@ -516,10 +529,15 @@
       alert(`⚠️ El borrado de clientes está deshabilitado por seguridad. El cliente "${nombre}" no se eliminó.\nSi necesitas eliminarlo, solicítalo al administrador.`);
     };
 
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest("[onclick^='toggleMenuServicios']") && !e.target.closest("[id^='menu-serv-']")) {
-        document.querySelectorAll("[id^='menu-serv-']").forEach(m => m.classList.add("hidden"));
-      }
+    // Desplegar / ocultar los servicios de un cliente con varios servicios (clic en la fila o en su botón).
+    // Los «Borrar» de cada servicio están en una fila aparte (sin data-grupo): no despliegan ni pliegan nada.
+    document.getElementById("cuerpo-tabla-clientes")?.addEventListener("click", (e) => {
+      const fila = e.target.closest("tr[data-grupo]");
+      if (!fila) return;
+      const clave = fila.dataset.grupo;
+      if (gruposAbiertos.has(clave)) gruposAbiertos.delete(clave);
+      else gruposAbiertos.add(clave);
+      renderizarTabla();
     });
 
     document.getElementById("filtro-cliente")?.addEventListener("input", renderizarTabla);

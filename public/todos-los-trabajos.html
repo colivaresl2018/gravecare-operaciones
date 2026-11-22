@@ -46,6 +46,16 @@
           <option value="">Todos los Cementerios</option>
         </select>
       </div>
+      <div class="w-full sm:w-56">
+        <select id="filtro-ser-querido" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Seres Queridos</option>
+        </select>
+      </div>
+      <div class="w-full sm:w-56">
+        <select id="filtro-titular" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+          <option value="">Todos los Titulares</option>
+        </select>
+      </div>
     </div>
     <div class="text-xs font-semibold text-slate-600" id="contador-activos">Cargando tareas operativas...</div>
   </section>
@@ -85,9 +95,10 @@
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (spec 040)
     import { esOrdenPagada, esOrdenDePrueba, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
-    import { crearIndiceInformes, numerosTerminados, evaluarVisita, construirCierreVisita } from "./js/servicio-terminado.js?v=ops13"; // regla única de «Servicio Terminado»
-    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js?v=ops13";
-    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita // extractor único del nombre del cliente
+    import { crearIndiceInformes, numerosTerminados, evaluarVisita, construirCierreVisita } from "./js/servicio-terminado.js"; // regla única de «Servicio Terminado»
+    import { nombreClienteParaMostrar, contratosDeOrden, cargarContratos } from "./js/nombre-cliente.js"; // extractor único del nombre del cliente
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
+    import { estadoUnificadoVisita } from "./js/estado-visita-unificado.js?v=ops13"; // estado único por visita (restaurado tras la fusión)
 
     const firebaseConfig = FIREBASE_CONFIG;
 
@@ -318,10 +329,11 @@
 
         const selCem = document.getElementById("filtro-cementerio");
         if (selCem) {
-          selCem.innerHTML = '<option value="">Todos los Cementerios</option>' + 
-            Array.from(cementeriosSet).map(c => `<option value="${c}">${c}</option>`).join("");
+          selCem.innerHTML = '<option value="">Todos los Cementerios</option>' +
+            Array.from(cementeriosSet).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
         }
 
+        actualizarFiltrosPersonas();
         renderizarTabla();
       } catch (err) {
         console.error("Error al cargar trabajos:", err);
@@ -354,6 +366,7 @@
 
         listaVisitasActivas = listaVisitasActivas.filter(v => !(v.ordenDocId === ordenId && v.numeroVisita === numeroVisita));
         listaVisitasActivas.forEach(v => { if (v.ordenDocId === ordenId) v.terminadasOrden = terminadasPrevias + 1; });
+        actualizarFiltrosPersonas();
         renderizarTabla();
 
         if (esUltimaVisita) {
@@ -366,12 +379,31 @@
       }
     };
 
+    // Menús «Ser Querido» y «Titular»: se arman con los nombres que hay en la lista cargada (sin duplicados, ordenados).
+    // Al cargar la lista o al cambiar una visita se vuelven a armar, y se conserva la opción elegida si sigue existiendo.
+    function llenarMenuNombres(idSelect, todos, nombres) {
+      const sel = document.getElementById(idSelect);
+      if (!sel) return;
+      const previa = sel.value;
+      const lista = [...new Set(nombres.filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+      sel.innerHTML = `<option value="">${todos}</option>` + lista.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+      sel.value = lista.includes(previa) ? previa : "";
+    }
+    function actualizarFiltrosPersonas() {
+      llenarMenuNombres("filtro-ser-querido", "Todos los Seres Queridos", listaVisitasActivas.map(v => v.difunto));
+      llenarMenuNombres("filtro-titular", "Todos los Titulares", listaVisitasActivas.map(v => v.cliente));
+    }
+
     function renderizarTabla() {
       const q = (document.getElementById("filtro-busqueda")?.value || "").toLowerCase().trim();
       const c = document.getElementById("filtro-cementerio")?.value || "";
+      const sq = document.getElementById("filtro-ser-querido")?.value || "";
+      const st = document.getElementById("filtro-titular")?.value || "";
 
       const filtradas = listaVisitasActivas.filter(item => {
         if (q && !item.cliente.toLowerCase().includes(q) && !item.difunto.toLowerCase().includes(q) && !item.numeroOrden.toLowerCase().includes(q)) return false;
+        if (sq && item.difunto !== sq) return false;
+        if (st && item.cliente !== st) return false;
         if (c && item.cementerio !== c) return false;
         return true;
       });
@@ -396,26 +428,26 @@
       tbody.innerHTML = filtradas.map(item => `
         <tr class="hover:bg-slate-50 transition text-slate-700">
           <td class="py-3.5 px-4 font-mono font-bold text-[#002d1a]">
-            #${item.numeroOrden}
+            #${esc(item.numeroOrden)}
             <span class="block text-[11px] text-emerald-800 font-sans font-extrabold mt-0.5">
-              Visita ${item.numeroVisita} de ${item.totalVisitas}
+              Visita ${esc(item.numeroVisita)} de ${esc(item.totalVisitas)}
             </span>
           </td>
-          <td class="py-3.5 px-4 font-semibold text-slate-900">${item.cliente}${item.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
-          <td class="py-3.5 px-4 font-medium text-emerald-950">${item.difunto}</td>
+          <td class="py-3.5 px-4 font-semibold text-slate-900">${esc(item.cliente)}${item.esPrueba ? INSIGNIA_PRUEBA : ""}</td>
+          <td class="py-3.5 px-4 font-medium text-emerald-950">${esc(item.difunto)}</td>
           <td class="py-3.5 px-4">
-            <span class="font-semibold block text-slate-800">${item.cementerio}</span>
-            <span class="text-[11px] text-slate-500">${item.ubicacion}</span>
+            <span class="font-semibold block text-slate-800">${esc(item.cementerio)}</span>
+            <span class="text-[11px] text-slate-500">${esc(item.ubicacion)}</span>
           </td>
           <td class="py-3.5 px-4">
-            <span class="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-bold text-[11px] inline-block">${item.plan}</span>
+            <span class="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-bold text-[11px] inline-block">${esc(item.plan)}</span>
           </td>
           <td class="py-3.5 px-4 font-mono font-bold text-[#002d1a]">${formatearFecha(item.fechaProgramada)}</td>
           <td class="py-3.5 px-4 text-center">
             ${obtenerInsigniaEstado(item.estadoVisita, item.fechaProgramada)}
           </td>
           <td class="py-3.5 px-4 text-center">
-            <button type="button" onclick="window.completarVisitaIndividual('${item.ordenDocId}', ${item.numeroVisita}, ${item.totalVisitas})" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Completar esta visita">
+            <button type="button" data-orden="${esc(item.ordenDocId)}" onclick="window.completarVisitaIndividual(this.dataset.orden, ${Number(item.numeroVisita)}, ${Number(item.totalVisitas)})" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition shadow-sm cursor-pointer" title="Completar esta visita">
               <span class="material-symbols-outlined text-sm">check_circle</span> Completar Visita
             </button>
           </td>
@@ -425,6 +457,8 @@
 
     document.getElementById("filtro-busqueda")?.addEventListener("input", renderizarTabla);
     document.getElementById("filtro-cementerio")?.addEventListener("change", renderizarTabla);
+    document.getElementById("filtro-ser-querido")?.addEventListener("change", renderizarTabla);
+    document.getElementById("filtro-titular")?.addEventListener("change", renderizarTabla);
 
     // Spec 040: la carga solo arranca con sesión de staff (claim staffActivo)
     let cargaIniciada = false;

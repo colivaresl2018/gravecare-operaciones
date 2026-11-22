@@ -88,6 +88,15 @@
     </div>
   </div>
 
+  <!-- Aviso: informe rechazado por supervisión (se muestra solo si la visita fue rechazada) -->
+  <div id="avisoRechazo" class="hidden mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-900 flex items-start gap-3 shadow-sm">
+    <span class="material-symbols-outlined text-2xl text-rose-600 shrink-0">report</span>
+    <div>
+      <p class="text-sm font-bold">Este informe fue rechazado por supervisión. Corrígelo y vuelve a enviarlo.</p>
+      <p id="avisoRechazoMotivo" class="text-xs font-medium mt-1"></p>
+    </div>
+  </div>
+
   <!-- Alerta de validación de 4 fotos -->
   <div id="alertaFotosIncompletas" class="hidden mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-900 flex items-center gap-3 shadow-sm transition-all">
     <span class="material-symbols-outlined text-2xl text-rose-600 shrink-0">warning</span>
@@ -245,6 +254,8 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
+    import { rechazoDeVisita, datosParaCorregir } from "./js/informe-rechazado.js"; // informe rechazado: muestra el motivo al operador
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = FIREBASE_CONFIG;
@@ -384,6 +395,30 @@
 
     document.getElementById("btnActualizarGps").addEventListener("click", capturarUbicacionGps);
 
+    // Informe rechazado: deja en su casilla la foto que el operador ya había cargado (puede reemplazarla con «borrar»).
+    function precargarFoto(num, dataUrl) {
+      if (!dataUrl) return;
+      fotosDataUrls[num] = dataUrl;
+      const preview = document.getElementById(`imgPreview${num}`);
+      preview.src = dataUrl;
+      preview.classList.remove("hidden");
+      document.getElementById(`phFoto${num}`).classList.add("hidden");
+      document.getElementById(`btnBorrar${num}`).classList.remove("hidden");
+      document.getElementById(`inputFoto${num}`).classList.add("pointer-events-none");
+      const statusSlot = document.getElementById(`statusSlot${num}`);
+      statusSlot.textContent = "✓ Lista";
+      statusSlot.className = "text-[11px] font-bold text-emerald-600";
+      actualizarContador();
+    }
+
+    const CHECK_POR_LABOR = {
+      "Limpieza profunda de lápida y placa": "chkLimpiezaLapida",
+      "Retiro de maleza y hojas secas": "chkRetiroMaleza",
+      "Ornamentación con flores frescas": "chkOrnamentacion",
+      "Riego y perfilado de terreno": "chkRiego",
+      "Limpieza y pulido de piezas de bronce": "chkBronce"
+    };
+
     [1, 2, 3, 4].forEach(num => {
       const input = document.getElementById(`inputFoto${num}`);
       const preview = document.getElementById(`imgPreview${num}`);
@@ -454,8 +489,26 @@
         document.getElementById("txtCliente").textContent = titular;
         document.getElementById("txtDifunto").textContent = difunto;
         document.getElementById("txtUbicacion").innerHTML = `
-          <strong>${cem}</strong> • Sector: <span class="text-brand font-bold">${sec}</span> • Sepultura / Lote: <span class="text-brand font-bold">#${sep}</span>
+          <strong>${esc(cem)}</strong> • Sector: <span class="text-brand font-bold">${esc(sec)}</span> • Sepultura / Lote: <span class="text-brand font-bold">#${esc(sep)}</span>
         `;
+
+        const rechazo = rechazoDeVisita(datosOrden, visitaIndex, { docId: ordenId });
+        if (rechazo.rechazada) {
+          document.getElementById("avisoRechazoMotivo").textContent = rechazo.motivo ? `Motivo: ${rechazo.motivo}` : "";
+          document.getElementById("avisoRechazo").classList.remove("hidden");
+          // El operador corrige sobre lo que ya había cargado: fotos, labores y observaciones vuelven al formulario.
+          try {
+            const snapInforme = await getDoc(doc(db, "informes", informeDocId));
+            if (snapInforme.exists()) {
+              const previo = datosParaCorregir(snapInforme.data());
+              [1, 2, 3, 4].forEach(n => precargarFoto(n, previo.fotos[n]));
+              previo.labores.forEach(l => { const el = CHECK_POR_LABOR[l] && document.getElementById(CHECK_POR_LABOR[l]); if (el) el.checked = true; });
+              document.getElementById("observaciones").value = previo.observaciones;
+            }
+          } catch (e) {
+            console.warn("No se pudo cargar el informe anterior para corregirlo:", e && e.code ? e.code : "ERROR");
+          }
+        }
 
         capturarUbicacionGps();
 
