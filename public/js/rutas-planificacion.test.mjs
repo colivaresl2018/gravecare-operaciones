@@ -93,3 +93,36 @@ test('feriados: un feriado sin nombre igual se pinta con un nombre genérico; si
   assert.equal(vacio.nombre('2026-05-01'), null);
   assert.equal(vacio.cantidad, 0);
 });
+
+// ─── «Quitar» una ruta o un feriado = activo:false (campo aditivo): las matrices lo ignoran ───────────────────────
+
+test('rutas: un documento con activo:false se ignora (el cementerio vuelve a «Sin eje»); sin el campo o con activo:true sigue valiendo', () => {
+  const idx = crearIndiceRutas([
+    { id: 'a', data: { cementerio: 'Cementerio A', eje: 'Norte', diaSemana: 1, activo: false } },
+    { id: 'b', data: { cementerio: 'Cementerio B', eje: 'Sur', diaSemana: 2, activo: true } },
+    { id: 'c', data: { cementerio: 'Cementerio C', eje: 'Centro', diaSemana: 3 } },
+  ]);
+  assert.equal(idx.rutaDe('Cementerio A'), null);
+  assert.equal(idx.rutaDe('Cementerio B').eje, 'Sur');
+  assert.equal(idx.rutaDe('Cementerio C').eje, 'Centro');
+  assert.equal(idx.cantidad, 2);
+  assert.deepEqual(idx.ejes.map((e) => e.eje), ['Sur', 'Centro']);
+  assert.deepEqual(idx.ejesDelDia(1), []);
+});
+
+test('rutas: si todas están quitadas el índice queda vacío', () => {
+  const idx = crearIndiceRutas([{ id: 'a', data: { cementerio: 'A', eje: 'Norte', diaSemana: 1, activo: false } }]);
+  assert.equal(idx.vacio, true);
+});
+
+test('feriados: uno con activo:false no se pinta; los demás siguen', () => {
+  const f = crearIndiceFeriados([
+    { id: '2026-12-25', data: { nombre: 'Navidad', activo: false } },
+    { id: '2026-12-08', data: { nombre: 'Inmaculada Concepción', activo: true } },
+    { id: '2026-05-01', data: { nombre: 'Día del Trabajo' } },
+  ]);
+  assert.equal(f.nombre('2026-12-25'), null);
+  assert.equal(f.nombre('2026-12-08'), 'Inmaculada Concepción');
+  assert.equal(f.nombre('2026-05-01'), 'Día del Trabajo');
+  assert.equal(f.cantidad, 2);
+});

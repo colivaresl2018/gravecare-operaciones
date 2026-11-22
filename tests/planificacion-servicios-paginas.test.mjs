@@ -134,7 +134,9 @@ test('B5: los módulos nuevos existen y todo lo que importan existe (un import r
     const ruta = join(PUBLIC, 'js', `${nombre}.js`);
     assert.ok(existsSync(ruta), `falta ${nombre}.js`);
     for (const r of importsRelativos(lee(`js/${nombre}.js`))) assert.ok(existsSync(join(PUBLIC, 'js', r)), `${nombre}.js importa ${r}, que no existe`);
-    assert.match(html, new RegExp(`from "\\./js/${nombre}\\.js\\?v=b5"`)) ;
+    // rutas-planificacion subió a ?v=cfg1 (ignora las rutas y feriados «quitados» desde la pantalla Rutas y feriados): el navegador no debe usar la copia vieja
+    const version = nombre === 'rutas-planificacion' ? 'cfg1' : 'b5';
+    assert.match(html, new RegExp(`from "\\./js/${nombre}\\.js\\?v=${version}"`));
   }
 });
 
