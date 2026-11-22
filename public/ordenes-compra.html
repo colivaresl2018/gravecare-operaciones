@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Órdenes de compra | GraveCare Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faf8; color: #191c1b; margin: 0; }
+    /* La zona de impresión no se ve en pantalla; al imprimir es lo único que sale. */
+    #zona-impresion { display: none; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      body > *:not(#zona-impresion) { display: none !important; }
+      #zona-impresion { display: block !important; padding: 16mm; }
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+  <!-- Encabezado y pestañas -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-[#002d1a]">Órdenes de compra</h1>
+      <p class="text-xs text-slate-500 mt-1">Órdenes de compra a proveedores y maestro de materiales. Los ramos toman su precio de «Valores de ramos».</p>
+    </div>
+
+    <div class="flex flex-wrap items-center bg-slate-200/80 p-1 rounded-xl" role="tablist" aria-label="Pestañas de órdenes de compra">
+      <button type="button" id="tab-ordenes" data-tab="ordenes" role="tab" aria-selected="true" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">shopping_cart</span> Órdenes de compra
+      </button>
+      <button type="button" id="tab-materiales" data-tab="materiales" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">inventory_2</span> Maestro de materiales
+      </button>
+    </div>
+  </header>
+
+  <!-- Aviso de error de carga -->
+  <div id="aviso-error" class="hidden mb-4 p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-center justify-between gap-3 shadow-sm" role="alert">
+    <span id="aviso-error-texto" class="text-xs font-bold text-rose-800">No se pudieron cargar las órdenes de compra.</span>
+    <button type="button" id="btn-reintentar" class="px-3 py-1 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition whitespace-nowrap">Reintentar</button>
+  </div>
+
+  <div id="estado-carga" class="bg-white rounded-xl border border-slate-200 shadow-sm py-8 text-center text-slate-400 text-sm">Cargando órdenes de compra...</div>
+
+  <!-- Pestaña ÓRDENES -->
+  <div id="panel-ordenes" class="hidden">
+    <div id="nota-valores" class="hidden mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900">
+      No se pudieron leer los valores de los ramos: los ramos quedan «sin valor» y no se pueden pedir hasta que se carguen en «Valores de ramos».
+    </div>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
+      <h2 class="text-sm font-bold text-[#002d1a] mb-3">Nueva orden de compra</h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+        <label class="text-[11px] font-bold text-slate-600">Fecha
+          <input type="date" id="oc-fecha" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Fecha de entrega (opcional)
+          <input type="date" id="oc-entrega" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Condiciones de pago
+          <select id="oc-condiciones" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal bg-white">
+            <option value="Transferencia">Transferencia</option>
+            <option value="Factura a 30 días">Factura a 30 días</option>
+            <option value="Contado">Contado</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Lugar de entrega
+          <input type="text" id="oc-lugar" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+      </div>
+      <p class="text-[11px] font-bold text-slate-600 mb-2">Proveedor</p>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+        <label class="text-[11px] font-bold text-slate-600 md:col-span-2">Razón social
+          <input type="text" id="oc-razon" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">RUT
+          <input type="text" id="oc-rut" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Contacto
+          <input type="text" id="oc-contacto" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Teléfono
+          <input type="text" id="oc-telefono" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600 md:col-span-5">Dirección
+          <input type="text" id="oc-direccion" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+      </div>
+
+      <p class="text-[11px] font-bold text-slate-600 mb-2">Líneas</p>
+      <div class="flex flex-wrap items-end gap-3 mb-3">
+        <label class="text-[11px] font-bold text-slate-600">Código del material
+          <input type="text" id="oc-codigo" list="lista-codigos" maxlength="20" autocomplete="off" placeholder="Ej.: RAM-STD" class="mt-1 w-48 px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal uppercase">
+          <datalist id="lista-codigos"></datalist>
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Cantidad
+          <input type="text" id="oc-cantidad" inputmode="numeric" maxlength="6" value="1" class="mt-1 w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <button type="button" id="btn-agregar-linea" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Agregar línea</button>
+      </div>
+      <div id="aviso-linea" class="hidden mb-3 p-3 rounded-xl border text-xs font-semibold" role="alert"></div>
+      <div class="overflow-x-auto border border-slate-200 rounded-xl mb-3">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Código</th><th class="py-2 px-3">Descripción</th><th class="py-2 px-3">Unidad</th><th class="py-2 px-3 text-right">Cantidad</th><th class="py-2 px-3 text-right">Precio</th><th class="py-2 px-3 text-right">Valor</th><th class="py-2 px-3"></th></tr></thead>
+          <tbody id="tbody-lineas"></tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="button" id="btn-emitir" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Emitir orden</button>
+          <button type="button" id="btn-limpiar-borrador" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Limpiar</button>
+          <span class="text-[11px] text-slate-500">Al emitir se asigna el número y la orden ya no se puede editar: solo anular.</span>
+        </div>
+        <div id="oc-totales" class="min-w-[14rem]"></div>
+      </div>
+      <div id="aviso-oc" class="hidden mt-3 p-3 rounded-xl border text-xs font-semibold" role="status"></div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-bold text-[#002d1a]">Órdenes emitidas</h2>
+        <p id="aviso-permisos-anular" class="hidden text-[11px] text-slate-500">Solo el dueño puede anular una orden.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Número</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3">Proveedor</th><th class="py-2 px-3 text-right">Total</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3"></th></tr></thead>
+          <tbody id="tbody-ordenes"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Pestaña MAESTRO DE MATERIALES -->
+  <div id="panel-materiales" class="hidden">
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="px-4 py-3 border-b border-slate-200">
+        <h2 class="text-sm font-bold text-[#002d1a]">Materiales</h2>
+        <p class="text-[11px] text-slate-500 mt-1">Los cinco ramos salen de «Valores de ramos» y no se editan aquí. Un material no se borra: se retira y se puede reactivar.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Código</th><th class="py-2 px-3">Descripción</th><th class="py-2 px-3">Tipo</th><th class="py-2 px-3">Unidad</th><th class="py-2 px-3 text-right">Precio</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3"></th></tr></thead>
+          <tbody id="tbody-materiales"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+      <h2 id="material-titulo" class="text-sm font-bold text-[#002d1a] mb-3">Nuevo material</h2>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+        <label class="text-[11px] font-bold text-slate-600">Código
+          <input type="text" id="material-codigo" maxlength="20" autocomplete="off" placeholder="Ej.: INS-010" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal uppercase disabled:bg-slate-100">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600 md:col-span-2">Descripción
+          <input type="text" id="material-descripcion" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Tipo
+          <select id="material-tipo" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal bg-white">
+            <option value="Insumo">Insumo</option>
+            <option value="Arreglo floral">Arreglo floral</option>
+            <option value="Servicio">Servicio</option>
+          </select>
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Unidad
+          <input type="text" id="material-unidad" maxlength="10" placeholder="UNI" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Precio unitario (pesos)
+          <input type="text" id="material-precio" inputmode="numeric" maxlength="12" placeholder="Ej.: 12.500" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="button" id="btn-guardar-material" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Guardar material</button>
+        <button type="button" id="btn-cancelar-material" class="hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Cancelar edición</button>
+      </div>
+      <div id="aviso-material" class="hidden mt-3 p-3 rounded-xl border text-xs font-semibold" role="status"></div>
+    </section>
+  </div>
+
+  <!-- Orden emitida: vista previa e impresión (se cierra con ×, clic fuera o Escape) -->
+  <div id="modal-oc" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="modal-oc-titulo">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-4 py-3 bg-[#002d1a] text-white rounded-t-xl">
+        <h2 id="modal-oc-titulo" class="text-sm font-bold">Orden de compra</h2>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-imprimir" class="px-3 py-1 rounded-lg bg-white text-[#002d1a] text-xs font-bold hover:bg-slate-100 transition">Imprimir</button>
+          <button type="button" id="modal-oc-cerrar" aria-label="Cerrar" class="text-white text-xl leading-none px-2">&times;</button>
+        </div>
+      </div>
+      <div id="modal-oc-contenido" class="p-6"></div>
+    </div>
+  </div>
+
+  <!-- Lo único que sale al imprimir -->
+  <div id="zona-impresion"></div>
+
+  <script type="module">
+    import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, getDoc, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
+    import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
+    import { hoyIso } from "./js/fechas-semana.js?v=b5";
+    import { RUTA_VALORES, leerValoresRamos } from "./js/valores-ramos-db.js?v=b5e2"; // precio de los ramos: solo lectura
+    import { catalogoMateriales, validarLinea, calcularTotales } from "./js/ordenes-compra.js?v=oc1";
+    import {
+      COLECCION_MATERIALES, COLECCION_ORDENES, COLECCION_CONTADORES, DOC_CONTADOR_ORDENES,
+      crearMaterial, actualizarMaterial, emitirOrden, anularOrden, textoErrorOC, textoErrorCarga,
+    } from "./js/ordenes-compra-db.js?v=oc1";
+    import { htmlFilasMateriales, htmlFilasOrdenes, htmlLineasBorrador, htmlTotales, htmlImpresion } from "./js/ordenes-compra-vistas.js?v=oc1";
+
+    const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Única forma de escribir de esta pantalla: transacciones en materiales, ordenesCompra y contadores (nunca se borra nada).
+    const escritura = {
+      ejecutarTransaccion: (fn) => runTransaction(db, fn),
+      refs: {
+        material: (codigo) => doc(db, COLECCION_MATERIALES, codigo),
+        orden: (numero) => doc(db, COLECCION_ORDENES, numero),
+        contador: () => doc(db, COLECCION_CONTADORES, DOC_CONTADOR_ORDENES),
+      },
+    };
+
+    let usuarioActual = null;
+    let puedeAnular = false; // solo el dueño anula (las reglas de Firestore siguen siendo la barrera real)
+    let docsMateriales = [];
+    let docsOrdenes = [];
+    let valoresRamos = {};
+    let valoresFallo = false;
+    let catalogo = catalogoMateriales([], {});
+    let lineas = []; // borrador de la orden (en memoria, hasta emitir)
+    let materialEnEdicion = null;
+    let cargaFallo = false; // si la carga falla se ve solo el aviso con «Reintentar», no un panel vacío
+    const PESTANAS = ["ordenes", "materiales"];
+    let pestanaActiva = "ordenes";
+
+    const $ = (id) => document.getElementById(id);
+
+    function cambiarPestana(tab) {
+      pestanaActiva = PESTANAS.includes(tab) ? tab : "ordenes";
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        const activa = btn.dataset.tab === pestanaActiva;
+        btn.setAttribute("aria-selected", activa ? "true" : "false");
+        btn.className = "tab-btn px-4 py-2 rounded-lg text-xs font-bold transition " + (activa ? "bg-[#002d1a] text-white shadow-sm" : "text-slate-700 hover:text-[#002d1a]");
+      });
+      for (const p of PESTANAS) $("panel-" + p).classList.toggle("hidden", p !== pestanaActiva || cargaFallo || !$("estado-carga").classList.contains("hidden"));
+      document.title = (pestanaActiva === "ordenes" ? "Órdenes de compra" : "Maestro de materiales") + " | GraveCare Ops";
+    }
+
+    async function leerColeccion(coleccion) {
+      const snap = await getDocs(collection(db, coleccion));
+      const lista = [];
+      snap.forEach((d) => lista.push({ id: d.id, data: d.data() }));
+      return lista;
+    }
+
+    async function leerPerfil(user) {
+      try {
+        const snap = await getDoc(doc(db, "staff", user.uid));
+        return snap.exists() ? snap.data() : null;
+      } catch (e) {
+        return null; // sin perfil legible no se muestra «Anular» (las reglas mandan igual)
+      }
+    }
+
+    function avisar(id, mensaje, tipo) {
+      const el = $(id);
+      const clases = { ok: "bg-emerald-50 border-emerald-300 text-emerald-900", error: "bg-rose-50 border-rose-300 text-rose-800", info: "bg-amber-50 border-amber-300 text-amber-900" };
+      el.className = "mt-3 p-3 rounded-xl border text-xs font-semibold " + (clases[tipo] || clases.info);
+      el.textContent = mensaje;
+    }
+
+    function pintarCatalogo() {
+      catalogo = catalogoMateriales(docsMateriales, valoresRamos);
+      $("tbody-materiales").innerHTML = htmlFilasMateriales(catalogo, { puedeEditar: true });
+      $("lista-codigos").innerHTML = catalogo.filter((m) => m.activo && m.precioUnitario !== null)
+        .map((m) => `<option value="${esc(m.codigo)}">${esc(m.descripcion)}</option>`).join("");
+      $("nota-valores").classList.toggle("hidden", !valoresFallo);
+    }
+
+    function pintarBorrador() {
+      $("tbody-lineas").innerHTML = htmlLineasBorrador(lineas);
+      $("oc-totales").innerHTML = htmlTotales(calcularTotales(lineas));
+    }
+
+    function pintarOrdenes() {
+      const lista = docsOrdenes.map((d) => ({ ...(d.data || {}), numero: (d.data && d.data.numero) || d.id }));
+      $("tbody-ordenes").innerHTML = htmlFilasOrdenes(lista, { puedeAnular });
+      $("aviso-permisos-anular").classList.toggle("hidden", puedeAnular);
+    }
+
+    async function recargarMateriales() {
+      docsMateriales = await leerColeccion(COLECCION_MATERIALES);
+      pintarCatalogo();
+    }
+
+    async function recargarOrdenes() {
+      docsOrdenes = await leerColeccion(COLECCION_ORDENES);
+      pintarOrdenes();
+    }
+
+    async function cargarDatos(user) {
+      $("aviso-error").classList.add("hidden");
+      $("estado-carga").classList.remove("hidden");
+      cargaFallo = false;
+      for (const p of PESTANAS) $("panel-" + p).classList.add("hidden");
+      try {
+        const perfil = await leerPerfil(user);
+        puedeAnular = Boolean(perfil) && perfil.dueno === true;
+        docsMateriales = await leerColeccion(COLECCION_MATERIALES);
+        docsOrdenes = await leerColeccion(COLECCION_ORDENES);
+        try {
+          const leidos = await leerValoresRamos({ obtener: getDoc, referencia: () => doc(db, ...RUTA_VALORES) });
+          valoresRamos = leidos.valores;
+          valoresFallo = false;
+        } catch (e) {
+          valoresRamos = {};
+          valoresFallo = true; // la pantalla sigue; los ramos quedan «sin valor»
+        }
+        pintarCatalogo();
+        pintarOrdenes();
+        pintarBorrador();
+        if (!$("oc-fecha").value) $("oc-fecha").value = hoyIso();
+      } catch (e) {
+        console.error("Órdenes de compra:", e);
+        cargaFallo = true;
+        $("aviso-error-texto").textContent = textoErrorCarga(e);
+        $("aviso-error").classList.remove("hidden");
+      } finally {
+        $("estado-carga").classList.add("hidden");
+        cambiarPestana(pestanaActiva);
+      }
+    }
+
+    /** Bloquea el botón mientras guarda (evita dobles clics) y siempre lo vuelve a habilitar. */
+    async function conBoton(boton, trabajo) {
+      boton.disabled = true;
+      try {
+        await trabajo();
+      } finally {
+        boton.disabled = false;
+      }
+    }
+
+    // ---------- Orden de compra ----------
+    function ocultarAvisoLinea() { $("aviso-linea").className = "hidden"; }
+
+    $("btn-agregar-linea").addEventListener("click", () => {
+      ocultarAvisoLinea();
+      const codigo = $("oc-codigo").value;
+      const nueva = validarLinea({ codigo, cantidad: $("oc-cantidad").value }, catalogo);
+      let r = nueva;
+      if (nueva.ok) {
+        const i = lineas.findIndex((l) => l.codigo === nueva.linea.codigo);
+        if (i >= 0) { // el mismo material se suma a su línea
+          r = validarLinea({ codigo, cantidad: lineas[i].cantidad + nueva.linea.cantidad }, catalogo);
+          if (r.ok) lineas[i] = r.linea;
+        } else lineas.push(nueva.linea);
+      }
+      if (!r.ok) {
+        avisar("aviso-linea", r.error, "error");
+        return;
+      }
+      pintarBorrador();
+      $("oc-codigo").value = "";
+      $("oc-cantidad").value = "1";
+      $("oc-codigo").focus();
+    });
+
+    $("tbody-lineas").addEventListener("click", (ev) => {
+      const boton = ev.target.closest('button[data-accion="quitar-linea"]');
+      if (!boton) return;
+      lineas.splice(Number(boton.dataset.indice), 1);
+      pintarBorrador();
+    });
+
+    function limpiarBorrador() {
+      lineas = [];
+      for (const id of ["oc-entrega", "oc-lugar", "oc-razon", "oc-rut", "oc-contacto", "oc-telefono", "oc-direccion", "oc-codigo"]) $(id).value = "";
+      $("oc-cantidad").value = "1";
+      $("oc-condiciones").value = "Transferencia";
+      $("oc-fecha").value = hoyIso();
+      ocultarAvisoLinea();
+      pintarBorrador();
+    }
+    $("btn-limpiar-borrador").addEventListener("click", () => {
+      if (lineas.length > 0 && !window.confirm("Se descartará el borrador de la orden. ¿Continuar?")) return;
+      limpiarBorrador();
+      $("aviso-oc").className = "hidden";
+    });
+
+    $("btn-emitir").addEventListener("click", () => conBoton($("btn-emitir"), async () => {
+      $("aviso-oc").className = "hidden";
+      const datos = {
+        fecha: $("oc-fecha").value, fechaEntrega: $("oc-entrega").value, condicionesPago: $("oc-condiciones").value, lugarEntrega: $("oc-lugar").value,
+        proveedor: { razonSocial: $("oc-razon").value, rut: $("oc-rut").value, contacto: $("oc-contacto").value, telefono: $("oc-telefono").value, direccion: $("oc-direccion").value },
+        lineas,
+      };
+      try {
+        const { numero, orden } = await emitirOrden({ ...escritura, datos, uid: usuarioActual.uid });
+        limpiarBorrador();
+        avisar("aviso-oc", "Se emitió la orden " + numero + ". Ya no se puede editar: solo anular.", "ok");
+        try { await recargarOrdenes(); } catch (e) { $("aviso-error").classList.remove("hidden"); }
+        abrirOrden(orden);
+      } catch (e) {
+        avisar("aviso-oc", textoErrorOC(e), "error");
+      }
+    }));
+
+    function abrirOrden(orden) {
+      const contenido = htmlImpresion(orden);
+      $("modal-oc-contenido").innerHTML = contenido;
+      $("zona-impresion").innerHTML = contenido;
+      $("modal-oc-titulo").textContent = "Orden de compra " + orden.numero;
+      $("modal-oc").classList.remove("hidden");
+    }
+    function cerrarOrden() { $("modal-oc").classList.add("hidden"); }
+    $("modal-oc-cerrar").addEventListener("click", cerrarOrden);
+    $("modal-oc").addEventListener("click", (ev) => { if (ev.target === $("modal-oc")) cerrarOrden(); });
+    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") cerrarOrden(); });
+    $("btn-imprimir").addEventListener("click", () => window.print());
+
+    $("tbody-ordenes").addEventListener("click", (ev) => {
+      const boton = ev.target.closest("button[data-accion]");
+      if (!boton) return;
+      const { accion, numero } = boton.dataset;
+      const encontrada = docsOrdenes.find((d) => ((d.data && d.data.numero) || d.id) === numero);
+      if (accion === "ver-orden") {
+        if (encontrada) abrirOrden({ ...encontrada.data, numero });
+        return;
+      }
+      if (accion !== "anular-orden" || !puedeAnular) return;
+      const motivo = window.prompt("Motivo de la anulación de " + numero + ":");
+      if (motivo === null) return;
+      if (!window.confirm("¿Anular la orden " + numero + "? Queda guardada como anulada y su número no se reutiliza.")) return;
+      conBoton(boton, async () => {
+        try {
+          await anularOrden({ ...escritura, numero, motivo, uid: usuarioActual.uid });
+          avisar("aviso-oc", "La orden " + numero + " quedó anulada.", "ok");
+          await recargarOrdenes();
+        } catch (e) {
+          avisar("aviso-oc", textoErrorOC(e), "error");
+        }
+      });
+    });
+
+    // ---------- Maestro de materiales ----------
+    function salirDeEdicion() {
+      materialEnEdicion = null;
+      for (const id of ["material-codigo", "material-descripcion", "material-unidad", "material-precio"]) $(id).value = "";
+      $("material-codigo").disabled = false;
+      $("material-tipo").value = "Insumo";
+      $("material-titulo").textContent = "Nuevo material";
+      $("btn-cancelar-material").classList.add("hidden");
+    }
+    $("btn-cancelar-material").addEventListener("click", () => { salirDeEdicion(); $("aviso-material").className = "hidden"; });
+
+    $("btn-guardar-material").addEventListener("click", () => conBoton($("btn-guardar-material"), async () => {
+      $("aviso-material").className = "hidden";
+      const campos = { descripcion: $("material-descripcion").value, tipo: $("material-tipo").value, unidad: $("material-unidad").value, precioUnitario: $("material-precio").value };
+      try {
+        if (materialEnEdicion === null) {
+          const creado = await crearMaterial({ ...escritura, datos: { codigo: $("material-codigo").value, ...campos }, uid: usuarioActual.uid });
+          avisar("aviso-material", "Se guardó el material " + creado.codigo + ".", "ok");
+        } else {
+          await actualizarMaterial({ ...escritura, codigo: materialEnEdicion, cambios: campos, uid: usuarioActual.uid });
+          avisar("aviso-material", "Se actualizó el material " + materialEnEdicion + ".", "ok");
+        }
+        salirDeEdicion();
+        await recargarMateriales();
+      } catch (e) {
+        avisar("aviso-material", e && e.code === "codigo-existe" ? "El código ya existe. Elige otro o edita el material existente." : textoErrorOC(e), "error");
+      }
+    }));
+
+    $("tbody-materiales").addEventListener("click", (ev) => {
+      const boton = ev.target.closest("button[data-accion]");
+      if (!boton) return;
+      const { accion, codigo } = boton.dataset;
+      const material = catalogo.find((m) => m.codigo === codigo);
+      if (!material || material.origen === "ramo") return;
+      if (accion === "editar-material") {
+        materialEnEdicion = codigo;
+        $("material-codigo").value = codigo;
+        $("material-codigo").disabled = true;
+        $("material-descripcion").value = material.descripcion;
+        $("material-tipo").value = material.tipo;
+        $("material-unidad").value = material.unidad;
+        $("material-precio").value = material.precioUnitario === null ? "" : String(material.precioUnitario);
+        $("material-titulo").textContent = "Editar material " + codigo;
+        $("btn-cancelar-material").classList.remove("hidden");
+        $("material-descripcion").focus();
+        return;
+      }
+      const activo = accion === "reactivar-material";
+      if (!activo && !window.confirm("¿Retirar el material «" + codigo + "»? No se borra: queda retirado y se puede reactivar. Las órdenes ya emitidas no cambian.")) return;
+      conBoton(boton, async () => {
+        try {
+          await actualizarMaterial({ ...escritura, codigo, cambios: { activo }, uid: usuarioActual.uid });
+          $("aviso-material").className = "hidden";
+          await recargarMateriales();
+        } catch (e) {
+          avisar("aviso-material", textoErrorOC(e), "error");
+        }
+      });
+    });
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
+    $("btn-reintentar").addEventListener("click", () => { if (usuarioActual) cargarDatos(usuarioActual); });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!(await exigirStaff(auth, user))) return; // spec 040: exige staffActivo
+      usuarioActual = user;
+      await cargarDatos(user);
+    });
+  </script>
+</body>
+</html>
