@@ -11,7 +11,7 @@ const PUBLIC = join(RAIZ, 'public');
 const lee = (p) => readFileSync(join(PUBLIC, p), 'utf8').replace(/\r/g, '');
 const html = lee('ordenes-compra.html');
 const portal = lee('portal.html');
-const NUEVOS = ['js/ordenes-compra.js', 'js/ordenes-compra-db.js', 'js/ordenes-compra-vistas.js'];
+const NUEVOS = ['js/ordenes-compra.js', 'js/ordenes-compra-db.js', 'js/ordenes-compra-vistas.js', 'js/proveedores.js', 'js/proveedores-db.js'];
 
 function importsRelativos(src) {
   return [...src.matchAll(/from\s+["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1].replace(/\?.*$/, ''));
@@ -30,17 +30,37 @@ test('exige el claim de staff antes de cargar nada (B-13) y los módulos nuevos 
   const iGate = html.indexOf('if (!(await exigirStaff(auth, ', iObs);
   assert.ok(iObs > 0 && iGate > iObs);
   assert.ok(iGate - iObs < html.slice(iObs).search(/\bcargarDatos\(/), 'la barrera precede a la carga de datos');
-  for (const m of ['ordenes-compra.js', 'ordenes-compra-db.js', 'ordenes-compra-vistas.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace(/\./g, '\\.')}\\?v=oc1"`));
+  assert.match(html, /from "\.\/js\/ordenes-compra\.js\?v=oc1"/);
+  // Los módulos que cambiaron en la spec 057 suben de versión para que el navegador no use la copia anterior.
+  for (const m of ['ordenes-compra-db.js', 'ordenes-compra-vistas.js', 'proveedores.js', 'proveedores-db.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace(/\./g, '\\.')}\\?v=057"`));
 });
 
-test('dos pestañas, «Órdenes de compra» y «Maestro de materiales», y un encabezado con el nombre de la pantalla', () => {
+test('tres pestañas, «Órdenes de compra», «Proveedores» y «Maestro de materiales», y un encabezado con el nombre de la pantalla', () => {
   assert.match(html, /<title>Órdenes de compra \| GraveCare Ops<\/title>/);
   assert.match(html, /<h1[^>]*>Órdenes de compra<\/h1>/);
   const boton = (id) => html.slice(html.indexOf(`id="tab-${id}"`), html.indexOf('</button>', html.indexOf(`id="tab-${id}"`)));
   assert.match(boton('ordenes'), /Órdenes de compra/);
+  assert.match(boton('proveedores'), /Proveedores/);
   assert.match(boton('materiales'), /Maestro de materiales/);
-  assert.ok(html.indexOf('id="tab-ordenes"') < html.indexOf('id="tab-materiales"'));
-  assert.match(html, /const PESTANAS = \["ordenes", "materiales"\];/);
+  assert.ok(html.indexOf('id="tab-ordenes"') < html.indexOf('id="tab-proveedores"'));
+  assert.ok(html.indexOf('id="tab-proveedores"') < html.indexOf('id="tab-materiales"'));
+  assert.match(html, /const PESTANAS = \["ordenes", "proveedores", "materiales"\];/);
+});
+
+test('pestaña Proveedores (spec 057 a/b): alta, edición, quitar y reactivar; el desplegable de razón social y los borradores de OC', () => {
+  for (const id of [
+    'panel-proveedores', 'tbody-proveedores', 'prov-razon', 'prov-rut', 'prov-contacto', 'prov-telefono', 'prov-direccion',
+    'prov-condicion', 'btn-guardar-proveedor', 'btn-cancelar-proveedor', 'aviso-proveedor',
+    'oc-razon-select', 'oc-razon', 'tbody-borradores', 'aviso-borradores',
+  ]) assert.match(html, new RegExp(`id="${id}"`), id);
+  const condicion = html.slice(html.indexOf('id="prov-condicion"'), html.indexOf('</select>', html.indexOf('id="prov-condicion"')));
+  for (const c of ['Transferencia', 'Factura a 30 días', 'Contado', 'Otro']) assert.match(condicion, new RegExp(`value="${c}"`));
+  for (const f of ['crearProveedor(', 'editarProveedor(', 'cambiarActivoProveedor(', 'emitirDesdeBorrador(', 'htmlFilasProveedores(', 'htmlOpcionesRazon(', 'htmlFilasBorradores(', 'opcionesProveedores(', 'datosDeProveedor(', 'condicionPorDefecto(']) {
+    assert.ok(html.includes(f), f);
+  }
+  assert.match(html, /puedeQuitar: puedeAnular/); // quitar y reactivar: solo el dueño (decisión 1)
+  assert.match(html, /abrir-borrador/);
+  assert.match(html, /searchParams|URLSearchParams\(window\.location\.search\)\.get\("borrador"\)/); // el borrador llega por ?borrador=AAAA-MM-DD
 });
 
 test('las escrituras son solo transacciones en materiales, ordenesCompra y contadores: sin setDoc, borrados ni otras colecciones', () => {
@@ -49,8 +69,11 @@ test('las escrituras son solo transacciones en materiales, ordenesCompra y conta
   for (const prohibido of ['setDoc', 'deleteDoc', 'updateDoc', 'addDoc', 'writeBatch']) assert.ok(!html.includes(prohibido), prohibido);
   const colecciones = [...html.matchAll(/(?:collection|doc)\(db,\s*([^,)]+)/g)].map((m) => m[1].trim());
   assert.ok(colecciones.length >= 4);
-  for (const c of colecciones) assert.ok(['COLECCION_MATERIALES', 'COLECCION_ORDENES', 'COLECCION_CONTADORES', 'coleccion', '"staff"', '...RUTA_VALORES'].includes(c), `colección inesperada: ${c}`);
-  assert.ok(!/\b(valores_ramos|gastos_ingresos|comprobantes_tributarios|rutas|feriados)\b/.test(html.replace(/RUTA_VALORES/g, '')), 'no toca otras colecciones');
+  const permitidas = ['COLECCION_MATERIALES', 'COLECCION_ORDENES', 'COLECCION_CONTADORES', 'COLECCION_PROVEEDORES', 'COLECCION_RUT_PROVEEDORES', 'COLECCION_BORRADORES', 'coleccion', '"staff"', '...RUTA_VALORES'];
+  for (const c of colecciones) assert.ok(permitidas.includes(c), `colección inesperada: ${c}`);
+  // La página puede nombrar la pantalla «Rutas y feriados» en un texto, pero no leer ni escribir esas colecciones.
+  const sinNombreDePantalla = html.replace(/RUTA_VALORES/g, '').replace(/«Rutas y feriados»/g, '');
+  assert.ok(!/\b(valores_ramos|gastos_ingresos|comprobantes_tributarios|rutas|feriados)\b/.test(sinNombreDePantalla), 'no toca otras colecciones');
 });
 
 test('nada se borra en los módulos nuevos: se retira con activo:false y una orden solo se anula', () => {
@@ -107,7 +130,7 @@ test('si falla una lectura o una escritura, la pantalla avisa con un texto claro
 });
 
 test('AUD-01: lo que viene de Firestore pasa por las vistas escapadas; la página no arma HTML con datos sin esc()', () => {
-  for (const f of ['htmlFilasMateriales(', 'htmlFilasOrdenes(', 'htmlLineasBorrador(', 'htmlTotales(']) assert.ok(html.includes(f), f);
+  for (const f of ['htmlFilasMateriales(', 'htmlFilasOrdenes(', 'htmlLineasBorrador(', 'htmlTotales(', 'htmlFilasProveedores(', 'htmlOpcionesRazon(', 'htmlFilasBorradores(']) assert.ok(html.includes(f), f);
   assert.match(html, /import \{ esc \} from "\.\/js\/html-seguro\.js"/);
 });
 

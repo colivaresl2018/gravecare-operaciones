@@ -19,6 +19,61 @@ export function formatoPesos(n) {
 
 const fecha = (iso) => (esFechaIso(String(iso ?? '')) ? fechaDisplay(iso) : '');
 
+/** Valor del desplegable de razón social que significa «Otro proveedor (escribir)» (spec 057, decisión 3). */
+export const VALOR_OTRO_PROVEEDOR = '__otro__';
+
+/** Filas (<tr>) del maestro de proveedores (spec 057, parte a). Quitar y reactivar solo para quien puede (dueño). */
+export function htmlFilasProveedores(docs, { puedeQuitar = false } = {}) {
+  const lista = (Array.isArray(docs) ? docs : []).filter((d) => d && d.data)
+    .sort((a, b) => String(a.data.razonSocial ?? '').localeCompare(String(b.data.razonSocial ?? ''), 'es'));
+  if (lista.length === 0) {
+    return '<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay proveedores cargados todavía.</td></tr>';
+  }
+  return lista.map(({ id, data: p }) => {
+    const activo = p.activo === true;
+    const estado = activo
+      ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">Activo</span>'
+      : '<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[11px] font-bold">Quitado</span>';
+    const datos = `data-id="${esc(id)}"`;
+    const editar = `<button type="button" data-accion="editar-proveedor" ${datos} class="${BOTON} border-slate-300 text-slate-700 hover:bg-slate-100">Editar</button>`;
+    let estadoBtn = '';
+    if (puedeQuitar) {
+      estadoBtn = activo
+        ? ` <button type="button" data-accion="quitar-proveedor" ${datos} class="${BOTON} border-rose-300 text-rose-700 hover:bg-rose-50">Quitar</button>`
+        : ` <button type="button" data-accion="reactivar-proveedor" ${datos} class="${BOTON} border-emerald-300 text-emerald-800 hover:bg-emerald-50">Reactivar</button>`;
+    }
+    return `<tr class="border-b border-slate-100 ${activo ? '' : 'text-slate-400'}"><td class="${TD} font-semibold">${esc(p.razonSocial)}</td><td class="${TD} whitespace-nowrap">${esc(p.rut)}</td><td class="${TD}">${esc(p.contacto)}</td><td class="${TD} whitespace-nowrap">${esc(p.telefono)}</td><td class="${TD}">${esc(p.condicionesPago)}</td><td class="${TD}">${estado}</td><td class="${TD} text-right whitespace-nowrap">${editar}${estadoBtn}</td></tr>`;
+  }).join('');
+}
+
+/** Opciones del desplegable de razón social: placeholder, proveedores activos y «Otro proveedor (escribir)» al final. */
+export function htmlOpcionesRazon(opciones, seleccionado = '') {
+  const lista = Array.isArray(opciones) ? opciones : [];
+  const opcion = (valor, texto, marcada = false) => `<option value="${esc(valor)}"${marcada ? ' selected' : ''}>${esc(texto)}</option>`;
+  const provs = lista.map((o) => opcion(o.id, o.razonSocial, o.id === seleccionado)).join('');
+  return `${opcion('', 'Elige un proveedor…')}${provs}${opcion(VALOR_OTRO_PROVEEDOR, 'Otro proveedor (escribir)', seleccionado === VALOR_OTRO_PROVEEDOR)}`;
+}
+
+/** Filas (<tr>) de los borradores de orden por día (spec 057, parte c). Solo los pendientes se pueden abrir. */
+export function htmlFilasBorradores(borradores) {
+  const lista = (Array.isArray(borradores) ? borradores : []).filter((b) => b && b.data)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id), 'es'));
+  if (lista.length === 0) {
+    return '<tr><td colspan="5" class="py-6 text-center text-slate-400 text-sm">No hay borradores de orden por día.</td></tr>';
+  }
+  return lista.map(({ id, data: b }) => {
+    const emitido = String(b.emitidoComo ?? '').trim();
+    const estado = emitido
+      ? `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[11px] font-bold">Emitida como ${esc(emitido)}</span>`
+      : '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold">Pendiente</span>';
+    const abrir = emitido
+      ? ''
+      : `<button type="button" data-accion="abrir-borrador" data-id="${esc(id)}" class="${BOTON} border-slate-300 text-slate-700 hover:bg-slate-100">Abrir</button>`;
+    const cantidad = Array.isArray(b.lineas) ? b.lineas.length : 0;
+    return `<tr class="border-b border-slate-100 ${emitido ? 'text-slate-400' : ''}"><td class="${TD} whitespace-nowrap">${esc(fecha(b.fechaDia || id))}</td><td class="${TD} text-right">${esc(cantidad)}</td><td class="${TD} text-right whitespace-nowrap">${esc(formatoPesos(b.total))}</td><td class="${TD}">${estado}</td><td class="${TD} text-right">${abrir}</td></tr>`;
+  }).join('');
+}
+
 /** Filas (<tr>) del maestro: los 5 ramos (precio de «Valores de ramos», sin botones) y los materiales del maestro. */
 export function htmlFilasMateriales(catalogo, { puedeEditar = false } = {}) {
   const lista = Array.isArray(catalogo) ? catalogo : [];
