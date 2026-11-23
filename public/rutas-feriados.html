@@ -99,15 +99,14 @@
           <button type="button" id="btn-semana-siguiente" class="px-3 py-1 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Siguiente</button>
         </div>
       </div>
-      <p class="px-4 pt-3 text-xs text-slate-500">Un día está listo cuando tiene visitas, cada cementerio tiene eje y día de ruta y todos los ramos tienen valor. «Crear orden de compra» arma un borrador con los ramos del día para revisarlo y emitirlo en Órdenes de compra; los insumos se agregan a mano.</p>
+      <p class="px-4 pt-3 text-xs text-slate-500">Un día está listo cuando tiene visitas, cada cementerio tiene eje y día de ruta y todos los ramos tienen valor. Aquí solo se ve el estado de cada día; la orden de compra del día se crea desde «Compra de flores», en Planificación Planes y Spot.</p>
       <div id="aviso-dias" class="hidden mx-4 mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900" role="alert"></div>
       <div class="overflow-x-auto mt-3">
         <table class="w-full text-sm text-left">
-          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Día</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3 text-right">Visitas</th><th class="py-2 px-3 text-right">Ramos</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3"></th></tr></thead>
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Día</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3 text-right">Visitas</th><th class="py-2 px-3 text-right">Ramos</th><th class="py-2 px-3">Estado</th></tr></thead>
           <tbody id="tbody-dias"></tbody>
         </table>
       </div>
-      <div id="resultado-dias" class="px-4 pb-3" aria-live="polite"></div>
     </section>
   </div>
 
@@ -168,23 +167,23 @@
     import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, getDoc, doc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
     import { prepararLoteRutas, parsearFeriados, permisosDeStaff, cementeriosDeOrdenes, filasDeRutas, resumenDeRutas } from "./js/config-planificacion.js?v=cfg1";
     import { COLECCION_RUTAS, COLECCION_FERIADOS, guardarRutasEnLote, cambiarEstadoRuta, guardarFeriado, guardarFeriados, cambiarEstadoFeriado, textoErrorGuardar } from "./js/config-planificacion-db.js?v=cfg1";
     import { htmlResumenRutas, htmlFilasRutas, htmlFilasFeriados, htmlListaErroresFeriados, htmlResultadosGuardado } from "./js/config-vistas.js?v=cfg1";
-    // Spec 057 (parte c): días de programación y borrador de orden de compra por día. El cálculo es el mismo de «Compra de flores».
+    // Spec 057 (parte c): estado de los días de programación (solo lectura). El cálculo es el mismo de «Compra de flores»;
+    // el botón para crear la orden de compra del día vive allí (planificacion-servicios.html).
     import { esOrdenPagada } from "./js/orden-pagada.js";
     import { crearIndiceInformes } from "./js/servicio-terminado.js?v=ops13";
     import { construirFilasPlanificacion } from "./js/planificacion-servicios.js?v=b5";
     import { crearIndiceRutas } from "./js/rutas-planificacion.js?v=cfg1";
     import { lunesDeLaSemana, sumarDias, hoyIso } from "./js/fechas-semana.js?v=b5";
     import { RUTA_VALORES, leerValoresRamos } from "./js/valores-ramos-db.js?v=b5e2";
-    import { diasDeProgramacion, borradorDesdeDia, idBorrador, textoErrorBorrador } from "./js/compra-dia.js?v=057";
+    import { diasDeProgramacion } from "./js/compra-dia.js?v=057";
     import { htmlFilasDiasProgramacion } from "./js/compra-dia-vistas.js?v=057";
-    import { COLECCION_BORRADORES, crearBorradorDia } from "./js/ordenes-compra-db.js?v=057";
-
+    
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -192,8 +191,6 @@
     // Única forma de escribir de esta pantalla: guardar con merge en `rutas` y en `feriados` (nunca se borra nada).
     const escrituraRutas = { guardar: setDoc, referencia: (id) => doc(db, COLECCION_RUTAS, id) };
     const escrituraFeriados = { guardar: setDoc, referencia: (id) => doc(db, COLECCION_FERIADOS, id) };
-    // Spec 057: única escritura nueva, el borrador de orden de compra de un día (transacción, idempotente; no asigna número).
-    const escrituraBorradores = { ejecutarTransaccion: (f) => runTransaction(db, f), refs: { borrador: (id) => doc(db, COLECCION_BORRADORES, id) } };
 
     let usuarioActual = null;
     let permisos = { editaRutas: false, editaFeriados: false };
@@ -204,9 +201,6 @@
     let ordenesDocs = []; // órdenes leídas (también alimentan los días de programación)
     let indiceInformes = crearIndiceInformes([]);
     let valoresCompra = {};
-    let docsBorradores = [];
-    let diasFallo = false; // si no se pueden leer órdenes o informes, no se ofrece crear borradores (no se adivina)
-    let diasActuales = [];
     let lunesDias = lunesDeLaSemana(hoyIso());
     let cargaFallo = false; // si la carga falla se ve solo el aviso con «Reintentar», no un panel vacío
     const PESTANAS = ["rutas", "feriados"];
@@ -267,45 +261,30 @@
       $("aviso-permisos-feriados").classList.toggle("hidden", editar);
     }
 
-    function alertaDias(clases, texto) {
-      return '<div class="p-3 border rounded-xl text-xs ' + clases + '" role="alert">' + esc(texto) + "</div>";
-    }
-
     function pintarDias() {
       const rutas = crearIndiceRutas(docsRutas);
       const ordenesPagadas = ordenesDocs.filter((o) => esOrdenPagada(o.data));
       const { planes, spot } = construirFilasPlanificacion(ordenesPagadas, { indiceInformes, rutas });
-      diasActuales = diasDeProgramacion([...planes, ...spot], { lunesIso: lunesDias, valores: valoresCompra, rutaDe: rutas.rutaDe, borradores: docsBorradores });
-      $("titulo-semana").textContent = "Semana del " + diasActuales[0].display + " al " + diasActuales[6].display;
-      $("tbody-dias").innerHTML = htmlFilasDiasProgramacion(diasActuales, { puedeCrear: !diasFallo });
+      const dias = diasDeProgramacion([...planes, ...spot], { lunesIso: lunesDias, valores: valoresCompra, rutaDe: rutas.rutaDe });
+      $("titulo-semana").textContent = "Semana del " + dias[0].display + " al " + dias[6].display;
+      $("tbody-dias").innerHTML = htmlFilasDiasProgramacion(dias);
     }
 
     // Lecturas auxiliares de los días de programación: si fallan, la pantalla de rutas sigue y lo avisa.
     async function cargarDias() {
       const avisos = [];
-      diasFallo = false;
       try {
         indiceInformes = crearIndiceInformes((await leerColeccion("informes")).map((i) => [i.id, i.data]));
       } catch (e) {
         indiceInformes = crearIndiceInformes([]);
-        diasFallo = true;
-        avisos.push("No se pudieron leer los informes de visitas: no se pueden crear borradores hasta poder saber qué visitas ya se hicieron.");
+        avisos.push("No se pudieron leer los informes de visitas: los días pueden mostrar visitas que ya se hicieron.");
       }
-      if (ordenesFallo) {
-        diasFallo = true;
-        avisos.push("No se pudieron leer las órdenes: no hay visitas que mostrar ni borradores que crear.");
-      }
+      if (ordenesFallo) avisos.push("No se pudieron leer las órdenes: no hay visitas que mostrar.");
       try {
         valoresCompra = (await leerValoresRamos({ obtener: getDoc, referencia: () => doc(db, ...RUTA_VALORES) })).valores;
       } catch (e) {
         valoresCompra = {};
-        avisos.push("No se pudieron leer los valores de ramos: los días quedan sin valor y no se pueden crear borradores.");
-      }
-      try {
-        docsBorradores = await leerColeccion(COLECCION_BORRADORES);
-      } catch (e) {
-        docsBorradores = [];
-        avisos.push("No se pudieron leer los borradores existentes (puede faltar el permiso): si ya hay uno del día, se abrirá en vez de crear otro.");
+        avisos.push("No se pudieron leer los valores de ramos: los días quedan «no listos» por falta de valor.");
       }
       $("aviso-dias").innerHTML = avisos.map((t) => esc(t)).join("<br>");
       $("aviso-dias").classList.toggle("hidden", avisos.length === 0);
@@ -478,36 +457,11 @@
 
     function irASemana(lunes) {
       lunesDias = lunes;
-      $("resultado-dias").innerHTML = "";
       pintarDias();
     }
     $("btn-semana-anterior").addEventListener("click", () => irASemana(sumarDias(lunesDias, -7)));
     $("btn-semana-siguiente").addEventListener("click", () => irASemana(sumarDias(lunesDias, 7)));
     $("btn-semana-hoy").addEventListener("click", () => irASemana(lunesDeLaSemana(hoyIso())));
-
-    // «Crear orden de compra»: solo un día listo; crea (o abre, si ya existe) el borrador de ese día. No escribe rutas ni feriados.
-    $("tbody-dias").addEventListener("click", (ev) => {
-      const boton = ev.target.closest('button[data-accion="crear-oc-dia"]');
-      if (!boton || diasFallo || !usuarioActual) return;
-      const dia = diasActuales.find((d) => d.iso === boton.dataset.fecha);
-      if (!dia || !dia.listo) return;
-      conBoton(boton, async () => {
-        const salida = $("resultado-dias");
-        salida.innerHTML = "";
-        const id = idBorrador({ fecha: dia.iso });
-        const borrador = borradorDesdeDia(dia.detalle);
-        if (!id || !borrador.ok) {
-          salida.innerHTML = alertaDias("bg-rose-50 border-rose-300 text-rose-800", (borrador.errores || ["La fecha del día no es válida."]).join(" "));
-          return;
-        }
-        try {
-          await crearBorradorDia({ ...escrituraBorradores, id, datos: borrador.datos, uid: usuarioActual.uid });
-          window.location.href = "ordenes-compra.html?borrador=" + encodeURIComponent(id);
-        } catch (e) {
-          salida.innerHTML = alertaDias("bg-rose-50 border-rose-300 text-rose-800", textoErrorBorrador(e));
-        }
-      });
-    });
 
     document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
     $("btn-reintentar").addEventListener("click", () => { if (usuarioActual) cargarDatos(usuarioActual); });

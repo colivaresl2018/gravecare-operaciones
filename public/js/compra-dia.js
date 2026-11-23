@@ -64,20 +64,19 @@ export function borradorDesdeDia(dia) {
 }
 
 /**
- * Los 7 días de una semana con lo necesario para la tabla «Días de programación» de Rutas y feriados.
- * Usa construirListaCompra (el mismo cálculo de «Compra de flores») y diaListo. No lee ni escribe nada.
- * @param {object[]} filas   Filas de visitas (Planes y Spot) de construirFilasPlanificacion.
- * @param {{lunesIso: string, valores?: object, rutaDe?: (cementerio: string) => ({eje?: string, diaSemana?: number|null}|null), borradores?: Array<{id: string, data: object}>}} opciones
+ * Estado de cada día de una lista de compra YA armada con construirListaCompra (la de «Compra de flores»): listo o no, los motivos
+ * y el borrador existente. Reutiliza `diaListo`: la regla de «día listo» está solo allí.
+ * @param {{dias: object[]}} lista  Salida de construirListaCompra (con o sin visitas completadas, tal como se ve en pantalla).
+ * @param {{rutaDe?: (cementerio: string) => ({eje?: string, diaSemana?: number|null}|null), borradores?: Array<{id: string, data: object}>}} opciones
  * @returns {Array<{iso: string, nombre: string, display: string, visitas: number, ramos: number, listo: boolean, motivos: string[], borrador: ({id: string, emitidoComo: string}|null), detalle: object}>}
  */
-export function diasDeProgramacion(filas, { lunesIso, valores = {}, rutaDe = () => null, borradores = [] } = {}) {
-  const lista = construirListaCompra(filas, { lunesIso, valores });
+export function estadoDiasCompra(lista, { rutaDe = () => null, borradores = [] } = {}) {
   const tieneRuta = (cementerio) => {
     const r = rutaDe(cementerio);
     return Boolean(r && String(r.eje ?? '').trim() && r.diaSemana);
   };
   const porId = new Map((borradores || []).filter((b) => b && b.id).map((b) => [String(b.id), b.data || {}]));
-  return lista.dias.map((d) => {
+  return ((lista && lista.dias) || []).map((d) => {
     const { listo, motivos } = diaListo(d, { tieneRuta });
     const b = porId.get(d.iso);
     return {
@@ -92,6 +91,16 @@ export function diasDeProgramacion(filas, { lunesIso, valores = {}, rutaDe = () 
       detalle: d,
     };
   });
+}
+
+/**
+ * Los 7 días de una semana a partir de las filas de visitas (Planes y Spot): arma la lista con construirListaCompra y
+ * devuelve el estado de cada día. «Rutas y feriados» lo usa solo para mostrar el estado; el botón vive en «Compra de flores».
+ * @param {object[]} filas   Filas de visitas de construirFilasPlanificacion.
+ * @param {{lunesIso: string, valores?: object, rutaDe?: Function, borradores?: Array<{id: string, data: object}>}} opciones
+ */
+export function diasDeProgramacion(filas, { lunesIso, valores = {}, rutaDe = () => null, borradores = [] } = {}) {
+  return estadoDiasCompra(construirListaCompra(filas, { lunesIso, valores }), { rutaDe, borradores });
 }
 
 /** Texto claro para el usuario cuando falla la creación del borrador (sin códigos técnicos crudos). */

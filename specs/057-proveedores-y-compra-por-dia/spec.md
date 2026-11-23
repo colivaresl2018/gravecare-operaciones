@@ -15,7 +15,7 @@ Además, la compra de flores y de insumos de un día de programación (pestaña 
 Esta spec pide tres cosas:
 - **(a)** un maestro de proveedores vinculado a las órdenes de compra, con agregar y quitar;
 - **(b)** en «Órdenes de compra», un desplegable de razón social que, al elegir un proveedor, rellene todos sus datos;
-- **(c)** en «Rutas y feriados», un botón que, cuando un día de programación está listo, rellene una **orden de compra en borrador** con los insumos y ramos de ese día.
+- **(c)** un botón «Crear orden de compra» que, cuando un día de programación está listo, rellene una **orden de compra en borrador** con los insumos y ramos de ese día. *Enmienda 2026-11-23 (dueño): el botón está en «Compra de flores», no en «Rutas y feriados»; allí solo se ve el estado de cada día.*
 
 ## 2. Estado verificado (solo lectura, 2026-11-23)
 
@@ -96,7 +96,7 @@ Verificado sin modificar nada y sin mostrar datos personales (solo nombres de co
 | CA-O3 | una OC emitida con proveedor X | se cambian los datos de X en el maestro | la OC y su impresión siguen mostrando los datos originales | prueba de simulación con emulador |
 | CA-O4 | el proveedor se quita después de abrir el formulario | se intenta emitir | se rechaza, no consume número y pide elegir otro | prueba con emulador |
 | CA-O5 | un proveedor con `<b>` en la razón social | se muestra en desplegable, OC o impresión | se ve literal (escape, AUD-01) | prueba de UI |
-| CA-B1 | un día con un ramo sin valor en `valores_ramos/compra` | se abre «Rutas y feriados» | el botón está deshabilitado y dice qué falta | prueba de UI |
+| CA-B1 | un día con un ramo sin valor en `valores_ramos/compra` | se abre «Compra de flores» | el botón está deshabilitado y dice qué falta | prueba de UI |
 | CA-B2 | un día listo con 3 visitas (Standard, Premium y Spot con adicional) | se pulsa el botón | se crea un borrador con las cantidades de `construirListaCompra`, precios del maestro de ramos y total con R6 | prueba de simulación |
 | CA-B3 | un día ya con borrador | se pulsa el botón dos veces | no se crea un segundo borrador; se abre el existente | prueba con emulador |
 | CA-B4 | un borrador | se crea | no tiene número ni estado `Emitida`; `contadores/ordenesCompra` no cambia | prueba con emulador |
@@ -145,7 +145,7 @@ Verificado sin modificar nada y sin mostrar datos personales (solo nombres de co
   2. Quitar el proveedor y comprobar que sale del desplegable pero no de la lista.
   3. En «Órdenes de compra», elegir un proveedor activo: se rellenan RUT, dirección, contacto y teléfono. Emitir y comprobar la impresión.
   4. Cambiar el proveedor en el maestro y comprobar que la OC emitida no cambia.
-  5. En «Rutas y feriados», con un día listo de prueba, pulsar el botón y comprobar el borrador (ramos, precios, total). Pulsar otra vez: no se crea otro. Emitir: nace OC-NNNN.
+  5. En «Compra de flores», con un día listo de prueba, pulsar el botón y comprobar el borrador (ramos, precios, total). Pulsar otra vez: no se crea otro. Emitir: nace OC-NNNN.
 - **Automáticas:** pruebas de UI (CA-P2, CA-P4, CA-O1, CA-O2, CA-O5, CA-B1); simulación de transacción (CA-P3, CA-O3, CA-O4, CA-B2, CA-B3, CA-B5); regresión de «Rutas por cementerio» (CA-R1).
 - **Precondición real:** para probar el botón con datos reales hace falta que el dueño cargue `valores_ramos/compra` y que las reglas de la 055 estén publicadas. Sin eso, el botón queda deshabilitado (CA-B1), que es el comportamiento esperado.
 

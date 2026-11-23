@@ -66,40 +66,55 @@ test('htmlFilasBorradores sin borradores dice que no hay ninguno', () => {
   assert.match(htmlFilasBorradores([]), /No hay borradores de orden por día/);
 });
 
-// ---- Tabla «Días de programación» (Rutas y feriados) ----
-import { htmlFilasDiasProgramacion } from './compra-dia-vistas.js';
+// ---- «Días de programación» (Rutas y feriados, solo estado) y acción por día (Compra de flores) ----
+import { htmlFilasDiasProgramacion, htmlAccionDia } from './compra-dia-vistas.js';
 
 const DIA = (extra) => ({ iso: '2026-12-01', nombre: 'Martes', display: '01/12/2026', visitas: 2, ramos: 3, listo: true, motivos: [], borrador: null, ...extra });
 
-test('htmlFilasDiasProgramacion: día listo y con permiso muestra «Crear orden de compra» habilitado (CA-B2)', () => {
-  const html = htmlFilasDiasProgramacion([DIA()], { puedeCrear: true });
+test('htmlFilasDiasProgramacion (Rutas y feriados): día, fecha, visitas, ramos y estado; sin ningún botón de crear', () => {
+  const html = htmlFilasDiasProgramacion([DIA(), DIA({ iso: '2026-12-02', nombre: 'Miércoles', display: '02/12/2026', listo: false, motivos: ['No hay visitas programadas este día.'] })]);
   assert.match(html, /Martes/);
   assert.match(html, /01\/12\/2026/);
-  assert.match(html, /data-accion="crear-oc-dia" data-fecha="2026-12-01"[^>]*>/);
-  assert.ok(!/crear-oc-dia[^>]*\sdisabled(?=[\s>])/.test(html), "habilitado");
   assert.match(html, /Listo/);
-  assert.match(html, /Listo/);
+  assert.match(html, /No listo/);
+  assert.match(html, /No hay visitas programadas este día\./);
+  assert.ok(!html.includes('<button'), 'el botón vive en Compra de flores');
+  assert.ok(!html.includes('crear-oc-dia'));
 });
 
-test('htmlFilasDiasProgramacion: día no listo deshabilita el botón y muestra los motivos escapados (CA-B1)', () => {
-  const html = htmlFilasDiasProgramacion([DIA({ listo: false, motivos: ['Sin eje y día de ruta: <b>X</b>.'] })], { puedeCrear: true });
-  assert.match(html, /data-accion="crear-oc-dia"[^>]*\sdisabled(?=[\s>])/);
+test('htmlFilasDiasProgramacion escapa los motivos (AUD-01)', () => {
+  const html = htmlFilasDiasProgramacion([DIA({ listo: false, motivos: ['Sin eje y día de ruta: <b>X</b>.'] })]);
   assert.ok(html.includes('Sin eje y día de ruta: &lt;b&gt;X&lt;/b&gt;.'));
   assert.ok(!html.includes('<b>X</b>'));
 });
 
-test('htmlFilasDiasProgramacion: sin permiso no hay botón de crear (R-S)', () => {
-  assert.ok(!htmlFilasDiasProgramacion([DIA()], { puedeCrear: false }).includes('crear-oc-dia'));
+test('htmlAccionDia: día listo y con permiso muestra «Crear orden de compra» habilitado (CA-B2)', () => {
+  const html = htmlAccionDia(DIA(), { puedeCrear: true });
+  assert.match(html, /data-accion="crear-oc-dia" data-fecha="2026-12-01"[^>]*>Crear orden de compra<\/button>/);
+  assert.ok(!/crear-oc-dia[^>]*\sdisabled(?=[\s>])/.test(html), 'habilitado');
 });
 
-test('htmlFilasDiasProgramacion: con borrador existente ofrece abrirlo en vez de crear otro (CA-B3)', () => {
-  const html = htmlFilasDiasProgramacion([DIA({ borrador: { id: '2026-12-01', emitidoComo: '' } })], { puedeCrear: true });
+test('htmlAccionDia: día no listo deja el botón deshabilitado y muestra los motivos escapados (CA-B1)', () => {
+  const html = htmlAccionDia(DIA({ listo: false, motivos: ['Falta el valor de «1 Ramo Standard» en Valores de ramos.', 'Sin eje: <i>X</i>.'] }), { puedeCrear: true });
+  assert.match(html, /data-accion="crear-oc-dia"[^>]*\sdisabled(?=[\s>])/);
+  assert.match(html, /Falta el valor de «1 Ramo Standard» en Valores de ramos\./);
+  assert.ok(html.includes('Sin eje: &lt;i&gt;X&lt;/i&gt;.'));
+  assert.ok(!html.includes('<i>X</i>'));
+});
+
+test('htmlAccionDia: sin permiso no hay botón de crear, pero los motivos de «no listo» se ven (R-S)', () => {
+  assert.ok(!htmlAccionDia(DIA(), { puedeCrear: false }).includes('crear-oc-dia'));
+  assert.match(htmlAccionDia(DIA({ listo: false, motivos: ['No hay visitas programadas este día.'] }), { puedeCrear: false }), /No hay visitas/);
+});
+
+test('htmlAccionDia: con borrador existente ofrece abrirlo en vez de crear otro (CA-B3)', () => {
+  const html = htmlAccionDia(DIA({ borrador: { id: '2026-12-01', emitidoComo: '' } }), { puedeCrear: true });
   assert.match(html, /href="ordenes-compra\.html\?borrador=2026-12-01"/);
   assert.ok(!html.includes('crear-oc-dia'));
 });
 
-test('htmlFilasDiasProgramacion: un borrador ya emitido dice «Emitida como OC-xxxx» y no se abre', () => {
-  const html = htmlFilasDiasProgramacion([DIA({ borrador: { id: '2026-12-01', emitidoComo: 'OC-0007' } })], { puedeCrear: true });
+test('htmlAccionDia: un borrador ya emitido dice «Emitida como OC-xxxx» y no se abre', () => {
+  const html = htmlAccionDia(DIA({ borrador: { id: '2026-12-01', emitidoComo: 'OC-0007' } }), { puedeCrear: true });
   assert.match(html, /Emitida como OC-0007/);
   assert.ok(!html.includes('?borrador='));
 });

@@ -64,7 +64,7 @@ Cada tarea sigue el orden **prueba primero → verla fallar → implementar → 
 
 ## Fase 4 — Botón de día listo y borradores
 
-- [x] **T4.1** Prueba de página: `public/rutas-feriados.html` tiene la sección «Días de programación» dentro de `panel-rutas`, con su tabla y botón; las tablas existentes no cambian.
+- [x] **T4.1** Prueba de página: `public/rutas-feriados.html` tiene la sección «Días de programación» dentro de `panel-rutas` solo con estado y motivos (sin botón); `public/planificacion-servicios.html` (Compra de flores) trae la columna «Orden de compra» con el botón. *(Enmienda 2026-11-23: el botón se movió de Rutas y feriados a Compra de flores.)* Las tablas existentes no cambian.
   - Archivo: `tests/rutas-feriados-pagina.test.mjs`.
   - Hecho: verde (en rojo antes).
 - [x] **T4.2** Controlador: calcula los días con `construirFilasPlanificacion` + `construirListaCompra` + `leerValoresRamos` + `rutas`; muestra estado y motivos; botón deshabilitado con el motivo cuando no está listo (CA-B1).

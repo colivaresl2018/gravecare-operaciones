@@ -140,3 +140,29 @@ test('textoErrorBorrador: explica el permiso, la conexión y deja pasar el mensa
   assert.equal(textoErrorBorrador(new Error('La fecha del borrador no es válida (usa AAAA-MM-DD).')), 'La fecha del borrador no es válida (usa AAAA-MM-DD).');
   assert.match(textoErrorBorrador({}), /No se pudo crear el borrador/);
 });
+
+// ---- estadoDiasCompra: el estado de cada día de una lista de compra ya armada (Compra de flores) ----
+import { estadoDiasCompra } from './compra-dia.js';
+
+test('estadoDiasCompra usa la lista ya armada: mismo resultado que diasDeProgramacion, sin duplicar la regla de «día listo» (CA-B1)', () => {
+  const filas = [visita(MARTES, 'Cementerio X', 'Standard'), visita(LUNES, 'Cementerio Sin Ruta', 'Standard')];
+  const lista = construirListaCompra(filas, { lunesIso: LUNES, valores: VALORES });
+  const estados = estadoDiasCompra(lista, { rutaDe: RUTA_OK });
+  const dias = diasDeProgramacion(filas, { lunesIso: LUNES, valores: VALORES, rutaDe: RUTA_OK });
+  assert.deepEqual(estados.map((e) => [e.iso, e.listo, e.motivos]), dias.map((d) => [d.iso, d.listo, d.motivos]));
+  assert.equal(estados.find((e) => e.iso === MARTES).detalle, lista.dias.find((d) => d.iso === MARTES), 'el detalle es el mismo día que se está viendo');
+});
+
+test('estadoDiasCompra respeta «incluir visitas completadas»: el borrador sale de lo que se ve en pantalla', () => {
+  const hecha = { ...visita(MARTES, 'Cementerio X', 'Standard'), terminada: true };
+  const sin = estadoDiasCompra(construirListaCompra([hecha], { lunesIso: LUNES, valores: VALORES }), { rutaDe: RUTA_OK });
+  const con = estadoDiasCompra(construirListaCompra([hecha], { lunesIso: LUNES, valores: VALORES, incluirCompletadas: true }), { rutaDe: RUTA_OK });
+  assert.equal(sin.find((e) => e.iso === MARTES).listo, false);
+  assert.equal(con.find((e) => e.iso === MARTES).listo, true);
+});
+
+test('estadoDiasCompra marca el borrador existente del día y si ya se emitió (CA-B3)', () => {
+  const lista = construirListaCompra([visita(MARTES, 'Cementerio X', 'Standard')], { lunesIso: LUNES, valores: VALORES });
+  const estados = estadoDiasCompra(lista, { rutaDe: RUTA_OK, borradores: [{ id: MARTES, data: { emitidoComo: 'OC-0003' } }] });
+  assert.deepEqual(estados.find((e) => e.iso === MARTES).borrador, { id: MARTES, emitidoComo: 'OC-0003' });
+});

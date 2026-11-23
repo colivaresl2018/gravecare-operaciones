@@ -42,16 +42,13 @@ test('dos pestañas, «Rutas por cementerio» y «Feriados», y un encabezado co
   assert.match(html, /const PESTANAS = \["rutas", "feriados"\];/);
 });
 
-test('las únicas escrituras son setDoc en rutas y feriados y, desde la spec 057, una transacción que crea el borrador del día: no hay borrados ni otras colecciones', () => {
+test('las únicas escrituras son setDoc en rutas y feriados: no hay borrados, transacciones ni otras colecciones (la spec 057 solo agrega lectura)', () => {
   const usos = [...html.matchAll(/\bsetDoc\b/g)].length;
   assert.equal(usos, 3, 'setDoc: el import y las dos inyecciones (rutas y feriados) como `guardar`');
   assert.match(html, /guardar: setDoc/);
-  for (const prohibido of ['deleteDoc', 'updateDoc', 'addDoc', 'writeBatch']) assert.ok(!html.includes(prohibido), prohibido);
-  // spec 057: la única transacción es la de crearBorradorDia (el import y la inyección), y solo escribe en ordenesCompraBorradores
-  assert.equal([...html.matchAll(/\brunTransaction\b/g)].length, 2, 'runTransaction: el import y la inyección para crear el borrador');
-  assert.equal([...html.matchAll(/\bcrearBorradorDia\(/g)].length, 1);
+  for (const prohibido of ['deleteDoc', 'updateDoc', 'addDoc', 'writeBatch', 'runTransaction', 'crearBorradorDia']) assert.ok(!html.includes(prohibido), prohibido);
   const colecciones = [...html.matchAll(/(?:collection|doc)\(db,\s*([^,)]+)/g)].map((m) => m[1].trim());
-  for (const c of colecciones) assert.ok(['COLECCION_RUTAS', 'COLECCION_FERIADOS', 'COLECCION_BORRADORES', 'coleccion', '"staff"', '"ordenes"', '"informes"', '...RUTA_VALORES'].includes(c), `colección inesperada: ${c}`);
+  for (const c of colecciones) assert.ok(['COLECCION_RUTAS', 'COLECCION_FERIADOS', 'coleccion', '"staff"', '"ordenes"', '"informes"', '...RUTA_VALORES'].includes(c), `colección inesperada: ${c}`);
   assert.ok(!/\b(materiales|ordenesCompra|contadores|valores_ramos|gastos_ingresos|comprobantes_tributarios)\b/.test(html));
 });
 
@@ -129,35 +126,31 @@ test('no se tocan reglas ni firebase.json: este repo solo publica Hosting', () =
   assert.ok(!/firestore|storage/i.test(firebaseJson));
 });
 
-test('spec 057: «Días de programación» en la pestaña de rutas, con semana, estado de cada día y botón «Crear orden de compra»', () => {
+test('spec 057: «Días de programación» en la pestaña de rutas muestra solo el estado de cada día y los motivos de «no listo», sin botón', () => {
   const panel = html.slice(html.indexOf('id="panel-rutas"'), html.indexOf('id="panel-feriados"'));
-  for (const id of ['dias-programacion', 'titulo-semana', 'btn-semana-anterior', 'btn-semana-hoy', 'btn-semana-siguiente', 'tbody-dias', 'aviso-dias', 'resultado-dias']) assert.match(panel, new RegExp(`id="${id}"`), id);
+  for (const id of ['dias-programacion', 'titulo-semana', 'btn-semana-anterior', 'btn-semana-hoy', 'btn-semana-siguiente', 'tbody-dias', 'aviso-dias']) assert.match(panel, new RegExp(`id="${id}"`), id);
   assert.match(panel, /Días de programación/);
   for (const col of ['Día', 'Fecha', 'Visitas', 'Ramos', 'Estado']) assert.match(panel, new RegExp(`<th[^>]*>${col}</th>`), col);
+  // el botón «Crear orden de compra» vive en «Compra de flores» (planificacion-servicios.html), no aquí
+  assert.ok(!/Crear orden de compra|crear-oc-dia|resultado-dias/.test(panel), 'sin botón de crear');
+  assert.match(panel, /Compra de flores/);
   // el diseño existente no cambia: las secciones de cementerios y de asignación siguen en su lugar
   assert.ok(panel.indexOf('id="tbody-rutas"') < panel.indexOf('id="dias-programacion"'));
   assert.match(panel, /id="form-rutas"/);
 });
 
-test('spec 057: el botón arma el borrador con el cálculo de «Compra de flores» y abre ordenes-compra.html?borrador=; no toca las rutas', () => {
+test('spec 057: el estado de los días usa el mismo cálculo de «Compra de flores» y es solo lectura (sin borradores ni transacciones)', () => {
   assert.match(html, /from "\.\/js\/compra-dia\.js\?v=057"/);
   assert.match(html, /from "\.\/js\/compra-dia-vistas\.js\?v=057"/);
-  assert.match(html, /from "\.\/js\/ordenes-compra-db\.js\?v=057"/);
   assert.match(html, /from "\.\/js\/planificacion-servicios\.js\?v=b5"/);
   assert.match(html, /from "\.\/js\/valores-ramos-db\.js\?v=b5e2"/);
   assert.match(html, /diasDeProgramacion\(/);
   assert.match(html, /htmlFilasDiasProgramacion\(/);
-  assert.match(html, /borradorDesdeDia\(/);
-  assert.match(html, /idBorrador\(/);
-  assert.match(html, /ordenes-compra\.html\?borrador=/);
-  // un día no listo no crea nada, y mientras guarda el botón queda bloqueado (doble clic)
-  assert.match(html, /\.listo/);
-  assert.match(html, /conBoton\(boton/);
+  assert.ok(!/ordenes-compra-db|COLECCION_BORRADORES|ordenesCompraBorradores|idBorrador|borradorDesdeDia|textoErrorBorrador|ordenes-compra\.html/.test(html), 'el borrador se crea en Compra de flores');
 });
 
 test('spec 057: si fallan las lecturas de la tabla de días, la pantalla de rutas sigue y lo avisa (no se queda en blanco)', () => {
   assert.match(html, /id="aviso-dias"/);
-  assert.match(html, /diasFallo/);
-  assert.match(html, /textoErrorBorrador\(/);
+  assert.match(html, /No se pudieron leer los informes de visitas/);
+  assert.match(html, /No se pudieron leer los valores de ramos/);
 });
-

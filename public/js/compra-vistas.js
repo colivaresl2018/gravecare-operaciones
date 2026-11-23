@@ -7,6 +7,7 @@ import { esc } from './html-seguro.js';
 import { formatoPesos } from './resumen-ventas.js?v=b5';
 import { fechaDisplay } from './fechas-semana.js?v=b5';
 import { TIPOS_RAMO } from './compra-ramos.js?v=b5e2';
+import { htmlAccionDia } from './compra-dia-vistas.js?v=057';
 
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const TD = 'py-2.5 px-3 align-top';
@@ -27,23 +28,32 @@ function lineasHtml(lineas) {
   }).join('');
 }
 
-/** Filas de la tabla: por día (lunes a viernes siempre; sábado y domingo solo si tienen visitas), con sus cementerios. */
-export function htmlCuerpoCompra(lista) {
+/**
+ * Filas de la tabla: por día (lunes a viernes siempre; sábado y domingo solo si tienen visitas), con sus cementerios.
+ * Spec 057: si llegan `ordenes` (estadoDiasCompra), cada día con visitas suma una 5.ª celda con «Crear orden de compra».
+ */
+export function htmlCuerpoCompra(lista, { ordenes = null, puedeCrear = false } = {}) {
   const dias = (lista && lista.dias) || [];
+  const estados = ordenes ? new Map(ordenes.map((o) => [o.iso, o])) : null;
+  const columnas = estados ? 5 : 4;
   return dias.map((dia, indice) => ({ dia, indice })).filter(({ dia, indice }) => indice < 5 || dia.visitas > 0).map(({ dia }) => {
     const cabecera = `<tr class="bg-slate-100 border-t border-slate-200">`
       + `<td class="${TD} font-bold text-[#002d1a]">${esc(dia.nombre)} <span class="font-normal text-slate-500">${esc(dia.display)}</span></td>`
       + `<td class="${TD} font-semibold">${esc(dia.visitas)}</td>`
       + `<td class="${TD}">${dia.visitas > 0 ? esc(plural(dia.totalRamos, 'ramo', 'ramos')) : ''}</td>`
-      + `<td class="${TD} text-right font-bold">${dia.visitas > 0 ? textoTotal(dia.total, dia.incompleto, dia.totalRamos) : ''}</td></tr>`;
+      + `<td class="${TD} text-right font-bold">${dia.visitas > 0 ? textoTotal(dia.total, dia.incompleto, dia.totalRamos) : ''}</td>`
+      + (estados ? `<td class="${TD}">${dia.visitas > 0 && estados.get(dia.iso) ? htmlAccionDia(estados.get(dia.iso), { puedeCrear }) : ''}</td>` : '')
+      + `</tr>`;
     if (dia.visitas === 0) {
-      return cabecera + `<tr><td colspan="4" class="py-2 px-3 text-slate-400 italic">Sin visitas</td></tr>`;
+      return cabecera + `<tr><td colspan="${columnas}" class="py-2 px-3 text-slate-400 italic">Sin visitas</td></tr>`;
     }
     const filas = dia.cementerios.map((c) => `<tr class="hover:bg-slate-50 transition">`
       + `<td class="${TD} pl-6 text-slate-700">${esc(c.cementerio)}</td>`
       + `<td class="${TD}">${esc(c.visitas)}</td>`
       + `<td class="${TD}">${lineasHtml(c.lineas)}</td>`
-      + `<td class="${TD} text-right">${textoTotal(c.total, c.incompleto, c.totalRamos)}</td></tr>`).join('');
+      + `<td class="${TD} text-right">${textoTotal(c.total, c.incompleto, c.totalRamos)}</td>`
+      + (estados ? `<td class="${TD}"></td>` : '')
+      + `</tr>`).join('');
     return cabecera + filas;
   }).join('');
 }
