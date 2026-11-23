@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diseño PDF — Orden de compra GraveCare</title>
+<style>
+  /* Propuesta de diseño del PDF adjunto de la orden de compra (spec 059, para revisión del dueño).
+     Datos de ejemplo FICTICIOS. Colores tomados del logo: azul marino #1f3a4d y verde #7a9a7e. */
+  :root { --marino:#1f3a4d; --verde:#7a9a7e; --verde-claro:#eef3ee; --gris:#6b7280; --linea:#d9dee3; --texto:#1b2530; }
+  * { box-sizing: border-box; }
+  html { background:#e5e7eb; }
+  body { margin:0; font-family:'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif; color:var(--texto); font-size:10pt; line-height:1.35; }
+  .nota-revision { max-width:210mm; margin:12px auto 0; padding:8px 12px; font-size:9pt; color:#334155; background:#fff8e1; border:1px solid #f1d98a; border-radius:6px; }
+  .hoja { width:210mm; min-height:297mm; margin:12px auto; background:#fff; padding:16mm 16mm 14mm; position:relative; box-shadow:0 2px 12px rgba(0,0,0,.18); display:flex; flex-direction:column; }
+  /* Encabezado */
+  .encabezado { display:flex; justify-content:space-between; align-items:center; padding-bottom:9mm; border-bottom:2.2pt solid var(--marino); position:relative; }
+  .encabezado::after { content:''; position:absolute; left:0; bottom:-2.2pt; width:34mm; height:2.2pt; background:var(--verde); }
+  .encabezado img { height:27mm; margin:-3mm 0; width:auto; display:block; }
+  .titulo { text-align:right; }
+  .titulo .tipo { font-size:9pt; letter-spacing:.14em; text-transform:uppercase; color:var(--verde); font-weight:700; }
+  .titulo .numero { font-size:22pt; font-weight:800; color:var(--marino); line-height:1.1; margin-top:1mm; }
+  .fechas { margin-top:2mm; font-size:9pt; color:var(--gris); }
+  .fechas b { color:var(--texto); font-weight:600; }
+  /* Tarjetas */
+  .tarjetas { display:grid; grid-template-columns:1.25fr 1fr; gap:6mm; margin-top:8mm; }
+  .tarjeta { border:1pt solid var(--linea); border-radius:2.5mm; padding:4mm 5mm; }
+  .tarjeta h2 { margin:0 0 2.5mm; font-size:8pt; letter-spacing:.14em; text-transform:uppercase; color:var(--verde); font-weight:700; }
+  .tarjeta .razon { font-size:12pt; font-weight:700; color:var(--marino); margin-bottom:1.5mm; }
+  .dato { display:flex; gap:2mm; margin-top:1mm; font-size:9.5pt; }
+  .dato .k { color:var(--gris); min-width:27mm; flex:none; }
+  .dato .v { font-weight:500; word-break:break-word; }
+  /* Tabla */
+  table { width:100%; border-collapse:collapse; margin-top:8mm; font-size:9.5pt; }
+  thead { display:table-header-group; } /* se repite en cada página */
+  thead th { background:var(--marino); color:#fff; text-align:left; font-weight:600; font-size:8.5pt; letter-spacing:.04em; padding:2.6mm 3mm; }
+  thead th.n, tbody td.n { text-align:right; }
+  tbody td { padding:2.6mm 3mm; border-bottom:.8pt solid var(--linea); vertical-align:top; }
+  tbody tr:nth-child(even) td { background:#f7f9f7; }
+  tbody tr { break-inside:avoid; }
+  td.cod { font-weight:600; color:var(--marino); white-space:nowrap; }
+  td.num { white-space:nowrap; }
+  /* Totales */
+  .totales { align-self:flex-end; width:78mm; margin-top:6mm; break-inside:avoid; }
+  .totales .fila { display:flex; justify-content:space-between; padding:1.8mm 3mm; font-size:10pt; }
+  .totales .fila span:first-child { color:var(--gris); }
+  .totales .total { margin-top:1.5mm; background:var(--marino); color:#fff; border-radius:2mm; padding:3mm; font-size:12pt; font-weight:800; }
+  .totales .total span:first-child { color:#fff; font-weight:600; }
+  /* Pie */
+  .relleno { flex:1; }
+  .pie { margin-top:10mm; padding-top:3.5mm; border-top:1pt solid var(--linea); display:flex; justify-content:space-between; align-items:flex-end; font-size:8pt; color:var(--gris); }
+  .pie .marca { color:var(--marino); font-weight:700; letter-spacing:.06em; }
+  .pie .marca span { color:var(--verde); font-weight:600; }
+  @page { size:A4; margin:0; }
+  @media print {
+    html { background:#fff; }
+    .nota-revision { display:none; }
+    .hoja { margin:0; box-shadow:none; width:auto; min-height:297mm; }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+</style>
+</head>
+<body>
+<div class="nota-revision"><b>Propuesta para revisar (spec 059).</b> Datos de ejemplo ficticios. Esta nota no sale en el PDF. Estructura y datos = los de la orden impresa actual; cambia la presentación: logo, colores de la marca, tarjetas y totales destacados.</div>
+
+<main class="hoja">
+  <header class="encabezado">
+    <img src="logo.png" alt="GraveCare — Preservación &amp; Memoria">
+    <div class="titulo">
+      <div class="tipo">Orden de compra</div>
+      <div class="numero">OC-0123</div>
+      <div class="fechas">Emitida el <b>23/11/2026</b> &nbsp;·&nbsp; Entrega <b>26/11/2026</b></div>
+    </div>
+  </header>
+
+  <section class="tarjetas">
+    <div class="tarjeta">
+      <h2>Proveedor</h2>
+      <div class="razon">Flores Ejemplo SpA</div>
+      <div class="dato"><span class="k">RUT</span><span class="v">76.000.000-0</span></div>
+      <div class="dato"><span class="k">Contacto</span><span class="v">Contacto Ficticio</span></div>
+      <div class="dato"><span class="k">Teléfono</span><span class="v">+56 9 1111 2222</span></div>
+      <div class="dato"><span class="k">Dirección</span><span class="v">Calle Falsa 123, Santiago</span></div>
+    </div>
+    <div class="tarjeta">
+      <h2>Entrega y pago</h2>
+      <div class="dato"><span class="k">Fecha de entrega</span><span class="v">26/11/2026</span></div>
+      <div class="dato"><span class="k">Lugar de entrega</span><span class="v">Bodega de ejemplo, Santiago</span></div>
+      <div class="dato"><span class="k">Condiciones de pago</span><span class="v">Transferencia a 30 días</span></div>
+    </div>
+  </section>
+
+  <table>
+    <thead>
+      <tr><th>Código</th><th>Descripción</th><th>Unidad</th><th class="n">Cantidad</th><th class="n">Precio</th><th class="n">Valor</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="cod">RAM-STD</td><td>Ramo Standard</td><td>UNI</td><td class="n num">12</td><td class="n num">$8.000</td><td class="n num">$96.000</td></tr>
+      <tr><td class="cod">RAM-PRE</td><td>Ramo Premium</td><td>UNI</td><td class="n num">6</td><td class="n num">$14.000</td><td class="n num">$84.000</td></tr>
+      <tr><td class="cod">RAM-DLX</td><td>Ramo Deluxe</td><td>UNI</td><td class="n num">2</td><td class="n num">$25.000</td><td class="n num">$50.000</td></tr>
+      <tr><td class="cod">CLA-ROS</td><td>Clavel rojo, ramo adicional</td><td>UNI</td><td class="n num">4</td><td class="n num">$3.500</td><td class="n num">$14.000</td></tr>
+    </tbody>
+  </table>
+
+  <div class="totales">
+    <div class="fila"><span>Neto</span><span>$244.000</span></div>
+    <div class="fila"><span>IVA (19%)</span><span>$46.360</span></div>
+    <div class="fila total"><span>Total</span><span>$290.360</span></div>
+  </div>
+
+  <div class="relleno"></div>
+  <footer class="pie">
+    <div class="marca">GRAVECARE <span>· Preservación &amp; Memoria</span></div>
+    <div>Orden de compra OC-0123 · Documento generado automáticamente · Página 1 de 1</div>
+  </footer>
+</main>
+</body>
+</html>
