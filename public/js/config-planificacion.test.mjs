@@ -224,6 +224,13 @@ test('catálogo: los 17 cementerios oficiales están en el catálogo, cada uno e
   assert.equal(usadas.size, 17, 'cada entrada del catálogo corresponde a un cementerio oficial');
 });
 
+test('catálogo: el nombre oficial va primero en cada entrada (homologado con la lista de 17)', () => {
+  for (const oficial of CEMENTERIOS_OFICIALES) {
+    const entrada = CATALOGO_CEMENTERIOS.find((c) => c.nombres.some((n) => normalizarNombre(n) === normalizarNombre(oficial)));
+    assert.equal(entrada.nombres[0], oficial);
+  }
+});
+
 test('gruposDeCatalogo: un grupo por cementerio oficial, con su nombre oficial y todos sus alias', () => {
   const grupos = gruposDeCatalogo();
   assert.deepEqual(grupos.map((g) => g.nombre), CEMENTERIOS_OFICIALES);
