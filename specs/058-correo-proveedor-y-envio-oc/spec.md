@@ -1,6 +1,6 @@
 # Spec 058 (parte backoffice) — Correo en «Proveedores» y botón «Enviar por correo» en la orden de compra
 
-- **Estado:** **Borrador, pendiente de aprobación del dueño.** No se escribe código hasta que la apruebe. La spec 058 de GraveCare (reglas y función) está aprobada y mezclada; esta es la parte de pantalla, que el dueño pidió pasar a este repo.
+- **Estado:** **Aprobada por el dueño el 2026-11-23** (respuesta «Apruebo, sigue» en la sesión del backoffice; las tres decisiones de §10 según la recomendación). Falta aprobar el plan y las tareas antes de escribir código. La spec 058 de GraveCare (reglas y función) está aprobada y mezclada; esta es la parte de pantalla, que el dueño pidió pasar a este repo.
 - **Repo:** `gravecare-operaciones` (backoffice). Rama `feat/058-correo-proveedor-envio-oc`, creada desde `feat/057-proveedores-compra-dia` (PR #14, aún sin mezclar) porque usa el maestro de proveedores de la 057.
 - **Autor / fecha:** Claude Code (sesión del backoffice), 2026-11-23.
 - **Fuente:** `specs/058-envio-oc-correo-proveedor/spec.md` del repo de la web (R1–R16, CA1–CA20, D0–D7 aprobadas sin cambios) y el brief `brief-backoffice-envio-oc-correo.md` de la carpeta de notas compartida. Este documento **no repite** esa spec: solo fija lo que hace la pantalla.
