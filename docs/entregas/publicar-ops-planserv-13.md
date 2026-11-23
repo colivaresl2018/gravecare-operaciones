@@ -1,5 +1,7 @@
 # Hoja de despliegue — backoffice `ops-planserv-13` (catálogo oficial de cementerios en «Rutas y feriados»)
 
+> **NO DESPLEGAR.** Esta hoja queda marcada como no desplegar. Los nombres de cementerios que describe ya no son los oficiales. Sustituida por [`publicar-ops-planserv-14.md`](publicar-ops-planserv-14.md).
+
 **Preparada:** 2026-11-23 · **Commit:** `ca390da` (merge del [PR #17](https://github.com/colivaresl2018/gravecare-operaciones/pull/17), ya fusionado en `main`) · **Tag:** `ops-planserv-13` · **Objetivo:** Hosting `gravecare-ops` (proyecto `gravecare-2e8d2`).
 **Esta hoja solo prepara.** No se ha desplegado nada; lo ejecuta el dueño con su visto bueno.
 
