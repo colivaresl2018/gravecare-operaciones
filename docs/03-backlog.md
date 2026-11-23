@@ -28,4 +28,4 @@
 ## Spec 058 — correo del proveedor y envío de la OC (2026-11-23, rama `feat/058-correo-proveedor-envio-oc`, sin publicar)
 | ID | Tema | Estado | Dónde / evidencia |
 |---|---|---|---|
-| N218 | Campo «Correo electrónico» en Proveedores y botón «Enviar por correo» en la orden de compra (la función y las reglas son de la web) | **En tareas** (spec y plan aprobados; sin código) | `specs/058-correo-proveedor-y-envio-oc/` |
+| N218 | Campo «Correo electrónico» en Proveedores y botón «Enviar por correo» en la orden de compra (la función y las reglas son de la web) | **Implementado y probado en emuladores** (suite verde; **sin desplegar**: falta publicar la función en la web y que el dueño confirme) | `specs/058-correo-proveedor-y-envio-oc/`, `docs/reportes/correo-proveedor-envio-oc.md` |
