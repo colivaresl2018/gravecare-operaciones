@@ -259,10 +259,13 @@
       <div class="flex items-center justify-between px-4 py-3 bg-[#002d1a] text-white rounded-t-xl">
         <h2 id="modal-oc-titulo" class="text-sm font-bold">Orden de compra</h2>
         <div class="flex items-center gap-2">
+          <button type="button" id="btn-enviar-correo" class="hidden px-3 py-1 rounded-lg bg-white text-[#002d1a] text-xs font-bold hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed">Enviar por correo</button>
           <button type="button" id="btn-imprimir" class="px-3 py-1 rounded-lg bg-white text-[#002d1a] text-xs font-bold hover:bg-slate-100 transition">Imprimir</button>
           <button type="button" id="modal-oc-cerrar" aria-label="Cerrar" class="text-white text-xl leading-none px-2">&times;</button>
         </div>
       </div>
+      <div id="info-envio" class="px-6 pt-4 text-xs space-y-1"></div>
+      <div class="px-6"><div id="aviso-envio" class="hidden" role="status" aria-live="polite"></div></div>
       <div id="modal-oc-contenido" class="p-6"></div>
     </div>
   </div>
@@ -286,8 +289,10 @@
     } from "./js/ordenes-compra-db.js?v=057";
     import {
       htmlFilasMateriales, htmlFilasOrdenes, htmlLineasBorrador, htmlTotales, htmlImpresion,
-      htmlFilasProveedores, htmlOpcionesRazon, htmlFilasBorradores, VALOR_OTRO_PROVEEDOR,
+      htmlFilasProveedores, htmlOpcionesRazon, htmlFilasBorradores, VALOR_OTRO_PROVEEDOR, htmlEstadoEnvio, htmlHistorialEnvios,
     } from "./js/ordenes-compra-vistas.js?v=058";
+    // Spec 058: envío de la OC por correo. El SDK de Functions se carga solo al pulsar el botón (import dinámico, más abajo).
+    import { estadoEnvio, textoConfirmacion, mensajeErrorEnvio, textoResultado, enviarOrden } from "./js/ordenes-compra-envio.js?v=058";
     import { opcionesProveedores, datosDeProveedor, condicionPorDefecto } from "./js/proveedores.js?v=058"; // spec 057: maestro de proveedores; 058: correo
     import {
       COLECCION_PROVEEDORES, COLECCION_RUT_PROVEEDORES, crearProveedor, editarProveedor, cambiarActivoProveedor, textoErrorProveedor,
@@ -316,6 +321,9 @@
     let docsMateriales = [];
     let docsOrdenes = [];
     let docsProveedores = [];
+    let proveedoresLeidos = true; // spec 058: si la lista no se pudo leer, el botón de enviar lo dice en vez de inventar
+    let ordenAbierta = null; // OC que se ve en el modal (para el botón «Enviar por correo»)
+    let envioEnCurso = false; // anti doble clic mientras la función responde
     let docsBorradores = [];
     let proveedorEnEdicion = null; // id del proveedor que se edita (null = alta nueva)
     let proveedorSeleccionado = ""; // id elegido en el desplegable de razón social ("" = ninguno; VALOR_OTRO_PROVEEDOR = escrito a mano)
@@ -400,6 +408,7 @@
 
     async function recargarProveedores() {
       docsProveedores = await leerColeccion(COLECCION_PROVEEDORES);
+      proveedoresLeidos = true;
       pintarProveedores();
     }
 
@@ -437,8 +446,9 @@
           valoresFallo = true; // la pantalla sigue; los ramos quedan «sin valor»
         }
         // Proveedores y borradores son secundarios: si fallan, la pantalla sigue (desplegable solo con «Otro proveedor»).
-        try { docsProveedores = await leerColeccion(COLECCION_PROVEEDORES); } catch (e) {
+        try { docsProveedores = await leerColeccion(COLECCION_PROVEEDORES); proveedoresLeidos = true; } catch (e) {
           docsProveedores = [];
+          proveedoresLeidos = false;
           avisar("aviso-proveedor", "No se pudieron leer los proveedores: en la orden solo podrás escribir el proveedor a mano. Pulsa «Reintentar».", "info");
         }
         try { docsBorradores = await leerColeccion(COLECCION_BORRADORES); } catch (e) { docsBorradores = []; }
@@ -600,9 +610,55 @@
       $("modal-oc-contenido").innerHTML = contenido;
       $("zona-impresion").innerHTML = contenido;
       $("modal-oc-titulo").textContent = "Orden de compra " + orden.numero;
+      ordenAbierta = orden;
+      $("aviso-envio").className = "hidden";
+      pintarEnvio();
       $("modal-oc").classList.remove("hidden");
     }
-    function cerrarOrden() { $("modal-oc").classList.add("hidden"); }
+    function cerrarOrden() { ordenAbierta = null; $("modal-oc").classList.add("hidden"); }
+
+    // ---------- Envío de la OC por correo (spec 058) ----------
+    // El navegador solo pide «envía la OC-NNNN»: destinatario, copia, remitente y contenido los decide el servidor. No se escribe nada en la OC.
+    function estadoDeEnvio() {
+      const proveedor = ordenAbierta && ordenAbierta.proveedorId ? (docsProveedores.find((d) => d.id === ordenAbierta.proveedorId) || null) : null;
+      return estadoEnvio({ orden: ordenAbierta, proveedor, proveedoresLeidos });
+    }
+    function pintarEnvio() {
+      const estado = estadoDeEnvio();
+      const boton = $("btn-enviar-correo");
+      boton.classList.toggle("hidden", !estado.mostrar);
+      boton.disabled = !estado.habilitado || envioEnCurso;
+      boton.textContent = envioEnCurso ? "Enviando…" : "Enviar por correo";
+      $("info-envio").innerHTML = htmlEstadoEnvio(estado) + htmlHistorialEnvios((ordenAbierta || {}).envios);
+    }
+    $("btn-enviar-correo").addEventListener("click", async () => {
+      if (envioEnCurso || !ordenAbierta) return;
+      const estado = estadoDeEnvio();
+      if (!estado.habilitado) return;
+      const numero = ordenAbierta.numero;
+      if (!window.confirm(textoConfirmacion(numero, estado.correo))) return;
+      envioEnCurso = true;
+      $("aviso-envio").className = "hidden";
+      pintarEnvio();
+      try {
+        // El SDK de Functions se carga aquí: si no llega, solo falla el envío y el resto de la pantalla sigue.
+        const { getFunctions, httpsCallable } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js");
+        const llamar = async (datos) => (await httpsCallable(getFunctions(app, "us-central1"), "enviarOrdenCompraPorCorreo")(datos)).data;
+        const respuesta = await enviarOrden({ numero, llamar });
+        const resultado = textoResultado(respuesta);
+        try {
+          await recargarOrdenes();
+          const nueva = docsOrdenes.find((d) => ((d.data && d.data.numero) || d.id) === numero);
+          if (nueva && ordenAbierta && ordenAbierta.numero === numero) ordenAbierta = { ...nueva.data, numero };
+        } catch (e) { $("aviso-error").classList.remove("hidden"); }
+        if (ordenAbierta && ordenAbierta.numero === numero) avisar("aviso-envio", resultado.texto, resultado.tipo === "ok" ? "ok" : "info");
+      } catch (e) {
+        if (ordenAbierta && ordenAbierta.numero === numero) avisar("aviso-envio", mensajeErrorEnvio(e), "error");
+      } finally {
+        envioEnCurso = false;
+        if (ordenAbierta && ordenAbierta.numero === numero) pintarEnvio();
+      }
+    });
     $("modal-oc-cerrar").addEventListener("click", cerrarOrden);
     $("modal-oc").addEventListener("click", (ev) => { if (ev.target === $("modal-oc")) cerrarOrden(); });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") cerrarOrden(); });

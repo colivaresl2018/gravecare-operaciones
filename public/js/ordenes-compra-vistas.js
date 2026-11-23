@@ -6,6 +6,7 @@
  */
 import { esc } from './html-seguro.js';
 import { fechaDisplay, esFechaIso } from './fechas-semana.js';
+import { textoHistorial, CORREO_COPIA } from './ordenes-compra-envio.js?v=058'; // spec 058: texto del envío por correo
 
 const TD = 'py-2.5 px-3 align-top';
 const BOTON = 'px-2.5 py-1 rounded-lg text-[11px] font-bold border transition';
@@ -160,4 +161,22 @@ ${aviso}
 <table class="w-full border-collapse mb-3"><thead><tr class="bg-slate-200"><th class="py-1.5 px-2 border border-slate-400 text-left">Código</th><th class="py-1.5 px-2 border border-slate-400 text-left">Descripción</th><th class="py-1.5 px-2 border border-slate-400 text-left">Unidad</th><th class="py-1.5 px-2 border border-slate-400 text-right">Cantidad</th><th class="py-1.5 px-2 border border-slate-400 text-right">Precio</th><th class="py-1.5 px-2 border border-slate-400 text-right">Valor</th></tr></thead><tbody>${lineas}</tbody></table>
 <div class="flex justify-end">${htmlTotales({ neto: o.neto, iva: o.iva, total: o.total })}</div>
 </div>`;
+}
+
+/**
+ * Información del envío por correo en el modal de una OC (spec 058, R7): el motivo si el botón está deshabilitado o a quién se
+ * enviaría y con qué copia. Todo dato escapado (AUD-01). Vacío si el botón no se muestra.
+ * @param {{mostrar: boolean, habilitado: boolean, motivo: string, correo: string}} estado  Salida de estadoEnvio.
+ */
+export function htmlEstadoEnvio(estado) {
+  const e = estado && typeof estado === 'object' ? estado : {};
+  if (!e.mostrar) return '';
+  if (!e.habilitado) return `<p class="text-slate-600">${esc(e.motivo)}</p>`;
+  return `<p class="text-slate-600">Se enviará al correo del proveedor: <span class="font-semibold">${esc(e.correo)}</span>, con copia a ${esc(CORREO_COPIA)}.</p>`;
+}
+
+/** Línea de historial de envíos de una OC (spec 058, R12): el último envío y «(N envíos)». Sin quién lo envió. Escapada. */
+export function htmlHistorialEnvios(envios) {
+  const texto = textoHistorial(envios);
+  return texto ? `<p class="text-slate-600">${esc(texto)}</p>` : '';
 }

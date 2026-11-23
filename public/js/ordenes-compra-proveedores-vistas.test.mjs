@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  htmlFilasProveedores, htmlOpcionesRazon, htmlFilasBorradores, VALOR_OTRO_PROVEEDOR,
+  htmlFilasProveedores, htmlOpcionesRazon, htmlFilasBorradores, VALOR_OTRO_PROVEEDOR, htmlEstadoEnvio, htmlHistorialEnvios, htmlImpresion,
 } from './ordenes-compra-vistas.js';
 
 const doc = (id, data) => ({ id, data });
@@ -140,4 +140,48 @@ test('spec 058: htmlFilasProveedores escapa el correo (AUD-01)', () => {
 
 test('spec 058: la fila de «No hay proveedores» ocupa las ocho columnas', () => {
   assert.match(htmlFilasProveedores([]), /colspan="8"/);
+});
+
+// ---- Spec 058: estado e historial del envío por correo en el modal de la OC (CA10, CA12, R12, R14)
+test('spec 058: htmlEstadoEnvio no dice nada si no se muestra el botón, da el motivo si está deshabilitado y el correo si está habilitado', () => {
+  assert.equal(htmlEstadoEnvio({ mostrar: false, habilitado: false, motivo: '', correo: '' }), '');
+  const motivo = htmlEstadoEnvio({ mostrar: true, habilitado: false, motivo: 'El proveedor no tiene correo registrado: agréguelo en Proveedores', correo: '' });
+  assert.match(motivo, /El proveedor no tiene correo registrado: agréguelo en Proveedores/);
+  const ok = htmlEstadoEnvio({ mostrar: true, habilitado: true, motivo: '', correo: 'ventas@ejemplo.test' });
+  assert.match(ok, /ventas@ejemplo\.test/);
+  assert.match(ok, /rravellos@gravecare\.cl/, 'se dice a quién va la copia');
+});
+
+test('spec 058: htmlEstadoEnvio y htmlHistorialEnvios escapan lo que viene de Firestore (AUD-01)', () => {
+  const malo = '"><img src=x onerror=alert(1)><script>x</script>@ejemplo.test';
+  const estado = htmlEstadoEnvio({ mostrar: true, habilitado: true, motivo: '', correo: malo });
+  assert.doesNotMatch(estado, /<img|<script/);
+  assert.match(estado, /&lt;img/);
+  const historial = htmlHistorialEnvios([{ para: malo, cc: malo, enviadoEl: '2026-11-23T15:30:00.000Z', enviadoPor: 'uid-secreto-1' }]);
+  assert.doesNotMatch(historial, /<img|<script/);
+  assert.doesNotMatch(historial, /uid-secreto/);
+});
+
+test('spec 058: htmlHistorialEnvios: nada sin envíos, el último con fecha y «(N envíos)» si hay más', () => {
+  assert.equal(htmlHistorialEnvios(undefined), '');
+  assert.equal(htmlHistorialEnvios([]), '');
+  const uno = htmlHistorialEnvios([{ para: 'ventas@ejemplo.test', enviadoEl: '2026-11-23T15:30:00.000Z' }]);
+  assert.match(uno, /Enviada a ventas@ejemplo\.test el 23-11-2026 12:30/);
+  const dos = htmlHistorialEnvios([{ para: 'a@ejemplo.test', enviadoEl: '2026-11-22T10:00:00.000Z' }, { para: 'b@ejemplo.test', enviadoEl: '2026-11-23T15:30:00.000Z' }]);
+  assert.match(dos, /b@ejemplo\.test/);
+  assert.match(dos, /\(2 envíos\)/);
+});
+
+test('spec 058: la vista de impresión no cambia ni menciona el envío (el correo lleva el detalle en su cuerpo, no en la impresión)', () => {
+  const orden = {
+    numero: 'OC-0012', estado: 'Emitida', fecha: '2026-11-23', proveedorId: 'p1',
+    proveedor: { razonSocial: 'Flores del Sur SpA', rut: '76.543.210-3', contacto: 'Ana', telefono: '+56 9 1234 5678', direccion: 'Calle 1', correo: 'ventas@ejemplo.test' },
+    lineas: [{ codigo: 'RAM-STD', descripcion: 'Ramo Standard', unidad: 'UNI', cantidad: 2, precioUnitario: 10000, valor: 20000 }],
+    neto: 20000, iva: 3800, total: 23800,
+    envios: [{ para: 'ventas@ejemplo.test', cc: 'rravellos@gravecare.cl', enviadoEl: '2026-11-23T15:30:00.000Z', enviadoPor: 'uid-secreto-1' }],
+  };
+  const html = htmlImpresion(orden);
+  assert.doesNotMatch(html, /Enviada|envíos|rravellos|uid-secreto|ventas@ejemplo/);
+  assert.match(html, /OC-0012/);
+  assert.match(html, /Flores del Sur SpA/);
 });

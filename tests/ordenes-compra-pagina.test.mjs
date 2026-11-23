@@ -170,3 +170,49 @@ test('spec 058: los módulos tocados se piden con ?v=058 (también el import int
   for (const m of ['proveedores.js', 'proveedores-db.js', 'ordenes-compra-vistas.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=058"`), m);
   assert.match(lee('js/proveedores-db.js'), /from '\.\/proveedores\.js\?v=058'/);
 });
+
+// ---- Spec 058: botón «Enviar por correo» en la OC emitida (R6-R14, CA13, CA14)
+test('spec 058: el modal de la OC tiene «Enviar por correo» junto a «Imprimir», oculto por defecto, con su información y su aviso', () => {
+  const modal = html.slice(html.indexOf('id="modal-oc"'), html.indexOf('id="zona-impresion"'));
+  assert.match(modal, /<button type="button" id="btn-enviar-correo" class="hidden [^"]*"[^>]*>Enviar por correo<\/button>/);
+  assert.ok(modal.indexOf('id="btn-enviar-correo"') < modal.indexOf('id="btn-imprimir"'), 'el botón nuevo va junto a Imprimir');
+  assert.match(modal, /id="info-envio"/);
+  assert.match(modal, /id="aviso-envio"/);
+  assert.match(modal, /id="btn-imprimir"[^>]*>Imprimir<\/button>/, 'Imprimir no cambia');
+});
+
+test('spec 058: el SDK de Functions 10.7.0 se carga solo aquí y bajo demanda (si falla, la pantalla de órdenes sigue)', () => {
+  const url = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js';
+  assert.equal(html.split(url).length - 1, 1, 'una sola referencia a firebase-functions.js');
+  assert.match(html, new RegExp(`await import\\("${url.replace(/[.\/]/g, '\\$&')}"\\)`), 'import dinámico');
+  assert.doesNotMatch(html, /import\s*\{[^}]*\}\s*from\s*"[^"]*firebase-functions\.js"/, 'sin import estático');
+  const otras = ['index.html', 'portal.html', 'planificacion-servicios.html', 'rutas-feriados.html', 'clientes.html'].filter((f) => existsSync(join(PUBLIC, f)));
+  for (const f of otras) assert.ok(!lee(f).includes('firebase-functions'), `${f} no debe cargar el SDK de Functions`);
+});
+
+test('spec 058: llama a enviarOrdenCompraPorCorreo (us-central1) solo con { numero }, pide confirmación y bloquea el doble clic', () => {
+  assert.match(html, /getFunctions\(app, "us-central1"\)/);
+  assert.match(html, /httpsCallable\(getFunctions\(app, "us-central1"\), "enviarOrdenCompraPorCorreo"\)/);
+  assert.match(html, /from "\.\/js\/ordenes-compra-envio\.js\?v=058"/);
+  assert.match(html, /enviarOrden\(\{ numero, llamar \}\)/);
+  assert.match(html, /window\.confirm\(textoConfirmacion\(/);
+  assert.match(html, /envioEnCurso = true/);
+  assert.match(html, /Enviando…/);
+  // al terminar (éxito o error) se vuelve a poder pulsar
+  assert.match(html, /finally \{\s*envioEnCurso = false/);
+  assert.match(html, /mensajeErrorEnvio\(/);
+  assert.match(html, /textoResultado\(/);
+});
+
+test('spec 058: la pantalla no escribe nada del envío: ni la colección mail, ni envios, ni destinatario, copia o remitente', () => {
+  assert.doesNotMatch(html, /["'`]mail["'`]/);
+  assert.doesNotMatch(html, /envios\s*:|envioReservadoEl|arrayUnion/);
+  assert.doesNotMatch(html, /rravellos|colivaresl|nodemailer|SMTP/i, 'las direcciones y el SMTP no viven en la página');
+  // la copia solo aparece como constante del módulo del envío (para el texto de confirmación)
+  assert.equal(lee('js/ordenes-compra-envio.js').split('rravellos@gravecare.cl').length - 1, 1);
+  for (const f of ['proveedores.js', 'proveedores-db.js', 'ordenes-compra.js', 'ordenes-compra-db.js', 'ordenes-compra-vistas.js']) {
+    assert.doesNotMatch(lee(`js/${f}`), /colivaresl/, f);
+  }
+  // el envío usa los datos que la pantalla ya cargó: ni lecturas nuevas ni historial escrito desde el navegador
+  assert.match(html, /orden\.envios|ordenAbierta\.envios|\.envios\)/);
+});
