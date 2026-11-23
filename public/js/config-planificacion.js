@@ -10,6 +10,7 @@
 import { DIAS_SEMANA, esFechaIso } from './fechas-semana.js';
 import { normalizarNombre } from './rutas-planificacion.js?v=cfg1';
 import { obtenerCementerio } from './planificacion-servicios.js';
+import { CATALOGO_CEMENTERIOS } from './ubicacion-trabajo.js';
 
 export const ALCANCES = ['nacional', 'regional'];
 const MAX_CEMENTERIO = 120;
@@ -165,32 +166,92 @@ export function cementeriosDeOrdenes(ordenes) {
 }
 
 /**
- * Filas de la tabla de rutas: los cementerios de las órdenes más los que ya tienen documento en `rutas`.
+ * Los 17 cementerios vigentes con el nombre oficial de la web (functions/cementerios-catalogo.js del repo web).
+ * Cada uno se reconoce en CATALOGO_CEMENTERIOS (ubicacion-trabajo.js) por alguno de sus nombres; la prueba lo verifica.
+ */
+export const CEMENTERIOS_OFICIALES = [
+  'Parque del Recuerdo Américo Vespucio',
+  'Cementerio General de Santiago',
+  'Cementerio Católico de Recoleta',
+  'Parque Canaán de Pudahuel',
+  'Cementerio Metropolitano',
+  'Parque del Recuerdo Cordillera',
+  'Parque del Prado',
+  'Parque Sendero San Bernardo',
+  'Parque Sendero Maipú',
+  'Parque El Manantial',
+  'Cementerio Católico de Maipú',
+  'Parque del Recuerdo Padre Hurtado',
+  'Cementerio Municipal N° 1 de Rancagua',
+  'Cementerio Municipal N° 2 (Baquedano)',
+  'Parque Jardín Rancagua',
+  'Parque Jardín Las Flores',
+  'Sendero Rancagua',
+];
+
+/**
+ * Un grupo por cementerio oficial: {nombre, claves} con las claves normalizadas de todos sus nombres y alias del catálogo.
+ * Si un oficial no estuviera en el catálogo, su grupo queda solo con su nombre: nunca se pierde su fila.
+ */
+export function gruposDeCatalogo(catalogo = CATALOGO_CEMENTERIOS, oficiales = CEMENTERIOS_OFICIALES) {
+  const lista = Array.isArray(catalogo) ? catalogo : [];
+  return oficiales.map((oficial) => {
+    const clave = normalizarNombre(oficial);
+    const entrada = lista.find((c) => (Array.isArray(c.nombres) ? c.nombres : []).some((n) => normalizarNombre(n) === clave));
+    const nombres = entrada ? entrada.nombres : [];
+    return { nombre: oficial, claves: new Set([clave, ...nombres.map(normalizarNombre)]) };
+  });
+}
+
+/**
+ * Filas de la tabla de rutas: los cementerios del catálogo oficial (`grupos`), los de las órdenes y los que ya tienen
+ * documento en `rutas`. Un nombre o alias del mismo cementerio cuenta una sola vez.
+ * - `nombre`: el que se guarda y se usa para asignar (el de la ruta si ya existe; así no se duplica el documento).
+ * - `etiqueta`: el que se muestra (el oficial si el cementerio está en el catálogo).
  * estado: 'activa' | 'inactiva' (quitada) | 'sin-ruta'. Nunca se inventa un eje.
  */
-export function filasDeRutas(docsRutas, nombresCementerios) {
-  const filas = new Map();
+export function filasDeRutas(docsRutas, nombresCementerios, grupos = []) {
   const lista = Array.isArray(docsRutas) ? docsRutas : [];
+  const grupoLista = Array.isArray(grupos) ? grupos : [];
+  const indiceGrupo = new Map();
+  grupoLista.forEach((g, i) => {
+    for (const clave of g.claves) if (!indiceGrupo.has(clave)) indiceGrupo.set(clave, i);
+  });
+  const grupoDe = (...nombres) => {
+    for (const n of nombres) {
+      const clave = normalizarNombre(n);
+      if (clave && indiceGrupo.has(clave)) return indiceGrupo.get(clave);
+    }
+    return -1;
+  };
+  const filas = new Map();
 
   for (const item of lista) {
     if (!item || !item.id) continue;
     const d = item.data && typeof item.data === 'object' ? item.data : {};
     const nombre = texto(d.cementerio) || String(item.id);
-    const clave = normalizarNombre(d.cementerio) || normalizarNombre(item.id);
+    const g = grupoDe(d.cementerio, item.id);
+    const clave = g >= 0 ? `grupo:${g}` : normalizarNombre(d.cementerio) || normalizarNombre(item.id);
     if (!clave || filas.has(clave)) continue;
     const diaSemana = diaValido(d.diaSemana);
     filas.set(clave, {
-      nombre, id: String(item.id), eje: texto(d.eje), diaSemana, dia: diaSemana ? DIAS_SEMANA[diaSemana - 1] : '',
-      estado: estaActivo(d) ? 'activa' : 'inactiva',
+      nombre, etiqueta: g >= 0 ? grupoLista[g].nombre : nombre, id: String(item.id), eje: texto(d.eje), diaSemana,
+      dia: diaSemana ? DIAS_SEMANA[diaSemana - 1] : '', estado: estaActivo(d) ? 'activa' : 'inactiva',
     });
   }
   for (const n of Array.isArray(nombresCementerios) ? nombresCementerios : []) {
     const nombre = texto(n);
-    const clave = normalizarNombre(nombre);
+    const g = grupoDe(nombre);
+    const clave = g >= 0 ? `grupo:${g}` : normalizarNombre(nombre);
     if (!clave || filas.has(clave)) continue;
-    filas.set(clave, { nombre, id: '', eje: '', diaSemana: null, dia: '', estado: 'sin-ruta' });
+    const etiqueta = g >= 0 ? grupoLista[g].nombre : nombre;
+    filas.set(clave, { nombre: etiqueta, etiqueta, id: '', eje: '', diaSemana: null, dia: '', estado: 'sin-ruta' });
   }
-  return [...filas.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  grupoLista.forEach((g, i) => {
+    if (filas.has(`grupo:${i}`)) return;
+    filas.set(`grupo:${i}`, { nombre: g.nombre, etiqueta: g.nombre, id: '', eje: '', diaSemana: null, dia: '', estado: 'sin-ruta' });
+  });
+  return [...filas.values()].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'));
 }
 
 export function resumenDeRutas(filas) {

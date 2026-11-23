@@ -36,6 +36,13 @@ test('htmlFilasRutas: el cementerio sin ruta se ve como «Sin eje» y las quitad
   assert.match(html, /Sin ruta/);
 });
 
+test('htmlFilasRutas: muestra la etiqueta oficial, pero el botón y la casilla siguen usando el nombre guardado', () => {
+  const html = htmlFilasRutas([{ nombre: 'Cementerio El Prado de Puente Alto', etiqueta: 'Parque del Prado', id: 'cem-008', eje: 'Sur', diaSemana: 3, dia: 'Miércoles', estado: 'activa' }], { puedeEditar: true });
+  assert.match(html, />Parque del Prado</);
+  assert.doesNotMatch(html, />Cementerio El Prado de Puente Alto</);
+  assert.match(html, /data-cementerio="Cementerio El Prado de Puente Alto"/);
+});
+
 test('htmlFilasRutas: lista vacía → mensaje claro (nada de tabla en blanco)', () => {
   assert.match(htmlFilasRutas([], { puedeEditar: true }), /No hay cementerios/);
 });

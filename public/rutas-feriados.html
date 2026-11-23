@@ -44,7 +44,7 @@
       Solo el dueño puede cargar o cambiar las rutas. Tu usuario puede verlas.
     </div>
     <div id="nota-cementerios" class="hidden mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900">
-      No se pudo leer la lista de cementerios de las órdenes: solo se ven los que ya tienen ruta. Si falta uno, escríbelo en «Otro cementerio».
+      No se pudo leer la lista de cementerios de las órdenes: solo se ven los del catálogo oficial y los que ya tienen ruta. Si falta uno, escríbelo en «Otro cementerio».
     </div>
 
     <section class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
@@ -170,9 +170,9 @@
     import { getFirestore, collection, getDocs, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
-    import { prepararLoteRutas, parsearFeriados, permisosDeStaff, cementeriosDeOrdenes, filasDeRutas, resumenDeRutas } from "./js/config-planificacion.js?v=cfg1";
+    import { prepararLoteRutas, parsearFeriados, permisosDeStaff, cementeriosDeOrdenes, filasDeRutas, resumenDeRutas, gruposDeCatalogo } from "./js/config-planificacion.js?v=cfg2";
     import { COLECCION_RUTAS, COLECCION_FERIADOS, guardarRutasEnLote, cambiarEstadoRuta, guardarFeriado, guardarFeriados, cambiarEstadoFeriado, textoErrorGuardar } from "./js/config-planificacion-db.js?v=cfg1";
-    import { htmlResumenRutas, htmlFilasRutas, htmlFilasFeriados, htmlListaErroresFeriados, htmlResultadosGuardado } from "./js/config-vistas.js?v=cfg1";
+    import { htmlResumenRutas, htmlFilasRutas, htmlFilasFeriados, htmlListaErroresFeriados, htmlResultadosGuardado } from "./js/config-vistas.js?v=cfg2";
     // Spec 057 (parte c): estado de los días de programación (solo lectura). El cálculo es el mismo de «Compra de flores»;
     // el botón para crear la orden de compra del día vive allí (planificacion-servicios.html).
     import { esOrdenPagada } from "./js/orden-pagada.js";
@@ -197,6 +197,7 @@
     let docsRutas = [];
     let docsFeriados = [];
     let nombresOrdenes = [];
+    const gruposCementerios = gruposDeCatalogo(); // catálogo oficial de 17 cementerios (con sus alias)
     let ordenesFallo = false;
     let ordenesDocs = []; // órdenes leídas (también alimentan los días de programación)
     let indiceInformes = crearIndiceInformes([]);
@@ -237,7 +238,7 @@
     }
 
     function pintarRutas() {
-      const filas = filasDeRutas(docsRutas, nombresOrdenes);
+      const filas = filasDeRutas(docsRutas, nombresOrdenes, gruposCementerios);
       const editar = permisos.editaRutas;
       $("thead-rutas").innerHTML = "<tr>" + (editar ? '<th class="py-2 px-3 w-8"></th>' : "") +
         '<th class="py-2 px-3">Cementerio</th><th class="py-2 px-3">Eje</th><th class="py-2 px-3">Día de ruta</th><th class="py-2 px-3">Estado</th>' +

@@ -49,7 +49,7 @@ export function htmlFilasRutas(filas, { puedeEditar = false } = {}) {
       ? `<td class="${TD} w-8"><input type="checkbox" class="chk-cementerio" data-cementerio="${esc(f.nombre)}" data-sin-ruta="${sinRuta ? '1' : '0'}" aria-label="Marcar ${esc(f.nombre)}"></td>`
       : '';
     const acciones = puedeEditar ? `<td class="${TD} text-right whitespace-nowrap">${botonesRuta(f)}</td>` : '';
-    return `<tr class="border-b border-slate-100 ${f.estado === 'inactiva' ? 'text-slate-400' : ''}">${casilla}<td class="${TD} font-semibold">${esc(f.nombre)}</td><td class="${TD}">${eje}</td><td class="${TD}">${dia}</td><td class="${TD}">${estado}</td>${acciones}</tr>`;
+    return `<tr class="border-b border-slate-100 ${f.estado === 'inactiva' ? 'text-slate-400' : ''}">${casilla}<td class="${TD} font-semibold">${esc(f.etiqueta || f.nombre)}</td><td class="${TD}">${eje}</td><td class="${TD}">${dia}</td><td class="${TD}">${estado}</td>${acciones}</tr>`;
   }).join('');
 }
 

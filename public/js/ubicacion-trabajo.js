@@ -67,6 +67,9 @@ const CATALOGO = [
   { nombres: ['Parque Sendero de Rancagua', 'Parque Sendero Rancagua', 'Sendero Rancagua', 'Parque del Recuerdo Rancagua'], lat: -34.1604909, lng: -70.7563741 },
 ];
 
+/** El mismo catálogo, exportado para «Rutas y feriados» (lista oficial de cementerios). No cambia nombres ni alias. */
+export { CATALOGO as CATALOGO_CEMENTERIOS };
+
 const INDICE = CATALOGO.flatMap((c) => c.nombres.map((n) => ({ clave: normalizarNombre(n), lat: c.lat, lng: c.lng })));
 
 /**
