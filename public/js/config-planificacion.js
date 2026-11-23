@@ -10,7 +10,7 @@
 import { DIAS_SEMANA, esFechaIso } from './fechas-semana.js';
 import { normalizarNombre } from './rutas-planificacion.js?v=cfg1';
 import { obtenerCementerio } from './planificacion-servicios.js';
-import { CATALOGO_CEMENTERIOS } from './ubicacion-trabajo.js';
+import { CATALOGO_CEMENTERIOS } from './ubicacion-trabajo.js?v=cfg4'; // con versión: el navegador no reutiliza la copia del catálogo anterior
 
 export const ALCANCES = ['nacional', 'regional'];
 const MAX_CEMENTERIO = 120;
