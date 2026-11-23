@@ -198,27 +198,27 @@ export function cementeriosDeOrdenes(ordenes) {
 }
 
 /**
- * Los 17 cementerios vigentes con el nombre oficial de la web (functions/cementerios-catalogo.js del repo web).
- * Cada uno se reconoce en CATALOGO_CEMENTERIOS (ubicacion-trabajo.js) por alguno de sus nombres; la prueba lo verifica.
+ * Los 17 cementerios vigentes con el nombre oficial, confirmado por el dueño. Es el primer nombre de cada entrada de
+ * CATALOGO_CEMENTERIOS (ubicacion-trabajo.js); la prueba lo verifica.
  */
 export const CEMENTERIOS_OFICIALES = [
-  'Parque del Recuerdo Américo Vespucio',
-  'Cementerio General de Santiago',
+  'Parque del Recuerdo de Huechuraba',
+  'Cementerio General de Recoleta',
   'Cementerio Católico de Recoleta',
   'Parque Canaán de Pudahuel',
-  'Cementerio Metropolitano',
-  'Parque del Recuerdo Cordillera',
-  'Parque del Prado',
-  'Parque Sendero San Bernardo',
-  'Parque Sendero Maipú',
-  'Parque El Manantial',
+  'Cementerio Metropolitano de Lo Espejo',
+  'Parque del Recuerdo Cordillera de Puente Alto',
+  'Cementerio El Prado de Puente Alto',
+  'Parque Sendero de San Bernardo',
+  'Parque Sendero de Maipú',
+  'Parque El Manantial de Maipú',
   'Cementerio Católico de Maipú',
-  'Parque del Recuerdo Padre Hurtado',
+  'Parque del Recuerdo de Padre Hurtado-Peñaflor',
   'Cementerio Municipal N° 1 de Rancagua',
-  'Cementerio Municipal N° 2 (Baquedano)',
-  'Parque Jardín Rancagua',
-  'Parque Jardín Las Flores',
-  'Sendero Rancagua',
+  'Cementerio Municipal N° 2 de Rancagua',
+  'Parque Jardín de Rancagua',
+  'Parque Jardín Las Flores de Machalí',
+  'Parque Sendero de Rancagua',
 ];
 
 /**
