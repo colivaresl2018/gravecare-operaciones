@@ -30,7 +30,7 @@ test('exige el claim de staff antes de cargar nada (B-13) y los módulos compart
   assert.ok(iObs > 0 && iGate > iObs);
   assert.ok(iGate - iObs < html.slice(iObs).search(/\bcargarDatos\(/), 'la barrera precede a la carga de datos');
   // config-planificacion.js y config-vistas.js cambiaron (catálogo de cementerios): suben a cfg2 para no usar la copia en caché.
-  for (const [m, v] of [['config-planificacion.js', 'cfg2'], ['config-planificacion-db.js', 'cfg1'], ['config-vistas.js', 'cfg2']]) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=${v}"`));
+  for (const [m, v] of [['config-planificacion.js', 'cfg3'], ['config-planificacion-db.js', 'cfg1'], ['config-vistas.js', 'cfg2']]) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=${v}"`));
 });
 
 test('la lista de cementerios sale del catálogo oficial además de las órdenes y las rutas guardadas', () => {

@@ -24,16 +24,40 @@ export function idDeCementerio(nombre) {
   return normalizarNombre(nombre).replace(/ /g, '-');
 }
 
-/** Si el cementerio ya tiene documento (por nombre o por id) se reutiliza ese id; si no, nace uno nuevo. */
-export function idDeRuta(cementerio, existentes) {
+/**
+ * Devuelve la posición del grupo (de `gruposDeCatalogo`) al que pertenece uno de los nombres dados, o -1.
+ * Así un alias del mismo cementerio cae en el mismo grupo.
+ */
+function buscadorDeGrupos(grupos) {
+  const indice = new Map();
+  (Array.isArray(grupos) ? grupos : []).forEach((g, i) => {
+    for (const clave of g.claves) if (!indice.has(clave)) indice.set(clave, i);
+  });
+  return (...nombres) => {
+    for (const n of nombres) {
+      const clave = normalizarNombre(n);
+      if (clave && indice.has(clave)) return indice.get(clave);
+    }
+    return -1;
+  };
+}
+
+/**
+ * Si el cementerio ya tiene documento (por nombre, por id o por un alias del mismo cementerio en `grupos`) se reutiliza
+ * ese id. Si no, nace uno nuevo: con el id del nombre oficial si está en el catálogo, para que no haya dos documentos.
+ */
+export function idDeRuta(cementerio, existentes, grupos = []) {
   const clave = normalizarNombre(cementerio);
   if (!clave) return '';
+  const grupoDe = buscadorDeGrupos(grupos);
+  const grupo = grupoDe(cementerio);
   for (const item of Array.isArray(existentes) ? existentes : []) {
     if (!item || !item.id) continue;
     const d = item.data && typeof item.data === 'object' ? item.data : {};
     if (normalizarNombre(d.cementerio) === clave || normalizarNombre(item.id) === clave) return String(item.id);
+    if (grupo >= 0 && grupoDe(d.cementerio, item.id) === grupo) return String(item.id);
   }
-  return idDeCementerio(cementerio);
+  return grupo >= 0 ? idDeCementerio(grupos[grupo].nombre) : idDeCementerio(cementerio);
 }
 
 function diaValido(valor) {
@@ -57,11 +81,12 @@ export function validarRuta(entrada) {
 }
 
 /**
- * Prepara la carga de varios cementerios con el mismo eje y día. No repite cementerios (sin tildes ni mayúsculas)
- * y reutiliza el id del documento que ya exista.
+ * Prepara la carga de varios cementerios con el mismo eje y día. No repite cementerios (sin tildes ni mayúsculas, ni
+ * alias del mismo cementerio) y reutiliza el id del documento que ya exista. Si el documento ya existe, conserva el
+ * nombre con el que se guardó (las matrices lo buscan por ese nombre).
  * @returns {{items: Array<{id: string, datos: object}>, errores: string[]}}
  */
-export function prepararLoteRutas({ cementerios, eje, diaSemana, existentes } = {}) {
+export function prepararLoteRutas({ cementerios, eje, diaSemana, existentes, grupos = [] } = {}) {
   const vistos = new Set();
   const nombres = [];
   for (const c of Array.isArray(cementerios) ? cementerios : []) {
@@ -74,14 +99,21 @@ export function prepararLoteRutas({ cementerios, eje, diaSemana, existentes } = 
   if (nombres.length === 0) return { items: [], errores: ['Marca al menos un cementerio.'] };
 
   const items = [];
+  const ids = new Set();
   const errores = [];
+  const lista = Array.isArray(existentes) ? existentes : [];
   for (const nombre of nombres) {
     const r = validarRuta({ cementerio: nombre, eje, diaSemana });
     if (!r.ok) {
       for (const m of r.errores) if (!errores.includes(m)) errores.push(m);
       continue;
     }
-    items.push({ id: idDeRuta(nombre, existentes), datos: r.datos });
+    const id = idDeRuta(nombre, existentes, grupos);
+    if (ids.has(id)) continue; // dos nombres (p. ej. un alias y el oficial) del mismo cementerio: uno solo
+    ids.add(id);
+    const previo = lista.find((item) => item && String(item.id) === id);
+    const cementerio = previo && previo.data && texto(previo.data.cementerio) ? texto(previo.data.cementerio) : r.datos.cementerio;
+    items.push({ id, datos: { ...r.datos, cementerio } });
   }
   return errores.length ? { items: [], errores } : { items, errores: [] };
 }
@@ -213,17 +245,7 @@ export function gruposDeCatalogo(catalogo = CATALOGO_CEMENTERIOS, oficiales = CE
 export function filasDeRutas(docsRutas, nombresCementerios, grupos = []) {
   const lista = Array.isArray(docsRutas) ? docsRutas : [];
   const grupoLista = Array.isArray(grupos) ? grupos : [];
-  const indiceGrupo = new Map();
-  grupoLista.forEach((g, i) => {
-    for (const clave of g.claves) if (!indiceGrupo.has(clave)) indiceGrupo.set(clave, i);
-  });
-  const grupoDe = (...nombres) => {
-    for (const n of nombres) {
-      const clave = normalizarNombre(n);
-      if (clave && indiceGrupo.has(clave)) return indiceGrupo.get(clave);
-    }
-    return -1;
-  };
+  const grupoDe = buscadorDeGrupos(grupoLista);
   const filas = new Map();
 
   for (const item of lista) {

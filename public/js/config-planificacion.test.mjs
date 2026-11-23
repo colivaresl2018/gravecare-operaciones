@@ -274,6 +274,28 @@ test('asignar a un cementerio que ya tiene ruta reutiliza su documento (no crea 
   assert.equal(lote.items[0].id, 'cem-008');
 });
 
+test('asignar con un alias escrito a mano («Otro cementerio») no crea un documento nuevo si el cementerio ya tiene ruta', () => {
+  const grupos = gruposDeCatalogo();
+  const rutas = [{ id: 'cem-008', data: { cementerio: 'Cementerio El Prado de Puente Alto', eje: 'Sur Puente Alto', diaSemana: 3 } }];
+  const lote = prepararLoteRutas({ cementerios: ['Parque del Prado de Puente Alto'], eje: 'Sur', diaSemana: '2', existentes: rutas, grupos });
+  assert.deepEqual(lote.errores, []);
+  assert.deepEqual(lote.items, [{ id: 'cem-008', datos: { cementerio: 'Cementerio El Prado de Puente Alto', eje: 'Sur', diaSemana: 2 } }]);
+});
+
+test('asignar con un alias sin documento: el id sale del nombre oficial, así un mismo cementerio nunca tiene dos documentos', () => {
+  const grupos = gruposDeCatalogo();
+  assert.equal(idDeRuta('Cementerio Municipal N° 1', [], grupos), 'cementerio-municipal-n-1-de-rancagua');
+  const lote = prepararLoteRutas({ cementerios: ['Cementerio Municipal N° 1', 'cementerio municipal n 1 de rancagua'], eje: 'Norte', diaSemana: 1, existentes: [], grupos });
+  assert.equal(lote.items.length, 1, 'un alias y el nombre oficial del mismo cementerio cuentan una vez');
+  assert.equal(lote.items[0].id, 'cementerio-municipal-n-1-de-rancagua');
+  assert.equal(lote.items[0].datos.cementerio, 'Cementerio Municipal N° 1');
+});
+
+test('sin grupos, idDeRuta y prepararLoteRutas se comportan como antes (nombres que no están en el catálogo)', () => {
+  assert.equal(idDeRuta('Cementerio Municipal N° 1', []), 'cementerio-municipal-n-1');
+  assert.equal(prepararLoteRutas({ cementerios: ['Cementerio X'], eje: 'Norte', diaSemana: 1, existentes: [] }).items[0].id, 'cementerio-x');
+});
+
 test('resumenDeRutas: cuántos cementerios tienen ruta, cuáles no y cuántas rutas están quitadas', () => {
   const filas = [{ estado: 'activa' }, { estado: 'activa' }, { estado: 'inactiva' }, { estado: 'sin-ruta' }];
   assert.deepEqual(resumenDeRutas(filas), { total: 4, activas: 2, inactivas: 1, sinRuta: 1 });
