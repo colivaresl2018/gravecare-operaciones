@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   validarRut, validarProveedor, opcionesProveedores, datosDeProveedor, condicionPorDefecto, OPCION_OTRO,
+  validarCorreo, correoDeProveedor, REGEX_CORREO,
 } from './proveedores.js';
 
 const doc = (id, data) => ({ id, data });
@@ -88,4 +89,68 @@ test('condicionPorDefecto usa la del proveedor y cae en Transferencia si no tien
   assert.equal(condicionPorDefecto(doc('p1', PROVEEDOR_OK)), 'Factura a 30 días');
   assert.equal(condicionPorDefecto(doc('p2', { ...PROVEEDOR_OK, condicionesPago: 'Crédito' })), 'Transferencia');
   assert.equal(condicionPorDefecto(doc('p3', {})), 'Transferencia');
+});
+
+// ---- Spec 058: correo electrónico del proveedor (CA1, R2, R4)
+test('spec 058: la regex del correo es la de las reglas de Firestore publicadas', () => {
+  assert.equal(REGEX_CORREO.source, '^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+([.][A-Za-z0-9-]+)*[.][A-Za-z]{2,}$');
+});
+
+test('spec 058: validarCorreo acepta una dirección válida y la devuelve recortada', () => {
+  for (const ok of ['ventas@ejemplo.test', '  ventas@ejemplo.test  ', 'a.b+c_d%e-f@sub.dominio.ejemplo.cl', 'X@y.co']) {
+    const r = validarCorreo(ok);
+    assert.equal(r.ok, true, ok);
+    assert.equal(r.valor, ok.trim());
+    assert.deepEqual(r.errores, []);
+  }
+});
+
+test('spec 058: validarCorreo acepta vacío, solo espacios, nulo y ausente (se guarda cadena vacía)', () => {
+  for (const vacio of ['', '   ', null, undefined]) {
+    const r = validarCorreo(vacio);
+    assert.equal(r.ok, true);
+    assert.equal(r.valor, '');
+  }
+});
+
+test('spec 058: validarCorreo rechaza sin @, con espacio, con coma o punto y coma, con salto de línea y de más de 120', () => {
+  const malos = [
+    'ventas.ejemplo.test', 'ventas@', '@ejemplo.test', 'ventas@ejemplo', 'ven tas@ejemplo.test', 'ventas@ejem plo.test',
+    'a@ejemplo.test,b@ejemplo.test', 'a@ejemplo.test;b@ejemplo.test', 'a@ejemplo.test\nb@ejemplo.test', 'a@ejemplo.test\r\nCc: x@y.cl',
+    'ventas@ejemplo..test', 'ventas@ejemplo.t', '<a@ejemplo.test>', 'ñandú@ejemplo.test',
+    `${'a'.repeat(108)}@ejemplo.test`, // 121 caracteres
+  ];
+  for (const m of malos) {
+    const r = validarCorreo(m);
+    assert.equal(r.ok, false, JSON.stringify(m));
+    assert.ok(r.errores.length >= 1);
+    assert.match(r.errores[0], /correo/i);
+  }
+  assert.equal(validarCorreo(`${'a'.repeat(107)}@ejemplo.test`).ok, true, '120 caracteres exactos sí');
+  assert.equal(validarCorreo(12345).ok, false, 'un número no es un correo');
+  assert.equal(validarCorreo({ correo: 'a@b.cl' }).ok, false);
+});
+
+test('spec 058: validarProveedor con correo: ausente y vacío son válidos; malo falla junto con los demás errores; válido va recortado', () => {
+  const ausente = validarProveedor(PROVEEDOR_OK);
+  assert.equal(ausente.ok, true);
+  assert.equal('correo' in ausente.datos, false, 'sin correo no hay clave correo');
+  const vacio = validarProveedor({ ...PROVEEDOR_OK, correo: '  ' });
+  assert.equal(vacio.ok, true);
+  assert.equal(vacio.datos.correo, '');
+  const bueno = validarProveedor({ ...PROVEEDOR_OK, correo: ' ventas@ejemplo.test ' });
+  assert.equal(bueno.ok, true);
+  assert.equal(bueno.datos.correo, 'ventas@ejemplo.test');
+  const malo = validarProveedor({ ...PROVEEDOR_OK, razonSocial: '', correo: 'sin-arroba' });
+  assert.equal(malo.ok, false);
+  assert.equal(malo.errores.length, 2, 'avisa de la razón social y del correo');
+  assert.ok(malo.errores.some((e) => /correo/i.test(e)));
+});
+
+test('spec 058: correoDeProveedor devuelve el correo (vacío si falta) y datosDeProveedor NO lo copia a la OC', () => {
+  assert.equal(correoDeProveedor(doc('p1', { ...PROVEEDOR_OK, correo: ' ventas@ejemplo.test ' })), 'ventas@ejemplo.test');
+  assert.equal(correoDeProveedor(doc('p1', PROVEEDOR_OK)), '');
+  assert.equal(correoDeProveedor(doc('p1', { ...PROVEEDOR_OK, correo: null })), '');
+  assert.equal(correoDeProveedor(null), '');
+  assert.deepEqual(Object.keys(datosDeProveedor(doc('p1', { ...PROVEEDOR_OK, correo: 'ventas@ejemplo.test' }))), ['razonSocial', 'rut', 'contacto', 'telefono', 'direccion']);
 });

@@ -169,3 +169,70 @@ test('contrato con las reglas de la web: al editar el RUT se mantiene el mismo f
   assert.equal(s.almacen.get('proveedoresRut/30000007-K').liberado, false);
   assert.equal(s.almacen.get('proveedoresRut/76543210-3').liberado, true);
 });
+
+// ---- Spec 058: correo del proveedor en las escrituras (CA2, CA3, R3, R4)
+test('spec 058: crear sin correo (ausente o vacío) no guarda la clave correo; con correo válido la guarda', async () => {
+  const { s, base } = entorno();
+  const sin = await crearProveedor({ ...base, datos: DATOS, uid: 'u1', ahora: AHORA });
+  assert.equal('correo' in s.almacen.get(`proveedores/${sin}`), false);
+  const vacio = await crearProveedor({ ...base, datos: { ...DATOS, rut: OTRO_RUT, correo: '  ' }, uid: 'u1', ahora: AHORA });
+  assert.equal('correo' in s.almacen.get(`proveedores/${vacio}`), false, 'vacío al crear = sin clave');
+  const con = await crearProveedor({ ...base, datos: { ...DATOS, rut: '12.345.678-5', correo: ' ventas@ejemplo.test ' }, uid: 'u1', ahora: AHORA });
+  assert.equal(s.almacen.get(`proveedores/${con}`).correo, 'ventas@ejemplo.test');
+  assert.deepEqual(Object.keys(s.almacen.get('proveedoresRut/12345678-5')).sort(), ['actualizadoEl', 'liberado', 'proveedorId'], 'el candado de RUT no cambia');
+});
+
+test('spec 058: crear con un correo malo se rechaza sin escribir nada (ni proveedor ni candado)', async () => {
+  const { s, base } = entorno();
+  for (const malo of ['sin-arroba', 'a@ejemplo.test,b@ejemplo.test', 'a b@ejemplo.test']) {
+    await assert.rejects(crearProveedor({ ...base, datos: { ...DATOS, correo: malo }, uid: 'u1', ahora: AHORA }), /correo/i);
+  }
+  assert.equal(s.escrituras.length, 0);
+});
+
+test('spec 058: editar solo el teléfono de un proveedor viejo (sin correo) no agrega la clave correo', async () => {
+  const { s, base } = entorno();
+  const id = await crearProveedor({ ...base, datos: DATOS, uid: 'u1', ahora: AHORA });
+  const antes = s.escrituras.length;
+  await editarProveedor({ ...base, id, cambios: { telefono: '+56 9 8765 4321' }, uid: 'u2', ahora: AHORA });
+  const w = s.escrituras.slice(antes);
+  assert.equal(w.length, 1);
+  assert.equal('correo' in w[0].datos, false, 'el update no lleva correo');
+  assert.equal(w[0].datos.telefono, '+56 9 8765 4321');
+  assert.equal(w[0].datos.actualizadoPor, 'u2');
+  assert.equal(w[0].datos.actualizadoEl, ISO);
+  assert.equal('correo' in s.almacen.get(`proveedores/${id}`), false);
+});
+
+test('spec 058: agregar, cambiar y borrar el correo al editar (el campo no se elimina: queda cadena vacía)', async () => {
+  const { s, base } = entorno();
+  const id = await crearProveedor({ ...base, datos: DATOS, uid: 'u1', ahora: AHORA });
+  await editarProveedor({ ...base, id, cambios: { correo: 'ventas@ejemplo.test' }, uid: 'u1', ahora: AHORA });
+  assert.equal(s.almacen.get(`proveedores/${id}`).correo, 'ventas@ejemplo.test');
+  await editarProveedor({ ...base, id, cambios: { correo: 'compras@ejemplo.test' }, uid: 'u1', ahora: AHORA });
+  assert.equal(s.almacen.get(`proveedores/${id}`).correo, 'compras@ejemplo.test');
+  await editarProveedor({ ...base, id, cambios: { correo: '' }, uid: 'u1', ahora: AHORA });
+  assert.equal('correo' in s.almacen.get(`proveedores/${id}`), true);
+  assert.equal(s.almacen.get(`proveedores/${id}`).correo, '');
+});
+
+test('spec 058: editar sin cambiar el correo (mismo valor) no manda la clave correo', async () => {
+  const { s, base } = entorno();
+  const id = await crearProveedor({ ...base, datos: { ...DATOS, correo: 'ventas@ejemplo.test' }, uid: 'u1', ahora: AHORA });
+  const antes = s.escrituras.length;
+  await editarProveedor({ ...base, id, cambios: { correo: ' ventas@ejemplo.test ', direccion: 'Calle 9' }, uid: 'u1', ahora: AHORA });
+  const w = s.escrituras.slice(antes);
+  assert.equal(w.length, 1);
+  assert.equal('correo' in w[0].datos, false, 'no cambió, no viaja');
+  assert.equal(s.almacen.get(`proveedores/${id}`).correo, 'ventas@ejemplo.test', 'y no se pierde');
+});
+
+test('spec 058: editar con un correo malo se rechaza sin escribir; un correo vacío sobre un proveedor sin correo no escribe la clave', async () => {
+  const { s, base } = entorno();
+  const id = await crearProveedor({ ...base, datos: DATOS, uid: 'u1', ahora: AHORA });
+  const antes = s.escrituras.length;
+  await assert.rejects(editarProveedor({ ...base, id, cambios: { correo: 'malo' }, uid: 'u1', ahora: AHORA }), /correo/i);
+  assert.equal(s.escrituras.length, antes);
+  await editarProveedor({ ...base, id, cambios: { correo: '', direccion: 'Calle 9' }, uid: 'u1', ahora: AHORA });
+  assert.equal('correo' in s.escrituras[s.escrituras.length - 1].datos, false, 'ausente + vacío = sin cambio de correo');
+});

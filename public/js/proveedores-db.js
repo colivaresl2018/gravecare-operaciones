@@ -12,7 +12,7 @@ import { validarProveedor, validarRut } from './proveedores.js';
 export const COLECCION_PROVEEDORES = 'proveedores';
 export const COLECCION_RUT_PROVEEDORES = 'proveedoresRut';
 
-const CAMPOS_EDITABLES = ['razonSocial', 'rut', 'contacto', 'telefono', 'direccion', 'condicionesPago'];
+const CAMPOS_EDITABLES = ['razonSocial', 'rut', 'contacto', 'telefono', 'direccion', 'condicionesPago', 'correo'];
 const MENSAJE_RUT_REPETIDO = 'Ya existe un proveedor con ese RUT.';
 
 const exigirUsuario = (uid) => {
@@ -31,6 +31,7 @@ export async function crearProveedor({ ejecutarTransaccion, refs, datos, uid, ah
   if (!r.ok) throw new Error(r.errores.join(' '));
   exigirUsuario(uid);
   const { rutNormalizado, ...limpio } = r.datos;
+  if (limpio.correo === '') delete limpio.correo; // spec 058: al crear, sin correo no hay clave (compatible con proveedores anteriores)
   const iso = ahora.toISOString();
   return ejecutarTransaccion(async (tx) => {
     const refRut = refs.rut(rutNormalizado);
@@ -65,11 +66,14 @@ export async function editarProveedor({ ejecutarTransaccion, refs, id, cambios, 
       telefono: actual.telefono,
       direccion: actual.direccion,
       condicionesPago: actual.condicionesPago,
+      correo: actual.correo,
       activo: actual.activo,
     };
     const r = validarProveedor({ ...base, ...Object.fromEntries(pedidos.map((k) => [k, origen[k]])) });
     if (!r.ok) throw new Error(r.errores.join(' '));
-    const { rutNormalizado, activo: _activo, ...nuevos } = r.datos;
+    const { rutNormalizado, activo: _activo, correo, ...nuevos } = r.datos;
+    // spec 058: el correo solo viaja si cambió (ausente = ''), para que editar un proveedor anterior no agregue una clave nueva
+    if (correo !== undefined && correo !== String(actual.correo ?? '').trim()) nuevos.correo = correo;
     const rutAnterior = validarRut(actual.rut).normalizado;
     if (rutNormalizado !== rutAnterior) {
       const refNuevo = refs.rut(rutNormalizado);

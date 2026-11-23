@@ -13,6 +13,10 @@ const MAX_RAZON = 120;
 const MAX_CONTACTO = 80;
 const MAX_TELEFONO = 30;
 const MAX_DIRECCION = 200;
+const MAX_CORREO = 120;
+
+/** Correo de un proveedor (spec 058): la MISMA expresión de las reglas de Firestore publicadas (una sola dirección, sin espacios, comas ni `;`). */
+export const REGEX_CORREO = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+([.][A-Za-z0-9-]+)*[.][A-Za-z]{2,}$/;
 
 /** Opción del desplegable para escribir un proveedor a mano (decisión 3, spec 057). */
 export const OPCION_OTRO = Object.freeze({ id: '', razonSocial: 'Otro proveedor (escribir)' });
@@ -33,6 +37,21 @@ function digitoVerificador(cuerpo) {
   if (resto === 11) return '0';
   if (resto === 10) return 'K';
   return String(resto);
+}
+
+/**
+ * Valida el correo electrónico opcional de un proveedor (spec 058, R2). Vacío, solo espacios, nulo o ausente son válidos y dan `''`
+ * (así se borra el correo sin eliminar el campo). Si trae algo: una sola dirección de hasta 120 caracteres con la regex de las reglas.
+ * @returns {{ok: true, valor: string, errores: []} | {ok: false, errores: string[]}}
+ */
+export function validarCorreo(entrada) {
+  if (entrada === undefined || entrada === null) return { ok: true, valor: '', errores: [] };
+  if (typeof entrada !== 'string') return { ok: false, errores: ['El correo electrónico debe ser un texto.'] };
+  const valor = entrada.trim();
+  if (valor === '') return { ok: true, valor: '', errores: [] };
+  if (valor.length > MAX_CORREO) return { ok: false, errores: [`El correo electrónico es demasiado largo (máximo ${MAX_CORREO} caracteres).`] };
+  if (!REGEX_CORREO.test(valor)) return { ok: false, errores: ['El correo electrónico no es válido: escribe una sola dirección, sin espacios, comas ni punto y coma (por ejemplo ventas@empresa.cl).'] };
+  return { ok: true, valor, errores: [] };
 }
 
 /**
@@ -60,6 +79,8 @@ export function validarProveedor(entrada) {
   const direccion = texto(e.direccion);
   const condicionesPago = texto(e.condicionesPago);
   const rut = validarRut(e.rut);
+  const traeCorreo = e.correo !== undefined && e.correo !== null;
+  const correo = validarCorreo(e.correo);
 
   if (!razonSocial) errores.push('Falta la razón social del proveedor.');
   else if (razonSocial.length > MAX_RAZON) errores.push(`La razón social es demasiado larga (máximo ${MAX_RAZON} letras).`);
@@ -69,6 +90,7 @@ export function validarProveedor(entrada) {
   else if (telefono && !/^[0-9+()\s-]+$/.test(telefono)) errores.push('El teléfono solo puede tener números, espacios, +, guiones y paréntesis.');
   if (direccion.length > MAX_DIRECCION) errores.push(`La dirección es demasiado larga (máximo ${MAX_DIRECCION} letras).`);
   if (!CONDICIONES_PAGO.includes(condicionesPago)) errores.push('Elige una condición de pago de la lista.');
+  if (!correo.ok) errores.push(...correo.errores);
   if (e.activo !== undefined && typeof e.activo !== 'boolean') errores.push('El estado del proveedor debe ser activo o quitado.');
 
   if (errores.length) return { ok: false, errores };
@@ -82,6 +104,7 @@ export function validarProveedor(entrada) {
       telefono,
       direccion,
       condicionesPago,
+      ...(traeCorreo ? { correo: correo.valor } : {}),
       activo: e.activo !== false,
     },
   };
@@ -109,6 +132,12 @@ export function datosDeProveedor(doc) {
     telefono: texto(d.telefono),
     direccion: texto(d.direccion),
   };
+}
+
+/** Correo del proveedor para mostrarlo o rellenar el formulario (spec 058). Ausente = sin correo (`''`). NO forma parte del snapshot de la OC. */
+export function correoDeProveedor(doc) {
+  const c = doc && doc.data ? doc.data.correo : '';
+  return typeof c === 'string' ? c.trim() : '';
 }
 
 /** Condición de pago por defecto del proveedor, o Transferencia si no tiene una válida. */
