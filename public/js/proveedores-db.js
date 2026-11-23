@@ -7,7 +7,7 @@
  * - NADA se borra: quitar un proveedor pone `activo: false` y reactivarlo lo devuelve a `true`.
  * - Quién puede escribir lo deciden las reglas de Firestore (repo de la web); aquí solo se traduce el rechazo.
  */
-import { validarProveedor, validarRut } from './proveedores.js';
+import { validarProveedor, validarRut } from './proveedores.js?v=058'; // spec 058: misma versión que pide la página (el correo vive ahí)
 
 export const COLECCION_PROVEEDORES = 'proveedores';
 export const COLECCION_RUT_PROVEEDORES = 'proveedoresRut';

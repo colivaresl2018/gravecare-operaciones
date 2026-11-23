@@ -27,7 +27,7 @@ export function htmlFilasProveedores(docs, { puedeQuitar = false } = {}) {
   const lista = (Array.isArray(docs) ? docs : []).filter((d) => d && d.data)
     .sort((a, b) => String(a.data.razonSocial ?? '').localeCompare(String(b.data.razonSocial ?? ''), 'es'));
   if (lista.length === 0) {
-    return '<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No hay proveedores cargados todavía.</td></tr>';
+    return '<tr><td colspan="8" class="py-6 text-center text-slate-400 text-sm">No hay proveedores cargados todavía.</td></tr>';
   }
   return lista.map(({ id, data: p }) => {
     const activo = p.activo === true;
@@ -42,7 +42,7 @@ export function htmlFilasProveedores(docs, { puedeQuitar = false } = {}) {
         ? ` <button type="button" data-accion="quitar-proveedor" ${datos} class="${BOTON} border-rose-300 text-rose-700 hover:bg-rose-50">Quitar</button>`
         : ` <button type="button" data-accion="reactivar-proveedor" ${datos} class="${BOTON} border-emerald-300 text-emerald-800 hover:bg-emerald-50">Reactivar</button>`;
     }
-    return `<tr class="border-b border-slate-100 ${activo ? '' : 'text-slate-400'}"><td class="${TD} font-semibold">${esc(p.razonSocial)}</td><td class="${TD} whitespace-nowrap">${esc(p.rut)}</td><td class="${TD}">${esc(p.contacto)}</td><td class="${TD} whitespace-nowrap">${esc(p.telefono)}</td><td class="${TD}">${esc(p.condicionesPago)}</td><td class="${TD}">${estado}</td><td class="${TD} text-right whitespace-nowrap">${editar}${estadoBtn}</td></tr>`;
+    return `<tr class="border-b border-slate-100 ${activo ? '' : 'text-slate-400'}"><td class="${TD} font-semibold">${esc(p.razonSocial)}</td><td class="${TD} whitespace-nowrap">${esc(p.rut)}</td><td class="${TD}">${esc(p.contacto)}</td><td class="${TD} whitespace-nowrap">${esc(p.telefono)}</td><td class="${TD}">${esc(p.correo)}</td><td class="${TD}">${esc(p.condicionesPago)}</td><td class="${TD}">${estado}</td><td class="${TD} text-right whitespace-nowrap">${editar}${estadoBtn}</td></tr>`;
   }).join('');
 }
 

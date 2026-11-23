@@ -118,3 +118,26 @@ test('htmlAccionDia: un borrador ya emitido dice «Emitida como OC-xxxx» y no s
   assert.match(html, /Emitida como OC-0007/);
   assert.ok(!html.includes('?borrador='));
 });
+
+// ---- Spec 058: columna «Correo» del maestro de proveedores (CA4, R5)
+test('spec 058: htmlFilasProveedores muestra el correo después del teléfono y deja la celda vacía si falta', () => {
+  const con = htmlFilasProveedores([doc('p1', { ...PROV, correo: 'ventas@ejemplo.test' })]);
+  assert.match(con, /ventas@ejemplo\.test/);
+  assert.equal([...con.matchAll(/<td\b/g)].length, 8, 'ocho celdas por fila');
+  assert.ok(con.indexOf(PROV.telefono) < con.indexOf('ventas@ejemplo.test'), 'el correo va después del teléfono');
+  const sin = htmlFilasProveedores([doc('p1', PROV)]);
+  assert.equal([...sin.matchAll(/<td\b/g)].length, 8);
+  assert.doesNotMatch(sin, /undefined|null/);
+});
+
+test('spec 058: htmlFilasProveedores escapa el correo (AUD-01)', () => {
+  const html = htmlFilasProveedores([doc('p1', { ...PROV, correo: '"><img src=x onerror=alert(1)>@ejemplo.test' })]);
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /&lt;img/);
+  const script = htmlFilasProveedores([doc('p1', { ...PROV, correo: '<script>x</script>' })]);
+  assert.doesNotMatch(script, /<script>/);
+});
+
+test('spec 058: la fila de «No hay proveedores» ocupa las ocho columnas', () => {
+  assert.match(htmlFilasProveedores([]), /colspan="8"/);
+});

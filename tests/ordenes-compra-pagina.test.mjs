@@ -32,7 +32,9 @@ test('exige el claim de staff antes de cargar nada (B-13) y los módulos nuevos 
   assert.ok(iGate - iObs < html.slice(iObs).search(/\bcargarDatos\(/), 'la barrera precede a la carga de datos');
   assert.match(html, /from "\.\/js\/ordenes-compra\.js\?v=oc1"/);
   // Los módulos que cambiaron en la spec 057 suben de versión para que el navegador no use la copia anterior.
-  for (const m of ['ordenes-compra-db.js', 'ordenes-compra-vistas.js', 'proveedores.js', 'proveedores-db.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace(/\./g, '\\.')}\\?v=057"`));
+  // La spec 058 (correo) subió a ?v=058 los que tocó: ordenes-compra-vistas.js, proveedores.js y proveedores-db.js.
+  assert.match(html, /from \"\.\/js\/ordenes-compra-db\.js\?v=057\"/);
+  for (const m of ['ordenes-compra-vistas.js', 'proveedores.js', 'proveedores-db.js']) assert.match(html, new RegExp(`from \"\\./js/${m.replace(/\./g, '\\.')}\\?v=058\"`));
 });
 
 test('tres pestañas, «Órdenes de compra», «Proveedores» y «Maestro de materiales», y un encabezado con el nombre de la pantalla', () => {
@@ -146,4 +148,25 @@ test('no se tocan reglas ni firebase.json: este repo solo publica Hosting; las r
   const firebaseJson = readFileSync(join(RAIZ, 'firebase.json'), 'utf8');
   assert.ok(!/firestore|storage/i.test(firebaseJson));
   assert.ok(existsSync(join(RAIZ, 'docs', 'referencia', 'reglas-propuestas-055.md')));
+});
+
+// ---- Spec 058: correo electrónico en la pestaña Proveedores (R1, R5)
+test('spec 058: el formulario de proveedor tiene «Correo electrónico» y la tabla la columna «Correo»', () => {
+  assert.match(html, /<label[^>]*>Correo electrónico\s*<input type="text" id="prov-correo" maxlength="120" class="[^"]*">/);
+  const panel = html.slice(html.indexOf('id="panel-proveedores"'), html.indexOf('id="panel-materiales"'));
+  assert.match(panel, /<th class="py-2 px-3">Teléfono<\/th><th class="py-2 px-3">Correo<\/th><th class="py-2 px-3">Condición de pago<\/th>/);
+  // el campo nuevo usa el mismo estilo que contacto y teléfono
+  const clase = (id) => (html.match(new RegExp(`id="${id}"[^>]*class="([^"]*)"`)) || [])[1];
+  assert.equal(clase('prov-correo'), clase('prov-contacto'));
+});
+
+test('spec 058: el controlador lee, rellena y limpia el correo del proveedor', () => {
+  assert.match(html, /correo:\s*\$\("prov-correo"\)\.value/);
+  assert.match(html, /\$\("prov-correo"\)\.value = p\.correo \|\| ""/);
+  assert.match(html, /for \(const id of \["prov-razon", "prov-rut", "prov-contacto", "prov-telefono", "prov-direccion", "prov-correo"\]\) \$\(id\)\.value = ""/);
+});
+
+test('spec 058: los módulos tocados se piden con ?v=058 (también el import interno de proveedores-db.js)', () => {
+  for (const m of ['proveedores.js', 'proveedores-db.js', 'ordenes-compra-vistas.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=058"`), m);
+  assert.match(lee('js/proveedores-db.js'), /from '\.\/proveedores\.js\?v=058'/);
 });
