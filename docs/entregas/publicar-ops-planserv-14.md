@@ -1,11 +1,11 @@
 # Hoja de despliegue — backoffice `ops-planserv-14` (los 17 nombres oficiales de cementerios en «Rutas y feriados»)
 
-**Preparada:** 2026-11-23 · **Commit:** merge del [PR #18](https://github.com/colivaresl2018/gravecare-operaciones/pull/18) sobre `main` (se anota al crear el tag; **aún no fusionado**) · **Tag:** `ops-planserv-14` · **Objetivo:** Hosting `gravecare-ops` (proyecto `gravecare-2e8d2`).
-**Esta hoja solo prepara.** No se ha desplegado nada ni se ha creado el tag. Lo ejecuta el dueño con su visto bueno.
-**Sustituye a la hoja de `ops-planserv-13`, que no se despliega.**
+**Preparada:** 2026-11-23 · **Commit:** `94ddc48` (merge del [PR #18](https://github.com/colivaresl2018/gravecare-operaciones/pull/18) sobre `main`; incluye `c16ec1f` y, por tanto, los PR #17 y #18) · **Tag:** `ops-planserv-14` (anotado, en origin, apunta a `94ddc48`) · **Objetivo:** Hosting `gravecare-ops` (proyecto `gravecare-2e8d2`).
+**Esta hoja solo prepara.** No se ha desplegado nada. Lo ejecuta el dueño con su visto bueno.
+**Sustituye a la hoja de `ops-planserv-13`, que está marcada como NO DESPLEGAR.**
 
 ## Qué publica
-Respecto de lo que está en vivo hoy (`ops-planserv-12` = `3adb767`), el tag cambia **6 archivos** de `public/` (+ sus pruebas) y no agrega ni quita ninguno (106 archivos en el tag):
+Respecto de lo que está en vivo hoy (`ops-planserv-12` = `3adb767`, confirmado por el dueño), el tag cambia **6 archivos** de `public/` (+ sus pruebas) y no agrega ni quita ninguno (106 archivos en ambos tags). Esos 6 archivos traen la pantalla de «Rutas y feriados» (PR #17) y los nombres oficiales (PR #18):
 
 | Archivo | Cambio |
 |---|---|
@@ -14,11 +14,11 @@ Respecto de lo que está en vivo hoy (`ops-planserv-12` = `3adb767`), el tag cam
 | `public/js/config-planificacion.test.mjs` | pruebas de lo anterior |
 | `public/js/config-vistas.js` | la tabla muestra el nombre oficial; casillas y botones siguen usando el nombre guardado |
 | `public/js/config-vistas.test.mjs` | prueba de lo anterior |
-| `public/js/ubicacion-trabajo.js` | el nombre oficial es el primero en las 17 entradas del catálogo; los nombres antiguos siguen como alias |
+| `public/js/ubicacion-trabajo.js` | el nombre oficial es el primero en las 17 entradas del catálogo; los nombres antiguos siguen como alias y el orden es el de la lista |
 
 Respecto de `ops-planserv-13` (que no se despliega), el cambio son solo los nombres: `ubicacion-trabajo.js`, `config-planificacion.js` y `config-planificacion.test.mjs`.
 
-No hay cambios de reglas, de funciones ni de datos en este despliegue. No se escribe nada nuevo en `rutas` por sí solo: solo cambia lo que ocurre cuando alguien asigna una ruta. Los documentos existentes de `rutas` y sus campos no cambian.
+No hay cambios de reglas, de funciones ni de datos. Los documentos existentes de `rutas` y sus campos no cambian. El despliegue no escribe nada nuevo en `rutas`; solo cambia lo que ocurre cuando alguien asigna una ruta.
 
 ## Nombres que se verán
 **Con ruta (9, Activa; eje y día no cambian):**
@@ -43,8 +43,8 @@ No hay cambios de reglas, de funciones ni de datos en este despliegue. No se esc
 8. Parque Sendero de Rancagua
 
 ## Requisitos previos
-- [ ] **PR #18 fusionado** en `main` (visto bueno del dueño).
-- [ ] **Tag `ops-planserv-14`** sobre el commit de fusión del PR #18, subido a origin.
+- [x] **PR #17 y PR #18 fusionados** en `main` (`94ddc48`).
+- [x] **Tag `ops-planserv-14`** en origin, apunta a `94ddc48` (verificado).
 - [x] **Suite en verde:** `node --test tests/*.test.mjs public/js/*.test.mjs` → 795 pasan, 0 fallan (rama `feat/catalogo-nombres-oficiales`, commit `c16ec1f`).
 - [ ] **Revisión de duplicados en la colección `rutas`** (Firestore, solo lectura). Pendiente: no hay `rutas.json`. La captura de producción muestra 9 rutas sin repetidos; falta confirmar con el export completo.
 - [ ] **Visto bueno del dueño** para publicar.
@@ -56,10 +56,12 @@ No hay cambios de reglas, de funciones ni de datos en este despliegue. No se esc
 ## Despliegue (desde el clon limpio, nunca desde la carpeta de trabajo)
 ```powershell
 cd C:\Despliegue\GravecareOps
-git fetch --all --tags
+git fetch --tags origin
 git checkout ops-planserv-14
 git status --short                      # debe salir vacío
-git log --oneline -1                    # debe mostrar el commit de fusión del PR #18
+git describe --tags                     # debe mostrar ops-planserv-14
+git log --oneline -1                    # debe mostrar 94ddc48
+(git ls-files public).Count             # debe dar 106
 ```
 ```powershell
 firebase deploy --only hosting:gravecare-ops --project gravecare-2e8d2
@@ -81,8 +83,10 @@ Después de publicar, abrir el portal con **Ctrl+F5**: los módulos llevan `?v=c
 ## Reversa (si algo falla)
 - **Rápida:** consola de Firebase → Hosting → `gravecare-ops` → historial de versiones → **Revertir** a la versión anotada en «Antes».
 - **Por tag:** repetir el despliegue desde `C:\Despliegue\GravecareOps` con `git checkout ops-planserv-12` y el mismo comando con `--only hosting:gravecare-ops`; verificar con `node scripts\verificar-sitio-publicado.mjs ops-planserv-12`.
+  - `ops-planserv-12` es lo que está en vivo hoy. **No** se usa `ops-planserv-13`: nunca se desplegó y su hoja dice NO DESPLEGAR; republicarlo sería publicar algo que nunca estuvo en producción.
 - Los datos no se revierten: el despliegue no escribe datos. Si alguien asignó rutas con la versión nueva, esas rutas quedan guardadas; el código anterior las sigue leyendo porque los campos no cambian.
 
 ## Notas
-- `ops-planserv-12` apunta a `3adb767` (PR #16). `ops-planserv-13` apunta a `ca390da` (PR #17) y no se despliega.
+- `ops-planserv-12` apunta a `3adb767` (PR #16). `ops-planserv-13` apunta a `ca390da` (PR #17) y no se despliega. `ops-planserv-14` apunta a `94ddc48` (PR #18).
 - Pendiente fuera de este despliegue: las matrices de planificación solo reconocen el nombre guardado o el id de la ruta. Un pedido con un alias distinto no encuentra su ruta. Requiere tocar `public/js/rutas-planificacion.js` en otra tarea.
+- Pendiente en el repo web (no tocado desde aquí): su copia de referencia `docs/referencias/cementerios.json` aún dice «Parque del Recuerdo de Padre Hurtado», y `functions/cementerios-catalogo.js` tiene nombres antiguos.
