@@ -266,6 +266,7 @@
       </div>
       <div id="info-envio" class="px-6 pt-4 text-xs space-y-1"></div>
       <div class="px-6"><div id="aviso-envio" class="hidden" role="status" aria-live="polite"></div></div>
+      <div class="px-6"><div id="aviso-impresion" class="hidden mt-3 p-3 rounded-xl border text-xs font-semibold flex flex-wrap items-center justify-between gap-3" role="status" aria-live="polite"><span id="aviso-impresion-texto"></span><button type="button" id="btn-imprimir-simple" class="hidden px-3 py-1 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition whitespace-nowrap">Imprimir vista simple</button></div></div>
       <div id="modal-oc-contenido" class="p-6"></div>
     </div>
   </div>
@@ -293,6 +294,8 @@
     } from "./js/ordenes-compra-vistas.js?v=058";
     // Spec 058: envío de la OC por correo. El SDK de Functions se carga solo al pulsar el botón (import dinámico, más abajo).
     import { estadoEnvio, textoConfirmacion, mensajeErrorEnvio, textoResultado, enviarOrden } from "./js/ordenes-compra-envio.js?v=058";
+    // Spec 061: «Imprimir» abre el PDF archivado en Storage (spec 060). El SDK de Storage se carga solo al pulsar (import dinámico, más abajo).
+    import { obtenerPdfOC } from "./js/ordenes-compra-pdf.js?v=061";
     import { opcionesProveedores, datosDeProveedor, condicionPorDefecto } from "./js/proveedores.js?v=058"; // spec 057: maestro de proveedores; 058: correo
     import {
       COLECCION_PROVEEDORES, COLECCION_RUT_PROVEEDORES, crearProveedor, editarProveedor, cambiarActivoProveedor, textoErrorProveedor,
@@ -612,6 +615,7 @@
       $("modal-oc-titulo").textContent = "Orden de compra " + orden.numero;
       ordenAbierta = orden;
       $("aviso-envio").className = "hidden";
+      ocultarAvisoImpresion();
       pintarEnvio();
       $("modal-oc").classList.remove("hidden");
     }
@@ -662,7 +666,55 @@
     $("modal-oc-cerrar").addEventListener("click", cerrarOrden);
     $("modal-oc").addEventListener("click", (ev) => { if (ev.target === $("modal-oc")) cerrarOrden(); });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") cerrarOrden(); });
-    $("btn-imprimir").addEventListener("click", () => window.print());
+    // ---------- Imprimir (spec 061) ----------
+    // Abre el PDF archivado en Storage (ordenesCompra/{numero}/{numero}.pdf) en una pestaña nueva. Si no hay archivo o falla la lectura,
+    // el aviso de la ventana ofrece la vista simple (htmlImpresion), que se conserva como respaldo.
+    function ocultarAvisoImpresion() {
+      $("aviso-impresion").className = "hidden";
+      $("btn-imprimir-simple").classList.add("hidden");
+    }
+    function avisarImpresion(texto, tipo, conSimple) {
+      const clases = { info: "bg-amber-50 border-amber-300 text-amber-900", error: "bg-rose-50 border-rose-300 text-rose-800" };
+      $("aviso-impresion").className = "mt-3 p-3 rounded-xl border text-xs font-semibold flex flex-wrap items-center justify-between gap-3 " + clases[tipo];
+      $("aviso-impresion-texto").textContent = texto;
+      $("btn-imprimir-simple").classList.toggle("hidden", !conSimple);
+    }
+    async function imprimirPdfOC() {
+      if (!ordenAbierta) return;
+      const numero = ordenAbierta.numero;
+      // La pestaña se abre ya, con el gesto del usuario, para que el bloqueador de ventanas no la cierre al llegar la respuesta.
+      const pestana = window.open("", "_blank");
+      if (!pestana) {
+        avisarImpresion("El navegador bloqueó la pestaña del PDF. Permita las ventanas emergentes para este sitio y vuelva a pulsar Imprimir.", "error", true);
+        return;
+      }
+      const boton = $("btn-imprimir");
+      boton.disabled = true;
+      ocultarAvisoImpresion();
+      try {
+        // El SDK de Storage se carga aquí: si no llega, solo falla la impresión y el resto de la ventana sigue.
+        const { getStorage, ref, getDownloadURL, setMaxOperationRetryTime } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js");
+        const almacen = getStorage(app);
+        setMaxOperationRetryTime(almacen, 15000); // sin esto el SDK reintenta un corte de red unos 2 minutos con el botón bloqueado
+        const resultado = await obtenerPdfOC({ numero, obtenerUrl: (ruta) => getDownloadURL(ref(almacen, ruta)) });
+        if (!ordenAbierta || ordenAbierta.numero !== numero) { pestana.close(); return; } // se cerró o cambió la ventana mientras cargaba
+        if (resultado.estado === "listo") {
+          pestana.opener = null;
+          pestana.location.href = resultado.url;
+          return;
+        }
+        pestana.close();
+        if (resultado.estado === "sin-archivo") avisarImpresion(resultado.mensaje, "info", true);
+        else avisarImpresion(resultado.mensaje, "error", true);
+      } catch (e) {
+        pestana.close();
+        if (ordenAbierta && ordenAbierta.numero === numero) avisarImpresion("No se pudo abrir el PDF archivado. Intente de nuevo, o imprima la vista simple.", "error", true);
+      } finally {
+        boton.disabled = false;
+      }
+    }
+    $("btn-imprimir").addEventListener("click", () => imprimirPdfOC());
+    $("btn-imprimir-simple").addEventListener("click", () => window.print());
 
     $("tbody-ordenes").addEventListener("click", (ev) => {
       const boton = ev.target.closest("button[data-accion]");
