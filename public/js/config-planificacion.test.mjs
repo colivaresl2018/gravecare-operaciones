@@ -231,10 +231,40 @@ test('catálogo: el nombre oficial va primero en cada entrada (homologado con la
   }
 });
 
+test('catálogo: no hay dos grupos con el mismo nombre visible, y el nombre visible de cada grupo es el oficial', () => {
+  const visibles = CATALOGO_CEMENTERIOS.map((c) => c.nombres[0]);
+  assert.equal(new Set(visibles).size, 17);
+  assert.deepEqual(visibles, CEMENTERIOS_OFICIALES);
+});
+
+test('catálogo: ningún nombre o alias aparece en dos grupos', () => {
+  const claves = CATALOGO_CEMENTERIOS.flatMap((c) => c.nombres.map(normalizarNombre));
+  assert.equal(new Set(claves).size, claves.length);
+});
+
+test('nombres antiguos: siguen cayendo en el mismo grupo que el nombre oficial', () => {
+  const grupos = gruposDeCatalogo();
+  const grupoDe = (n) => grupos.find((g) => g.claves.has(normalizarNombre(n)));
+  const pares = [
+    ['Parque del Recuerdo Américo Vespucio', 'Parque del Recuerdo de Huechuraba'],
+    ['Cementerio General de Santiago', 'Cementerio General de Recoleta'],
+    ['Cementerio Metropolitano', 'Cementerio Metropolitano de Lo Espejo'],
+    ['Parque del Prado', 'Cementerio El Prado de Puente Alto'],
+    ['Parque Sendero San Bernardo', 'Parque Sendero de San Bernardo'],
+    ['Parque del Recuerdo Padre Hurtado', 'Parque del Recuerdo de Padre Hurtado-Peñaflor'],
+    ['Cementerio Municipal N° 2 (Baquedano)', 'Cementerio Municipal N° 2 de Rancagua'],
+    ['Sendero Rancagua', 'Parque Sendero de Rancagua'],
+  ];
+  for (const [antiguo, oficial] of pares) {
+    assert.ok(grupoDe(antiguo), `«${antiguo}» debe estar en un grupo`);
+    assert.equal(grupoDe(antiguo), grupoDe(oficial), `«${antiguo}» debe caer en el grupo de «${oficial}»`);
+  }
+});
+
 test('gruposDeCatalogo: un grupo por cementerio oficial, con su nombre oficial y todos sus alias', () => {
   const grupos = gruposDeCatalogo();
   assert.deepEqual(grupos.map((g) => g.nombre), CEMENTERIOS_OFICIALES);
-  const prado = grupos.find((g) => g.nombre === 'Parque del Prado');
+  const prado = grupos.find((g) => g.nombre === 'Cementerio El Prado de Puente Alto');
   assert.ok(prado.claves.has('cementerio el prado de puente alto') && prado.claves.has('parque del prado') && prado.claves.has('parque del prado de puente alto'));
 });
 
@@ -248,14 +278,14 @@ test('filasDeRutas con el catálogo: los 17 aparecen aunque no tengan orden ni r
 
 test('filasDeRutas con el catálogo: los alias de las órdenes no duplican cementerios; un cementerio fuera del catálogo sí aparece', () => {
   const ordenes = [
-    'Parque del Recuerdo de Huechuraba', 'Cementerio El Prado', 'cementerio general de recoleta',
+    'Parque del Recuerdo Américo Vespucio', 'Cementerio El Prado', 'cementerio general de santiago',
     'Parque Jardín Las Flores de Machalí', 'Padre Hurtado', 'Cementerio Municipal N° 2 (Baquedano)', 'Cementerio Nuevo Sin Catálogo',
   ];
   const filas = filasDeRutas([], ordenes, gruposDeCatalogo());
   assert.equal(filas.length, 18);
   assert.equal(new Set(filas.map((f) => f.etiqueta)).size, 18, 'ninguna etiqueta se repite');
-  assert.equal(filas.filter((f) => f.etiqueta === 'Parque del Recuerdo Américo Vespucio').length, 1);
-  assert.equal(filas.find((f) => f.etiqueta === 'Cementerio General de Santiago').nombre, 'Cementerio General de Santiago');
+  assert.equal(filas.filter((f) => f.etiqueta === 'Parque del Recuerdo de Huechuraba').length, 1);
+  assert.equal(filas.find((f) => f.etiqueta === 'Cementerio General de Recoleta').nombre, 'Cementerio General de Recoleta');
   assert.ok(filas.some((f) => f.nombre === 'Cementerio Nuevo Sin Catálogo' && f.estado === 'sin-ruta'));
 });
 
@@ -266,7 +296,7 @@ test('filasDeRutas con el catálogo: los que ya tienen ruta conservan eje, día 
   ];
   const filas = filasDeRutas(rutas, ['Parque del Prado', 'Cementerio Municipal N° 1'], gruposDeCatalogo());
   assert.equal(filas.length, 17);
-  const prado = filas.find((f) => f.etiqueta === 'Parque del Prado');
+  const prado = filas.find((f) => f.etiqueta === 'Cementerio El Prado de Puente Alto');
   assert.deepEqual([prado.nombre, prado.id, prado.eje, prado.diaSemana, prado.dia, prado.estado], ['Cementerio El Prado de Puente Alto', 'cem-008', 'Sur Puente Alto', 3, 'Miércoles', 'activa']);
   const rancagua = filas.find((f) => f.etiqueta === 'Cementerio Municipal N° 1 de Rancagua');
   assert.deepEqual([rancagua.id, rancagua.eje, rancagua.dia, rancagua.estado], ['cem-014', 'Rancagua Centro', 'Jueves', 'inactiva']);
@@ -275,7 +305,7 @@ test('filasDeRutas con el catálogo: los que ya tienen ruta conservan eje, día 
 
 test('asignar a un cementerio que ya tiene ruta reutiliza su documento (no crea otro con el nombre oficial)', () => {
   const rutas = [{ id: 'cem-008', data: { cementerio: 'Cementerio El Prado de Puente Alto', eje: 'Sur Puente Alto', diaSemana: 3 } }];
-  const prado = filasDeRutas(rutas, [], gruposDeCatalogo()).find((f) => f.etiqueta === 'Parque del Prado');
+  const prado = filasDeRutas(rutas, [], gruposDeCatalogo()).find((f) => f.etiqueta === 'Cementerio El Prado de Puente Alto');
   const lote = prepararLoteRutas({ cementerios: [prado.nombre], eje: 'Sur Puente Alto', diaSemana: '2', existentes: rutas });
   assert.deepEqual(lote.errores, []);
   assert.equal(lote.items[0].id, 'cem-008');
