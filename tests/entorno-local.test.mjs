@@ -18,7 +18,7 @@ test('el proyecto del emulador debe ser «demo-*» (nunca un proyecto real)', ()
 });
 
 test('los puertos se desplazan con GC_OFFSET y el sitio no usa puertos por defecto de la web', () => {
-  assert.deepEqual(puertos(800), { sitio: 5850, firestore: 8880, auth: 9899, storage: 9999 });
+  assert.deepEqual(puertos(800), { sitio: 5850, firestore: 8880, auth: 9899, storage: 9999, functions: 5801 }); // spec 058: functions para el botón «Enviar por correo»
   const porDefectoWeb = [5000, 4000, 4400, 4500, 8080, 9099, 9199, 5001];
   assert.equal(porDefectoWeb.includes(puertos(0).sitio), false);
   assert.throws(() => desplazamiento({ GC_OFFSET: '-1' }));
@@ -48,4 +48,23 @@ test('el entorno local vive fuera de public/ (no se publica en Hosting)', () => 
   assert.equal(config.hosting.public, 'public');
   const servidor = readFileSync(join(RAIZ, 'scripts', 'local', 'servidor-emuladores.mjs'), 'utf8');
   assert.match(servidor, /listen\(P\.sitio, '127\.0\.0\.1'/);
+});
+
+// ---- Spec 058: Functions en el servidor local (para probar «Enviar por correo» contra el emulador de Functions de la web)
+test('spec 058: reescribe también el SDK de Functions (import estático o dinámico) hacia el envoltorio local', () => {
+  const js = 'const { getFunctions } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js");';
+  assert.ok(reescribirSdk(js).includes('"/__emuladores__/10.7.0/firebase-functions.js"'));
+  const servidor = readFileSync(join(RAIZ, 'scripts', 'local', 'servidor-emuladores.mjs'), 'utf8');
+  assert.match(servidor, /firebase-\(app\|auth\|firestore\|storage\|functions\|analytics\)\\\.js/, 'la ruta de envoltorios también sirve functions');
+});
+
+test('spec 058: el envoltorio de Functions conecta a 127.0.0.1 con el puerto desplazado y nunca al 5001 del dueño', () => {
+  const p = puertos(1500);
+  const f = envoltorio('10.7.0', 'functions', { proyecto: 'demo-gravecare', p });
+  assert.match(f, /connectFunctionsEmulator\(f, "127\.0\.0\.1", 6501\)/);
+  assert.match(f, /export function getFunctions/);
+  assert.doesNotMatch(f, /\b5001\b/);
+  assert.doesNotMatch(f, /localhost/);
+  // con GC_OFFSET=0 es el entorno del dueño, igual que Firestore, Auth y Storage
+  assert.match(envoltorio('10.7.0', 'functions', { proyecto: 'demo-gravecare', p: puertos(0) }), /connectFunctionsEmulator\(f, "127\.0\.0\.1", 5001\)/);
 });

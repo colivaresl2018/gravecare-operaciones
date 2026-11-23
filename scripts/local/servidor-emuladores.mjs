@@ -5,8 +5,8 @@
 //
 // Cómo funciona, sin tocar ninguna página:
 // - Sirve public/ en 127.0.0.1 con las mismas reescrituras de firebase.json (/ y /login.html → /login-ops.html).
-// - Al servir .html y .js reemplaza los módulos del SDK de gstatic (app, auth, firestore, storage, analytics) por
-//   envoltorios locales que (1) fuerzan el proyecto «demo-*» del emulador y (2) conectan Auth, Firestore y Storage a
+// - Al servir .html y .js reemplaza los módulos del SDK de gstatic (app, auth, firestore, storage, functions, analytics) por
+//   envoltorios locales que (1) fuerzan el proyecto «demo-*» del emulador y (2) conectan Auth, Firestore, Storage y Functions a
 //   127.0.0.1 con los puertos desplazados. Analytics queda inerte.
 // - Fuera de este servidor (Hosting real) las páginas no cambian: el módulo es inerte porque solo existe aquí.
 import { createServer } from 'node:http';
@@ -23,7 +23,7 @@ const P = puertos(OFF);
 
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webp': 'image/webp' };
 const REESCRITURAS = { '/': '/login-ops.html', '/login.html': '/login-ops.html' };
-const SDK = /https:\/\/www\.gstatic\.com\/firebasejs\/(\d+\.\d+\.\d+)\/firebase-(app|auth|firestore|storage|analytics)\.js/g;
+const SDK = /https:\/\/www\.gstatic\.com\/firebasejs\/(\d+\.\d+\.\d+)\/firebase-(app|auth|firestore|storage|functions|analytics)\.js/g;
 
 /** Envoltorio de un módulo del SDK: reexporta todo y reemplaza solo las funciones de inicialización. */
 export function envoltorio(version, modulo, { proyecto = PROYECTO, p = P } = {}) {
@@ -63,6 +63,13 @@ const conectadas = new WeakSet();
 function conectar(s) { if (!conectadas.has(s)) { conectadas.add(s); connectStorageEmulator(s, "127.0.0.1", ${p.storage}); } return s; }
 export function getStorage(...x) { return conectar(_getStorage(...x)); }
 `;
+    case 'functions':
+      return marca + `export * from "${real}";
+import { getFunctions as _getFunctions, connectFunctionsEmulator } from "${real}";
+const conectadas = new WeakSet();
+function conectar(f) { if (!conectadas.has(f)) { conectadas.add(f); connectFunctionsEmulator(f, "127.0.0.1", ${p.functions}); } return f; }
+export function getFunctions(...x) { return conectar(_getFunctions(...x)); }
+`;
     case 'analytics':
       return marca + `export const getAnalytics = () => ({});
 export const initializeAnalytics = () => ({});
@@ -80,7 +87,7 @@ export function reescribirSdk(texto) {
 
 async function responder(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const env = url.pathname.match(/^\/__emuladores__\/(\d+\.\d+\.\d+)\/firebase-(app|auth|firestore|storage|analytics)\.js$/);
+  const env = url.pathname.match(/^\/__emuladores__\/(\d+\.\d+\.\d+)\/firebase-(app|auth|firestore|storage|functions|analytics)\.js$/);
   if (env) {
     res.writeHead(200, { 'content-type': TIPOS['.js'], 'cache-control': 'no-store' });
     return res.end(envoltorio(env[1], env[2]));
@@ -111,7 +118,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === normalize(process.argv
   });
   servidor.listen(P.sitio, '127.0.0.1', () => {
     console.log(`Backoffice local: http://localhost:${P.sitio}/login-ops.html`);
-    console.log(`Emuladores (${PROYECTO}): Auth 127.0.0.1:${P.auth} · Firestore 127.0.0.1:${P.firestore} · Storage 127.0.0.1:${P.storage}`);
+    console.log(`Emuladores (${PROYECTO}): Auth 127.0.0.1:${P.auth} · Firestore 127.0.0.1:${P.firestore} · Storage 127.0.0.1:${P.storage} · Functions 127.0.0.1:${P.functions}`);
     console.log('Ctrl+C para detener.');
   });
 }

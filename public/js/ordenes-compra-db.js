@@ -9,13 +9,17 @@
  * - Colecciones NUEVAS y aditivas: `materiales`, `ordenesCompra` y `contadores/ordenesCompra`.
  */
 import {
-  RAMOS_MAESTRO, TIPOS_MATERIAL, validarMaterial, validarOrden, formatearNumeroOC, esNumeroOC, normalizarCodigo,
+  RAMOS_MAESTRO, TIPOS_MATERIAL, validarMaterial, validarOrden, formatearNumeroOC, esNumeroOC, normalizarCodigo, calcularTotales,
 } from './ordenes-compra.js';
+import { esFechaIso } from './fechas-semana.js';
 
 export const COLECCION_MATERIALES = 'materiales';
 export const COLECCION_ORDENES = 'ordenesCompra';
 export const COLECCION_CONTADORES = 'contadores';
 export const DOC_CONTADOR_ORDENES = 'ordenesCompra';
+export const COLECCION_BORRADORES = 'ordenesCompraBorradores';
+
+const ERR_PROVEEDOR_INACTIVO = 'El proveedor ya no está activo; elige otro.';
 
 const exigirUsuario = (uid) => {
   if (!uid) throw new Error('Falta el usuario que guarda los cambios.');
@@ -72,23 +76,96 @@ export async function actualizarMaterial({ ejecutarTransaccion, refs, codigo, ca
  * Emite una OC: toma el siguiente número del contador, guarda la orden con sus totales y avanza el contador, todo en una
  * transacción (R4, R5, R6). Una orden inválida no consume número. @returns {{numero: string, orden: object}}
  */
-export async function emitirOrden({ ejecutarTransaccion, refs, datos, uid, ahora = new Date() }) {
+export async function emitirOrden({ ejecutarTransaccion, refs, datos, uid, ahora = new Date(), proveedorId = null }) {
   const r = validarOrden(datos);
   if (!r.ok) throw new Error(r.errores.join(' '));
   exigirUsuario(uid);
+  return ejecutarTransaccion((tx) => emitirEnTransaccion(tx, { refs, datos: r.datos, uid, ahora, proveedorId }));
+}
+
+/**
+ * Núcleo de la emisión (spec 057 T5). Todas las LECTURAS van antes que las escrituras (exigencia de Firestore):
+ * proveedor (si viene con id), borrador (si viene), contador y el número libre. Después escribe la OC, avanza el contador y, si
+ * viene de un borrador, lo marca con `emitidoComo`. Con proveedor, la OC guarda la copia de sus datos en el maestro (R-O3).
+ */
+async function emitirEnTransaccion(tx, { refs, datos, uid, ahora, proveedorId = null, borradorId = null }) {
+  let proveedor = null;
+  if (proveedorId) {
+    const snapProveedor = await tx.get(refs.proveedor(proveedorId));
+    const p = snapProveedor.exists() ? (snapProveedor.data() || {}) : null;
+    if (!p || p.activo !== true) throw Object.assign(new Error(ERR_PROVEEDOR_INACTIVO), { code: 'proveedor-inactivo' });
+    proveedor = {
+      razonSocial: p.razonSocial ?? '', rut: p.rut ?? '', contacto: p.contacto ?? '', telefono: p.telefono ?? '', direccion: p.direccion ?? '',
+    };
+  }
+  let refBorrador = null;
+  if (borradorId) {
+    refBorrador = refs.borrador(borradorId);
+    const snapBorrador = await tx.get(refBorrador);
+    if (!snapBorrador.exists()) throw new Error(`El borrador ${borradorId} no existe.`);
+    const emitidoComo = (snapBorrador.data() || {}).emitidoComo;
+    if (emitidoComo) throw new Error(`El borrador ya se emitió como ${emitidoComo}.`);
+  }
+  const refContador = refs.contador();
+  const snapContador = await tx.get(refContador);
+  const ultimo = snapContador.exists() ? (snapContador.data() || {}).ultimo : 0;
+  if (!Number.isInteger(ultimo) || ultimo < 0) throw new Error('El contador de órdenes de compra no es válido: avisa al administrador antes de emitir.');
+  const numero = formatearNumeroOC(ultimo + 1);
+  const refOrden = refs.orden(numero);
+  const snapOrden = await tx.get(refOrden);
+  if (snapOrden.exists()) throw new Error(`La orden ${numero} ya existe: el contador está desfasado. Avisa al administrador.`);
+  const orden = {
+    numero,
+    ...datos,
+    ...(proveedor ? { proveedor, proveedorId } : {}),
+    creadaEl: ahora.toISOString(),
+    creadaPor: uid,
+  };
+  tx.set(refContador, { ultimo: ultimo + 1 });
+  tx.set(refOrden, orden);
+  if (refBorrador) tx.update(refBorrador, { emitidoComo: numero });
+  return { numero, orden };
+}
+
+/** Emite la OC a partir de un borrador de día: los datos (fecha, condiciones, proveedor, líneas) los confirma quien emite. */
+export async function emitirDesdeBorrador({ ejecutarTransaccion, refs, idBorrador, datos, proveedorId = null, uid, ahora = new Date() }) {
+  const r = validarOrden(datos);
+  if (!r.ok) throw new Error(r.errores.join(' '));
+  exigirUsuario(uid);
+  if (!idBorrador) throw new Error('Falta el borrador a emitir.');
+  return ejecutarTransaccion((tx) => emitirEnTransaccion(tx, { refs, datos: r.datos, uid, ahora, proveedorId, borradorId: idBorrador }));
+}
+
+/**
+ * Crea el borrador de OC de un día (spec 057, parte c). Un borrador por día: si ya existe, no escribe y devuelve `existe: true`
+ * (CA-B3). No asigna número ni toca el contador (CA-B4). Los totales se recalculan (R6 de la 055).
+ */
+export async function crearBorradorDia({ ejecutarTransaccion, refs, id, datos, uid, ahora = new Date() }) {
+  if (!esFechaIso(id)) throw new Error('La fecha del borrador no es válida (usa AAAA-MM-DD).');
+  exigirUsuario(uid);
+  const crudas = Array.isArray(datos && datos.lineas) ? datos.lineas : [];
+  if (crudas.length === 0) throw new Error('El borrador necesita al menos una línea.');
+  const lineas = crudas.map((l, i) => {
+    const x = l && typeof l === 'object' ? l : {};
+    const cantidad = Number(x.cantidad);
+    const precioUnitario = Number(x.precioUnitario);
+    if (!Number.isInteger(cantidad) || cantidad < 1 || !Number.isInteger(precioUnitario) || precioUnitario < 0) {
+      throw new Error(`La línea ${i + 1} del borrador no es válida: cantidad entera de 1 o más y precio entero.`);
+    }
+    const valor = cantidad * precioUnitario;
+    if (Number(x.valor) !== valor) throw new Error(`La línea ${i + 1} no cuadra: el valor debe ser cantidad por precio.`);
+    return {
+      codigo: String(x.codigo ?? ''), descripcion: String(x.descripcion ?? ''), unidad: String(x.unidad ?? 'UNI'), cantidad, precioUnitario, valor,
+    };
+  });
+  const totales = calcularTotales(lineas);
+  const iso = ahora.toISOString();
   return ejecutarTransaccion(async (tx) => {
-    const refContador = refs.contador();
-    const snapContador = await tx.get(refContador);
-    const ultimo = snapContador.exists() ? (snapContador.data() || {}).ultimo : 0;
-    if (!Number.isInteger(ultimo) || ultimo < 0) throw new Error('El contador de órdenes de compra no es válido: avisa al administrador antes de emitir.');
-    const numero = formatearNumeroOC(ultimo + 1);
-    const refOrden = refs.orden(numero);
-    const snapOrden = await tx.get(refOrden);
-    if (snapOrden.exists()) throw new Error(`La orden ${numero} ya existe: el contador está desfasado. Avisa al administrador.`);
-    const orden = { numero, ...r.datos, creadaEl: ahora.toISOString(), creadaPor: uid };
-    tx.set(refContador, { ultimo: ultimo + 1 });
-    tx.set(refOrden, orden);
-    return { numero, orden };
+    const ref = refs.borrador(id);
+    const snap = await tx.get(ref);
+    if (snap.exists()) return { existe: true };
+    tx.set(ref, { fechaDia: id, lineas, ...totales, estado: 'Borrador', creadoEl: iso, creadoPor: uid });
+    return { existe: false };
   });
 }
 

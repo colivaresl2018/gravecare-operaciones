@@ -64,8 +64,11 @@ test('exige staff antes de cargar datos y filtra las órdenes pagadas antes de l
   assert.equal(html.split('getDocs(collection(db, "ordenes"))').length - 1, 1);
 });
 
-test('solo escribe los valores de ramos (etapa 2): ninguna otra escritura y nunca fechasProgramadas', () => {
-  assert.doesNotMatch(html, /\b(updateDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
+test('solo escribe los valores de ramos (etapa 2) y, desde la spec 057, el borrador de orden de compra del día: ninguna otra escritura y nunca fechasProgramadas', () => {
+  assert.doesNotMatch(html, /\b(updateDoc|addDoc|deleteDoc|writeBatch)\b/);
+  // spec 057: la única transacción es la de crearBorradorDia (el import y la inyección), y solo escribe en ordenesCompraBorradores
+  assert.equal([...html.matchAll(/\brunTransaction\b/g)].length, 2, 'runTransaction: el import y la inyección para crear el borrador');
+  assert.equal([...html.matchAll(/\bcrearBorradorDia\(/g)].length, 1);
   // setDoc solo aparece en el import y como `guardar: setDoc` (la única escritura, de valores_ramos/compra)
   const sinPermitidos = html.replace('getFirestore, collection, getDocs, getDoc, doc, setDoc }', '').replace('guardar: setDoc', '');
   assert.doesNotMatch(sinPermitidos, /\bsetDoc\b/);
@@ -228,7 +231,7 @@ test('B5 etapa 2: los módulos nuevos existen, todo lo que importan existe y la 
     for (const r of importsRelativos(lee(`js/${nombre}.js`))) assert.ok(existsSync(join(PUBLIC, 'js', r)), `${nombre}.js importa ${r}, que no existe`);
   }
   assert.match(html, /from "\.\/js\/compra-ramos\.js\?v=b5e2"/);
-  assert.match(html, /from "\.\/js\/compra-vistas\.js\?v=b5e2"/);
+  assert.match(html, /from "\.\/js\/compra-vistas\.js\?v=057"/); // spec 057: la tabla suma la columna «Orden de compra»
   assert.match(html, /from "\.\/js\/valores-ramos-db\.js\?v=b5e2"/);
 });
 
@@ -259,7 +262,7 @@ test('B5 etapa 2: la lectura de valores no tumba la pantalla (se avisa) y guarda
 test('B5 etapa 2: no hay precios escritos en el código (salen de valores_ramos) ni se tocan otras colecciones', () => {
   for (const nombre of NUEVOS_E2) assert.doesNotMatch(lee(`js/${nombre}.js`), /\b\d{4,}\b/, `${nombre}.js no debe tener precios`);
   assert.doesNotMatch(html, /valoresCompra\s*=\s*\{[^}]*\d{4,}/);
-  // «Órdenes de Compra» (spec 055) NO está en esta etapa: sus colecciones no tienen reglas publicadas
+  // «Órdenes de Compra» (spec 055) sigue fuera de esta pantalla salvo el borrador del día (spec 057): ni materiales, ni órdenes, ni contadores
   assert.doesNotMatch(html + NUEVOS_E2.map((n) => lee(`js/${n}.js`)).join('\n'), /["']materiales["']|["']ordenesCompra["']|["']contadores["']/);
   assert.doesNotMatch(html, /id="tab-ordenes-compra"/);
 });
@@ -276,7 +279,7 @@ test('B5 etapa 2: lo que viene de Firestore (cementerios, valores) pasa por esc 
   const src = lee('js/compra-vistas.js');
   assert.match(src, /from '\.\/html-seguro\.js'/);
   assert.ok((src.match(/esc\(/g) || []).length >= 15);
-  assert.match(html, /\$\("cr-tbody"\)\.innerHTML = htmlCuerpoCompra\(lista\)/);
+  assert.match(html, /\$\("cr-tbody"\)\.innerHTML = htmlCuerpoCompra\(lista, \{ ordenes: estados, puedeCrear: !informesFallo \}\)/);
 });
 
 test('B5 etapa 2: Gantt, menú y reglas siguen como estaban (sin firestore.rules en este repo)', () => {
@@ -331,4 +334,29 @@ test('el encabezado inicial (antes de cargar) ya es el de Planes y se aplica al 
 
 test('el nombre de la página en el menú del portal no cambia', () => {
   assert.match(portal, /"planificacion-servicios": \{ title: "Planificación Planes y Spot", icon: "fa-solid fa-calendar-check" \}/);
+});
+
+test('spec 057: «Compra de flores» ofrece «Crear orden de compra» en cada día, con el mismo cálculo y el mismo motivo de «no listo»', () => {
+  const panel = html.slice(html.indexOf('id="panel-compra"'), html.indexOf('id="panel-valores"'));
+  assert.match(panel, /<th[^>]*>Orden de compra<\/th>/);
+  assert.match(html, /from "\.\/js\/compra-dia\.js\?v=057"/);
+  assert.match(html, /from "\.\/js\/ordenes-compra-db\.js\?v=057"/);
+  assert.match(html, /estadoDiasCompra\(lista,/);
+  assert.match(html, /htmlCuerpoCompra\(lista, \{ ordenes:/);
+  assert.match(html, /data-accion="crear-oc-dia"/);
+  // un día no listo no crea nada; mientras guarda el botón queda bloqueado (doble clic) y siempre se vuelve a habilitar
+  assert.match(html, /\.listo/);
+  assert.match(html, /boton\.disabled = true/);
+  assert.match(html, /ordenes-compra\.html\?borrador=/);
+  // la regla de «día listo» no se copia aquí
+  assert.doesNotMatch(html, /Sin eje y día de ruta|No hay visitas programadas/);
+});
+
+test('spec 057: crear el borrador solo escribe ordenesCompraBorradores; si no se pueden leer informes o borradores se avisa y no se crea a ciegas', () => {
+  assert.match(html, /COLECCION_BORRADORES/);
+  assert.match(html, /informesFallo/);
+  assert.match(html, /No se pudieron leer los informes/);
+  assert.match(html, /textoErrorBorrador\(/);
+  assert.match(html, /borradorDesdeDia\(/);
+  assert.match(html, /idBorrador\(/);
 });

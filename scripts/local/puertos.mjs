@@ -4,7 +4,7 @@
 // - GC_OFFSET=800 (u otro): emuladores de pruebas automáticas, sin tocar los del dueño.
 // El proyecto del emulador es siempre uno «demo-*»: el SDK nunca puede llegar a un proyecto real.
 
-export const BASE_EMULADORES = { firestore: 8080, auth: 9099, storage: 9199 };
+export const BASE_EMULADORES = { firestore: 8080, auth: 9099, storage: 9199, functions: 5001 };
 export const BASE_SITIO_BACKOFFICE = 5050; // propio del backoffice; no es un puerto por defecto de la web
 
 export function desplazamiento(env = process.env) {
@@ -25,5 +25,6 @@ export function puertos(off) {
     firestore: BASE_EMULADORES.firestore + off,
     auth: BASE_EMULADORES.auth + off,
     storage: BASE_EMULADORES.storage + off,
+    functions: BASE_EMULADORES.functions + off,
   };
 }

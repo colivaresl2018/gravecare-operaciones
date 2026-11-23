@@ -24,3 +24,8 @@
 | BO-5 | Versiones mezcladas del SDK de Firebase (10.7.0 y 10.12.0) según la página | Baja | Unificar en una spec |
 | BO-6 | **`https://gravecare-ops.web.app` hoy sirve una copia del `public/` de la web**, no este repo: `login-ops.html` e `index.html` idénticos a la web y 21 de 28 páginas en 404 | Media | El primer despliegue `ops-2` reemplaza ese contenido; confirmar antes dónde opera hoy el staff y anotar la versión vigente como punto de reversa |
 | BO-7 | La clave fija retirada en N193 sigue en el historial de git (no era una credencial real: las reglas ya bloqueaban el borrado) | Info | Si esa clave se usó en otro lugar, cambiarla |
+
+## Spec 058 — correo del proveedor y envío de la OC (2026-11-23, rama `feat/058-correo-proveedor-envio-oc`, sin publicar)
+| ID | Tema | Estado | Dónde / evidencia |
+|---|---|---|---|
+| N218 | Campo «Correo electrónico» en Proveedores y botón «Enviar por correo» en la orden de compra (la función y las reglas son de la web) | **Implementado y probado en emuladores** (suite verde; **sin desplegar**: falta publicar la función en la web y que el dueño confirme) | `specs/058-correo-proveedor-y-envio-oc/`, `docs/reportes/correo-proveedor-envio-oc.md` |

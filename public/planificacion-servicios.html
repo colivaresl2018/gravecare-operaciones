@@ -359,11 +359,13 @@
     <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
-          <thead><tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]"><th class="py-3 px-3">Día / Cementerio</th><th class="py-3 px-3">Visitas</th><th class="py-3 px-3">Ramos a comprar</th><th class="py-3 px-3 text-right">Total</th></tr></thead>
+          <thead><tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]"><th class="py-3 px-3">Día / Cementerio</th><th class="py-3 px-3">Visitas</th><th class="py-3 px-3">Ramos a comprar</th><th class="py-3 px-3 text-right">Total</th><th class="py-3 px-3">Orden de compra</th></tr></thead>
           <tbody id="cr-tbody" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
     </section>
+
+    <div id="cr-resultado" class="space-y-2 mb-6" aria-live="polite"></div>
   </div>
 
   <!-- Subpestaña VALORES DE RAMOS (colección valores_ramos, documento compra): la única pantalla que escribe -->
@@ -396,6 +398,7 @@
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
     import { getFirestore, collection, getDocs, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { runTransaction } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"; // spec 057: solo para crear el borrador de orden de compra del día
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
@@ -409,8 +412,11 @@
     import { htmlTarjetasResumen, htmlFilasResumen, textosAvisosResumen } from "./js/resumen-vistas.js?v=b5";
     import { lunesDeLaSemana, sumarDias, hoyIso, mesDeIso, sumarMeses, nombreMes } from "./js/fechas-semana.js?v=b5";
     import { construirListaCompra, normalizarValores } from "./js/compra-ramos.js?v=b5e2"; // lista de compra de ramos: el precio sale de valores_ramos
-    import { htmlCuerpoCompra, htmlResumenCompra, textosAvisosCompra, htmlFormularioValores, textoActualizacion } from "./js/compra-vistas.js?v=b5e2";
-    import { RUTA_VALORES, leerValoresRamos, guardarValoresRamos } from "./js/valores-ramos-db.js?v=b5e2"; // ÚNICA escritura de esta pantalla
+    import { htmlCuerpoCompra, htmlResumenCompra, textosAvisosCompra, htmlFormularioValores, textoActualizacion } from "./js/compra-vistas.js?v=057";
+    import { RUTA_VALORES, leerValoresRamos, guardarValoresRamos } from "./js/valores-ramos-db.js?v=b5e2"; // escritura de los valores de ramos
+    // Spec 057: «Crear orden de compra» por día. La regla de «día listo» y el borrador salen de compra-dia.js (no se copian aquí).
+    import { estadoDiasCompra, borradorDesdeDia, idBorrador, textoErrorBorrador } from "./js/compra-dia.js?v=057";
+    import { COLECCION_BORRADORES, crearBorradorDia } from "./js/ordenes-compra-db.js?v=057"; // única otra escritura: ordenesCompraBorradores/AAAA-MM-DD
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
@@ -426,6 +432,11 @@
     let valoresCompra = normalizarValores({}); // valores_ramos/compra: lo que no esté guardado queda «sin valor»
     let valoresActualizado = "";
     let valoresLecturaFallo = false;
+    let docsBorradores = []; // ordenesCompraBorradores: para decir «Abrir borrador» en vez de crear otro
+    let borradoresFallo = false;
+    let informesFallo = false; // sin informes no se sabe qué visitas ya se hicieron: no se ofrece crear órdenes de compra
+    let ultimaCompra = { estados: [] };
+    const escrituraBorradores = { ejecutarTransaccion: (f) => runTransaction(db, f), refs: { borrador: (id) => doc(db, COLECCION_BORRADORES, id) } };
     const PESTANAS = ["planes", "spot", "matriz-planes", "matriz-spot", "compra", "valores", "resumen"];
     let pestanaActiva = "planes";
 
@@ -650,9 +661,27 @@
       $("cr-titulo").textContent = `Semana del ${lista.dias[0].display} al ${lista.dias[6].display}`;
       const avisos = textosAvisosCompra(lista).map(t => aviso("bg-amber-50 border-amber-300 text-amber-800", esc(t)));
       if (valoresLecturaFallo) avisos.unshift(aviso("bg-rose-50 border-rose-300 text-rose-800", "No se pudieron leer los valores de ramos (colección valores_ramos): todas las líneas aparecen «sin valor»."));
+      if (informesFallo) avisos.unshift(aviso("bg-rose-50 border-rose-300 text-rose-800", "No se pudieron leer los informes de visitas: no se pueden crear órdenes de compra hasta saber qué visitas ya se hicieron."));
+      if (borradoresFallo) avisos.push(aviso("bg-amber-50 border-amber-300 text-amber-800", "No se pudieron leer los borradores de órdenes de compra (puede faltar el permiso): si ya hay uno del día, se abrirá en vez de crear otro."));
       $("cr-avisos").innerHTML = avisos.join("");
       $("cr-resumen").innerHTML = htmlResumenCompra(lista);
-      $("cr-tbody").innerHTML = htmlCuerpoCompra(lista);
+      const estados = estadoDiasCompra(lista, { rutaDe: rutas.rutaDe, borradores: docsBorradores });
+      ultimaCompra = { estados };
+      $("cr-tbody").innerHTML = htmlCuerpoCompra(lista, { ordenes: estados, puedeCrear: !informesFallo });
+    }
+
+    // Borradores de orden de compra ya creados (solo lectura). Si no se pueden leer, la pantalla sigue y lo avisa.
+    async function leerBorradores() {
+      borradoresFallo = false;
+      docsBorradores = [];
+      try {
+        const snap = await getDocs(collection(db, COLECCION_BORRADORES));
+        snap.forEach(d => docsBorradores.push({ id: d.id, data: d.data() }));
+      } catch (e) {
+        console.warn("No se pudieron leer los borradores de orden de compra:", e && e.code ? e.code : "ERROR");
+        docsBorradores = [];
+        borradoresFallo = true;
+      }
     }
 
     function mostrarAvisoValores(clases, texto) {
@@ -786,12 +815,14 @@
     // Evidencia de visitas terminadas. Si no se pueden leer los informes, ninguna visita se da por hecha.
     async function leerIndiceInformes() {
       try {
+        informesFallo = false;
         const snap = await getDocs(collection(db, "informes"));
         const entradas = [];
         snap.forEach(i => entradas.push([i.id, i.data()]));
         return crearIndiceInformes(entradas);
       } catch (e) {
         console.warn("No se pudieron leer los informes:", e && e.code ? e.code : "ERROR");
+        informesFallo = true;
         return crearIndiceInformes([]);
       }
     }
@@ -821,6 +852,7 @@
         rutas = await leerRutas();
         feriados = await leerFeriados();
         await leerValores();
+        await leerBorradores();
 
         const snapOrdenes = await getDocs(collection(db, "ordenes"));
         ordenesPagadas = [];
@@ -920,6 +952,32 @@
     $("cr-hoy").addEventListener("click", () => { lunesCompra = LUNES_BASE; renderCompra(); });
     $("cr-siguiente").addEventListener("click", () => { lunesCompra = sumarDias(lunesCompra, 7); renderCompra(); });
     $("cr-completadas").addEventListener("change", renderCompra);
+
+    // «Crear orden de compra» de un día: solo si el día está listo; crea (o abre, si ya existe) el borrador de ese día. Nunca toca
+    // las visitas, las rutas ni el contador de órdenes: el número nace recién al emitir en «Órdenes de compra».
+    $("cr-tbody").addEventListener("click", async (ev) => {
+      const boton = ev.target.closest('button[data-accion="crear-oc-dia"]');
+      if (!boton || informesFallo || !auth.currentUser) return;
+      const dia = ultimaCompra.estados.find((d) => d.iso === boton.dataset.fecha);
+      if (!dia || !dia.listo) return;
+      const salida = $("cr-resultado");
+      salida.innerHTML = "";
+      boton.disabled = true; // evita el doble clic mientras escribe
+      try {
+        const id = idBorrador({ fecha: dia.iso });
+        const borrador = borradorDesdeDia(dia.detalle);
+        if (!id || !borrador.ok) {
+          salida.innerHTML = aviso("bg-rose-50 border-rose-300 text-rose-800", esc((borrador.errores || ["La fecha del día no es válida."]).join(" ")));
+          return;
+        }
+        await crearBorradorDia({ ...escrituraBorradores, id, datos: borrador.datos, uid: auth.currentUser.uid });
+        window.location.href = "ordenes-compra.html?borrador=" + encodeURIComponent(id);
+      } catch (e) {
+        salida.innerHTML = aviso("bg-rose-50 border-rose-300 text-rose-800", esc(textoErrorBorrador(e)));
+      } finally {
+        boton.disabled = false;
+      }
+    });
 
     // Valores de ramos
     $("valores-guardar").addEventListener("click", guardarValores);

@@ -81,3 +81,26 @@ test('htmlFormularioValores: un campo por tipo de ramo, con el valor guardado (o
   assert.equal((html.match(/value=""/g) || []).length, 2); // premium y adicionalStandard sin valor
   assert.match(html, /Sin valor/);
 });
+
+
+// ---- Spec 057: orden de compra por día dentro de «Compra de flores» ----
+import { estadoDiasCompra } from './compra-dia.js';
+
+test('htmlCuerpoCompra con órdenes: cada día con visitas trae su acción «Crear orden de compra»; sin órdenes la tabla no cambia (spec 057)', () => {
+  const lista = construirListaCompra([
+    { fechaIso: '2026-12-01', cementerio: 'Cementerio X', nivel: 'Standard', ramosAdicionales: 0, terminada: false, esTentativa: false },
+    { fechaIso: '2026-12-02', cementerio: 'Cementerio Y', nivel: 'Premium', ramosAdicionales: 0, terminada: false, esTentativa: false },
+  ], { lunesIso: '2026-11-30', valores: { standard: 10000, premium: null } });
+  const rutaDe = (c) => (c === 'Cementerio X' ? { eje: 'Eje 1', diaSemana: 2 } : null);
+  const sinOrdenes = htmlCuerpoCompra(lista);
+  assert.ok(!sinOrdenes.includes('crear-oc-dia'));
+  const estados = estadoDiasCompra(lista, { rutaDe });
+  const html = htmlCuerpoCompra(lista, { ordenes: estados, puedeCrear: true });
+  assert.match(html, /data-accion="crear-oc-dia" data-fecha="2026-12-01"[^>]*>/);
+  assert.ok(!/data-fecha="2026-12-01"[^>]*\sdisabled(?=[\s>])/.test(html), 'martes listo: habilitado');
+  assert.match(html, /data-fecha="2026-12-02"[^>]*\sdisabled(?=[\s>])/);
+  assert.match(html, /Sin eje y día de ruta: Cementerio Y\./);
+  assert.match(html, /Falta el valor de «1 Ramo Premium» en Valores de ramos\./);
+  // un día sin visitas no trae botón (lunes)
+  assert.ok(!html.includes('data-fecha="2026-11-30"'));
+});

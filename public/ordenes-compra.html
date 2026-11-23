@@ -31,6 +31,9 @@
       <button type="button" id="tab-ordenes" data-tab="ordenes" role="tab" aria-selected="true" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold bg-[#002d1a] text-white shadow-sm transition">
         <span class="material-symbols-outlined text-sm align-middle mr-1">shopping_cart</span> Órdenes de compra
       </button>
+      <button type="button" id="tab-proveedores" data-tab="proveedores" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
+        <span class="material-symbols-outlined text-sm align-middle mr-1">local_shipping</span> Proveedores
+      </button>
       <button type="button" id="tab-materiales" data-tab="materiales" role="tab" aria-selected="false" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#002d1a] transition">
         <span class="material-symbols-outlined text-sm align-middle mr-1">inventory_2</span> Maestro de materiales
       </button>
@@ -75,7 +78,10 @@
       <p class="text-[11px] font-bold text-slate-600 mb-2">Proveedor</p>
       <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
         <label class="text-[11px] font-bold text-slate-600 md:col-span-2">Razón social
-          <input type="text" id="oc-razon" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+          <select id="oc-razon-select" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal bg-white">
+            <option value="">Elige un proveedor…</option>
+          </select>
+          <input type="text" id="oc-razon" maxlength="120" placeholder="Escribe la razón social" class="hidden mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
         </label>
         <label class="text-[11px] font-bold text-slate-600">RUT
           <input type="text" id="oc-rut" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
@@ -132,6 +138,73 @@
         </table>
       </div>
     </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-6">
+      <div class="px-4 py-3 border-b border-slate-200">
+        <h2 class="text-sm font-bold text-[#002d1a]">Borradores de orden por día</h2>
+        <p class="text-[11px] text-slate-500 mt-1">Se crean desde «Rutas y feriados» cuando un día de programación está listo. Abre uno para elegir el proveedor, revisar las líneas y emitir la orden: el número se asigna solo al emitir.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Día</th><th class="py-2 px-3 text-right">Líneas</th><th class="py-2 px-3 text-right">Total</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3"></th></tr></thead>
+          <tbody id="tbody-borradores"></tbody>
+        </table>
+      </div>
+      <div id="aviso-borradores" class="hidden m-3 p-3 rounded-xl border text-xs font-semibold" role="status"></div>
+    </section>
+  </div>
+
+  <!-- Pestaña PROVEEDORES (spec 057) -->
+  <div id="panel-proveedores" class="hidden">
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="px-4 py-3 border-b border-slate-200">
+        <h2 class="text-sm font-bold text-[#002d1a]">Proveedores</h2>
+        <p class="text-[11px] text-slate-500 mt-1">Los proveedores activos aparecen en el desplegable de «Razón social» de la orden de compra. Un proveedor no se borra: se quita y se puede reactivar. Las órdenes ya emitidas no cambian.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Razón social</th><th class="py-2 px-3">RUT</th><th class="py-2 px-3">Contacto</th><th class="py-2 px-3">Teléfono</th><th class="py-2 px-3">Correo</th><th class="py-2 px-3">Condición de pago</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3"></th></tr></thead>
+          <tbody id="tbody-proveedores"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+      <h2 id="proveedor-titulo" class="text-sm font-bold text-[#002d1a] mb-3">Nuevo proveedor</h2>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+        <label class="text-[11px] font-bold text-slate-600 md:col-span-2">Razón social
+          <input type="text" id="prov-razon" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">RUT
+          <input type="text" id="prov-rut" maxlength="12" placeholder="Ej.: 12.345.678-5" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Condición de pago
+          <select id="prov-condicion" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal bg-white">
+            <option value="Transferencia">Transferencia</option>
+            <option value="Factura a 30 días">Factura a 30 días</option>
+            <option value="Contado">Contado</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </label>
+        <label class="text-[11px] font-bold text-slate-600 md:col-span-2">Contacto
+          <input type="text" id="prov-contacto" maxlength="80" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Teléfono
+          <input type="text" id="prov-telefono" maxlength="30" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600">Correo electrónico
+          <input type="text" id="prov-correo" maxlength="120" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+        <label class="text-[11px] font-bold text-slate-600 md:col-span-4">Dirección
+          <input type="text" id="prov-direccion" maxlength="200" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+        </label>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="button" id="btn-guardar-proveedor" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Guardar proveedor</button>
+        <button type="button" id="btn-cancelar-proveedor" class="hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Cancelar edición</button>
+      </div>
+      <div id="aviso-proveedor" class="hidden mt-3 p-3 rounded-xl border text-xs font-semibold" role="status"></div>
+    </section>
   </div>
 
   <!-- Pestaña MAESTRO DE MATERIALES -->
@@ -186,10 +259,13 @@
       <div class="flex items-center justify-between px-4 py-3 bg-[#002d1a] text-white rounded-t-xl">
         <h2 id="modal-oc-titulo" class="text-sm font-bold">Orden de compra</h2>
         <div class="flex items-center gap-2">
+          <button type="button" id="btn-enviar-correo" class="hidden px-3 py-1 rounded-lg bg-white text-[#002d1a] text-xs font-bold hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed">Enviar por correo</button>
           <button type="button" id="btn-imprimir" class="px-3 py-1 rounded-lg bg-white text-[#002d1a] text-xs font-bold hover:bg-slate-100 transition">Imprimir</button>
           <button type="button" id="modal-oc-cerrar" aria-label="Cerrar" class="text-white text-xl leading-none px-2">&times;</button>
         </div>
       </div>
+      <div id="info-envio" class="px-6 pt-4 text-xs space-y-1"></div>
+      <div class="px-6"><div id="aviso-envio" class="hidden" role="status" aria-live="polite"></div></div>
       <div id="modal-oc-contenido" class="p-6"></div>
     </div>
   </div>
@@ -208,36 +284,58 @@
     import { RUTA_VALORES, leerValoresRamos } from "./js/valores-ramos-db.js?v=b5e2"; // precio de los ramos: solo lectura
     import { catalogoMateriales, validarLinea, calcularTotales } from "./js/ordenes-compra.js?v=oc1";
     import {
-      COLECCION_MATERIALES, COLECCION_ORDENES, COLECCION_CONTADORES, DOC_CONTADOR_ORDENES,
-      crearMaterial, actualizarMaterial, emitirOrden, anularOrden, textoErrorOC, textoErrorCarga,
-    } from "./js/ordenes-compra-db.js?v=oc1";
-    import { htmlFilasMateriales, htmlFilasOrdenes, htmlLineasBorrador, htmlTotales, htmlImpresion } from "./js/ordenes-compra-vistas.js?v=oc1";
+      COLECCION_MATERIALES, COLECCION_ORDENES, COLECCION_CONTADORES, DOC_CONTADOR_ORDENES, COLECCION_BORRADORES,
+      crearMaterial, actualizarMaterial, emitirOrden, emitirDesdeBorrador, anularOrden, textoErrorOC, textoErrorCarga,
+    } from "./js/ordenes-compra-db.js?v=057";
+    import {
+      htmlFilasMateriales, htmlFilasOrdenes, htmlLineasBorrador, htmlTotales, htmlImpresion,
+      htmlFilasProveedores, htmlOpcionesRazon, htmlFilasBorradores, VALOR_OTRO_PROVEEDOR, htmlEstadoEnvio, htmlHistorialEnvios,
+    } from "./js/ordenes-compra-vistas.js?v=058";
+    // Spec 058: envío de la OC por correo. El SDK de Functions se carga solo al pulsar el botón (import dinámico, más abajo).
+    import { estadoEnvio, textoConfirmacion, mensajeErrorEnvio, textoResultado, enviarOrden } from "./js/ordenes-compra-envio.js?v=058";
+    import { opcionesProveedores, datosDeProveedor, condicionPorDefecto } from "./js/proveedores.js?v=058"; // spec 057: maestro de proveedores; 058: correo
+    import {
+      COLECCION_PROVEEDORES, COLECCION_RUT_PROVEEDORES, crearProveedor, editarProveedor, cambiarActivoProveedor, textoErrorProveedor,
+    } from "./js/proveedores-db.js?v=058";
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Única forma de escribir de esta pantalla: transacciones en materiales, ordenesCompra y contadores (nunca se borra nada).
+    // Única forma de escribir de esta pantalla: transacciones en materiales, proveedores, ordenesCompra, contadores y borradores (nunca se borra nada).
     const escritura = {
       ejecutarTransaccion: (fn) => runTransaction(db, fn),
       refs: {
         material: (codigo) => doc(db, COLECCION_MATERIALES, codigo),
         orden: (numero) => doc(db, COLECCION_ORDENES, numero),
         contador: () => doc(db, COLECCION_CONTADORES, DOC_CONTADOR_ORDENES),
+        proveedor: (id) => doc(db, COLECCION_PROVEEDORES, id),
+        proveedorNuevo: () => doc(collection(db, COLECCION_PROVEEDORES)), // id generado por Firestore
+        rut: (rut) => doc(db, COLECCION_RUT_PROVEEDORES, rut),
+        borrador: (id) => doc(db, COLECCION_BORRADORES, id),
       },
     };
 
     let usuarioActual = null;
-    let puedeAnular = false; // solo el dueño anula (las reglas de Firestore siguen siendo la barrera real)
+    let puedeAnular = false; // solo el dueño anula y quita proveedores (las reglas de Firestore siguen siendo la barrera real)
     let docsMateriales = [];
     let docsOrdenes = [];
+    let docsProveedores = [];
+    let proveedoresLeidos = true; // spec 058: si la lista no se pudo leer, el botón de enviar lo dice en vez de inventar
+    let ordenAbierta = null; // OC que se ve en el modal (para el botón «Enviar por correo»)
+    let envioEnCurso = false; // anti doble clic mientras la función responde
+    let docsBorradores = [];
+    let proveedorEnEdicion = null; // id del proveedor que se edita (null = alta nueva)
+    let proveedorSeleccionado = ""; // id elegido en el desplegable de razón social ("" = ninguno; VALOR_OTRO_PROVEEDOR = escrito a mano)
+    let borradorActivo = null; // id del borrador de día abierto: se emite con emitirDesdeBorrador
     let valoresRamos = {};
     let valoresFallo = false;
     let catalogo = catalogoMateriales([], {});
     let lineas = []; // borrador de la orden (en memoria, hasta emitir)
     let materialEnEdicion = null;
     let cargaFallo = false; // si la carga falla se ve solo el aviso con «Reintentar», no un panel vacío
-    const PESTANAS = ["ordenes", "materiales"];
+    const PESTANAS = ["ordenes", "proveedores", "materiales"];
+    const TITULOS = { ordenes: "Órdenes de compra", proveedores: "Proveedores", materiales: "Maestro de materiales" };
     let pestanaActiva = "ordenes";
 
     const $ = (id) => document.getElementById(id);
@@ -250,7 +348,7 @@
         btn.className = "tab-btn px-4 py-2 rounded-lg text-xs font-bold transition " + (activa ? "bg-[#002d1a] text-white shadow-sm" : "text-slate-700 hover:text-[#002d1a]");
       });
       for (const p of PESTANAS) $("panel-" + p).classList.toggle("hidden", p !== pestanaActiva || cargaFallo || !$("estado-carga").classList.contains("hidden"));
-      document.title = (pestanaActiva === "ordenes" ? "Órdenes de compra" : "Maestro de materiales") + " | GraveCare Ops";
+      document.title = TITULOS[pestanaActiva] + " | GraveCare Ops";
     }
 
     async function leerColeccion(coleccion) {
@@ -295,6 +393,30 @@
       $("aviso-permisos-anular").classList.toggle("hidden", puedeAnular);
     }
 
+    function pintarDesplegableProveedores() {
+      $("oc-razon-select").innerHTML = htmlOpcionesRazon(opcionesProveedores(docsProveedores), proveedorSeleccionado);
+    }
+
+    function pintarProveedores() {
+      $("tbody-proveedores").innerHTML = htmlFilasProveedores(docsProveedores, { puedeQuitar: puedeAnular });
+      pintarDesplegableProveedores();
+    }
+
+    function pintarBorradores() {
+      $("tbody-borradores").innerHTML = htmlFilasBorradores(docsBorradores);
+    }
+
+    async function recargarProveedores() {
+      docsProveedores = await leerColeccion(COLECCION_PROVEEDORES);
+      proveedoresLeidos = true;
+      pintarProveedores();
+    }
+
+    async function recargarBorradores() {
+      docsBorradores = await leerColeccion(COLECCION_BORRADORES);
+      pintarBorradores();
+    }
+
     async function recargarMateriales() {
       docsMateriales = await leerColeccion(COLECCION_MATERIALES);
       pintarCatalogo();
@@ -323,10 +445,21 @@
           valoresRamos = {};
           valoresFallo = true; // la pantalla sigue; los ramos quedan «sin valor»
         }
+        // Proveedores y borradores son secundarios: si fallan, la pantalla sigue (desplegable solo con «Otro proveedor»).
+        try { docsProveedores = await leerColeccion(COLECCION_PROVEEDORES); proveedoresLeidos = true; } catch (e) {
+          docsProveedores = [];
+          proveedoresLeidos = false;
+          avisar("aviso-proveedor", "No se pudieron leer los proveedores: en la orden solo podrás escribir el proveedor a mano. Pulsa «Reintentar».", "info");
+        }
+        try { docsBorradores = await leerColeccion(COLECCION_BORRADORES); } catch (e) { docsBorradores = []; }
         pintarCatalogo();
         pintarOrdenes();
         pintarBorrador();
+        pintarProveedores();
+        pintarBorradores();
         if (!$("oc-fecha").value) $("oc-fecha").value = hoyIso();
+        const pedido = new URLSearchParams(window.location.search).get("borrador"); // viene del botón de «Rutas y feriados»
+        if (pedido) abrirBorrador(pedido);
       } catch (e) {
         console.error("Órdenes de compra:", e);
         cargaFallo = true;
@@ -386,9 +519,63 @@
       $("oc-cantidad").value = "1";
       $("oc-condiciones").value = "Transferencia";
       $("oc-fecha").value = hoyIso();
+      borradorActivo = null;
+      proveedorSeleccionado = "";
+      $("oc-razon").classList.add("hidden");
+      pintarDesplegableProveedores();
       ocultarAvisoLinea();
       pintarBorrador();
     }
+
+    // Elegir un proveedor rellena sus datos en el formulario (sin guardar nada); todos siguen siendo editables.
+    function datosProveedorEnFormulario(d) {
+      $("oc-razon").value = d.razonSocial;
+      $("oc-rut").value = d.rut;
+      $("oc-contacto").value = d.contacto;
+      $("oc-telefono").value = d.telefono;
+      $("oc-direccion").value = d.direccion;
+    }
+
+    $("oc-razon-select").addEventListener("change", () => {
+      proveedorSeleccionado = $("oc-razon-select").value;
+      $("oc-razon").classList.toggle("hidden", proveedorSeleccionado !== VALOR_OTRO_PROVEEDOR);
+      if (proveedorSeleccionado === "" || proveedorSeleccionado === VALOR_OTRO_PROVEEDOR) {
+        datosProveedorEnFormulario({ razonSocial: "", rut: "", contacto: "", telefono: "", direccion: "" }); // se escribe a mano
+        return;
+      }
+      const elegido = docsProveedores.find((d) => d.id === proveedorSeleccionado);
+      if (!elegido) return;
+      datosProveedorEnFormulario(datosDeProveedor(elegido));
+      $("oc-condiciones").value = condicionPorDefecto(elegido);
+    });
+
+    // Un borrador de día (spec 057, parte c) precarga las líneas; quien emite elige el proveedor y revisa antes de emitir.
+    function abrirBorrador(id) {
+      const encontrado = docsBorradores.find((d) => d.id === id);
+      if (!encontrado || !encontrado.data) {
+        avisar("aviso-borradores", "No se encontró el borrador de ese día.", "error");
+        return;
+      }
+      if (encontrado.data.emitidoComo) {
+        avisar("aviso-borradores", "Ese borrador ya se emitió como " + encontrado.data.emitidoComo + ".", "info");
+        return;
+      }
+      limpiarBorrador();
+      borradorActivo = id;
+      lineas = (Array.isArray(encontrado.data.lineas) ? encontrado.data.lineas : []).map((l) => ({
+        codigo: l.codigo, descripcion: l.descripcion, unidad: l.unidad, cantidad: l.cantidad, precioUnitario: l.precioUnitario, valor: l.valor,
+      }));
+      $("oc-entrega").value = encontrado.data.fechaDia || "";
+      pintarBorrador();
+      cambiarPestana("ordenes");
+      avisar("aviso-borradores", "Se cargó el borrador del día " + id + ": elige el proveedor, revisa las líneas y emite la orden.", "info");
+      $("oc-razon-select").focus();
+    }
+
+    $("tbody-borradores").addEventListener("click", (ev) => {
+      const boton = ev.target.closest('button[data-accion="abrir-borrador"]');
+      if (boton) abrirBorrador(boton.dataset.id);
+    });
     $("btn-limpiar-borrador").addEventListener("click", () => {
       if (lineas.length > 0 && !window.confirm("Se descartará el borrador de la orden. ¿Continuar?")) return;
       limpiarBorrador();
@@ -402,10 +589,15 @@
         proveedor: { razonSocial: $("oc-razon").value, rut: $("oc-rut").value, contacto: $("oc-contacto").value, telefono: $("oc-telefono").value, direccion: $("oc-direccion").value },
         lineas,
       };
+      const proveedorId = proveedorSeleccionado && proveedorSeleccionado !== VALOR_OTRO_PROVEEDOR ? proveedorSeleccionado : null;
       try {
-        const { numero, orden } = await emitirOrden({ ...escritura, datos, uid: usuarioActual.uid });
+        const { numero, orden } = borradorActivo
+          ? await emitirDesdeBorrador({ ...escritura, idBorrador: borradorActivo, datos, proveedorId, uid: usuarioActual.uid })
+          : await emitirOrden({ ...escritura, datos, proveedorId, uid: usuarioActual.uid });
+        const veniaDeBorrador = borradorActivo !== null;
         limpiarBorrador();
         avisar("aviso-oc", "Se emitió la orden " + numero + ". Ya no se puede editar: solo anular.", "ok");
+        if (veniaDeBorrador) { try { await recargarBorradores(); } catch (e) { /* la lista de borradores se refresca al recargar */ } }
         try { await recargarOrdenes(); } catch (e) { $("aviso-error").classList.remove("hidden"); }
         abrirOrden(orden);
       } catch (e) {
@@ -418,9 +610,55 @@
       $("modal-oc-contenido").innerHTML = contenido;
       $("zona-impresion").innerHTML = contenido;
       $("modal-oc-titulo").textContent = "Orden de compra " + orden.numero;
+      ordenAbierta = orden;
+      $("aviso-envio").className = "hidden";
+      pintarEnvio();
       $("modal-oc").classList.remove("hidden");
     }
-    function cerrarOrden() { $("modal-oc").classList.add("hidden"); }
+    function cerrarOrden() { ordenAbierta = null; $("modal-oc").classList.add("hidden"); }
+
+    // ---------- Envío de la OC por correo (spec 058) ----------
+    // El navegador solo pide «envía la OC-NNNN»: destinatario, copia, remitente y contenido los decide el servidor. No se escribe nada en la OC.
+    function estadoDeEnvio() {
+      const proveedor = ordenAbierta && ordenAbierta.proveedorId ? (docsProveedores.find((d) => d.id === ordenAbierta.proveedorId) || null) : null;
+      return estadoEnvio({ orden: ordenAbierta, proveedor, proveedoresLeidos });
+    }
+    function pintarEnvio() {
+      const estado = estadoDeEnvio();
+      const boton = $("btn-enviar-correo");
+      boton.classList.toggle("hidden", !estado.mostrar);
+      boton.disabled = !estado.habilitado || envioEnCurso;
+      boton.textContent = envioEnCurso ? "Enviando…" : "Enviar por correo";
+      $("info-envio").innerHTML = htmlEstadoEnvio(estado) + htmlHistorialEnvios((ordenAbierta || {}).envios);
+    }
+    $("btn-enviar-correo").addEventListener("click", async () => {
+      if (envioEnCurso || !ordenAbierta) return;
+      const estado = estadoDeEnvio();
+      if (!estado.habilitado) return;
+      const numero = ordenAbierta.numero;
+      if (!window.confirm(textoConfirmacion(numero, estado.correo))) return;
+      envioEnCurso = true;
+      $("aviso-envio").className = "hidden";
+      pintarEnvio();
+      try {
+        // El SDK de Functions se carga aquí: si no llega, solo falla el envío y el resto de la pantalla sigue.
+        const { getFunctions, httpsCallable } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js");
+        const llamar = async (datos) => (await httpsCallable(getFunctions(app, "us-central1"), "enviarOrdenCompraPorCorreo")(datos)).data;
+        const respuesta = await enviarOrden({ numero, llamar });
+        const resultado = textoResultado(respuesta);
+        try {
+          await recargarOrdenes();
+          const nueva = docsOrdenes.find((d) => ((d.data && d.data.numero) || d.id) === numero);
+          if (nueva && ordenAbierta && ordenAbierta.numero === numero) ordenAbierta = { ...nueva.data, numero };
+        } catch (e) { $("aviso-error").classList.remove("hidden"); }
+        if (ordenAbierta && ordenAbierta.numero === numero) avisar("aviso-envio", resultado.texto, resultado.tipo === "ok" ? "ok" : "info");
+      } catch (e) {
+        if (ordenAbierta && ordenAbierta.numero === numero) avisar("aviso-envio", mensajeErrorEnvio(e), "error");
+      } finally {
+        envioEnCurso = false;
+        if (ordenAbierta && ordenAbierta.numero === numero) pintarEnvio();
+      }
+    });
     $("modal-oc-cerrar").addEventListener("click", cerrarOrden);
     $("modal-oc").addEventListener("click", (ev) => { if (ev.target === $("modal-oc")) cerrarOrden(); });
     document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") cerrarOrden(); });
@@ -446,6 +684,74 @@
           await recargarOrdenes();
         } catch (e) {
           avisar("aviso-oc", textoErrorOC(e), "error");
+        }
+      });
+    });
+
+    // ---------- Proveedores (spec 057) ----------
+    function salirDeEdicionProveedor() {
+      proveedorEnEdicion = null;
+      for (const id of ["prov-razon", "prov-rut", "prov-contacto", "prov-telefono", "prov-direccion", "prov-correo"]) $(id).value = "";
+      $("prov-condicion").value = "Transferencia";
+      $("proveedor-titulo").textContent = "Nuevo proveedor";
+      $("btn-cancelar-proveedor").classList.add("hidden");
+    }
+    $("btn-cancelar-proveedor").addEventListener("click", () => { salirDeEdicionProveedor(); $("aviso-proveedor").className = "hidden"; });
+
+    $("btn-guardar-proveedor").addEventListener("click", () => conBoton($("btn-guardar-proveedor"), async () => {
+      $("aviso-proveedor").className = "hidden";
+      const campos = {
+        razonSocial: $("prov-razon").value, rut: $("prov-rut").value, contacto: $("prov-contacto").value,
+        telefono: $("prov-telefono").value, direccion: $("prov-direccion").value, condicionesPago: $("prov-condicion").value,
+        correo: $("prov-correo").value, // spec 058: opcional; vacío al editar = borrar el correo
+      };
+      try {
+        if (proveedorEnEdicion === null) {
+          await crearProveedor({ ...escritura, datos: campos, uid: usuarioActual.uid });
+          avisar("aviso-proveedor", "Se guardó el proveedor.", "ok");
+        } else {
+          await editarProveedor({ ...escritura, id: proveedorEnEdicion, cambios: campos, uid: usuarioActual.uid });
+          avisar("aviso-proveedor", "Se actualizó el proveedor.", "ok");
+        }
+        salirDeEdicionProveedor();
+        await recargarProveedores();
+      } catch (e) {
+        avisar("aviso-proveedor", textoErrorProveedor(e), "error");
+      }
+    }));
+
+    $("tbody-proveedores").addEventListener("click", (ev) => {
+      const boton = ev.target.closest("button[data-accion]");
+      if (!boton) return;
+      const { accion, id } = boton.dataset;
+      const proveedor = docsProveedores.find((d) => d.id === id);
+      if (!proveedor || !proveedor.data) return;
+      if (accion === "editar-proveedor") {
+        const p = proveedor.data;
+        proveedorEnEdicion = id;
+        $("prov-razon").value = p.razonSocial || "";
+        $("prov-rut").value = p.rut || "";
+        $("prov-contacto").value = p.contacto || "";
+        $("prov-telefono").value = p.telefono || "";
+        $("prov-direccion").value = p.direccion || "";
+        $("prov-correo").value = p.correo || "";
+        $("prov-condicion").value = p.condicionesPago || "Transferencia";
+        $("proveedor-titulo").textContent = "Editar proveedor";
+        $("btn-cancelar-proveedor").classList.remove("hidden");
+        $("prov-razon").focus();
+        return;
+      }
+      if (!puedeAnular) return; // solo el dueño quita y reactiva (las reglas de Firestore siguen siendo la barrera real)
+      const activo = accion === "reactivar-proveedor";
+      if (accion !== "reactivar-proveedor" && accion !== "quitar-proveedor") return;
+      if (!activo && !window.confirm("¿Quitar al proveedor «" + (proveedor.data.razonSocial || "") + "»? No se borra: queda quitado y se puede reactivar. Las órdenes ya emitidas no cambian.")) return;
+      conBoton(boton, async () => {
+        try {
+          await cambiarActivoProveedor({ ...escritura, id, activo, uid: usuarioActual.uid });
+          $("aviso-proveedor").className = "hidden";
+          await recargarProveedores();
+        } catch (e) {
+          avisar("aviso-proveedor", textoErrorProveedor(e), "error");
         }
       });
     });
