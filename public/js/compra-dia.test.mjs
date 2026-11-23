@@ -74,3 +74,69 @@ test('borradorDesdeDia no inventa precios: con un ramo sin valor no arma el borr
   assert.equal(r.ok, false);
   assert.match(r.errores.join(' '), /sin valor/);
 });
+
+// ---- Días de programación de la semana (Rutas y feriados, spec 057 parte c) ----
+import { diasDeProgramacion } from './compra-dia.js';
+
+const RUTA_OK = (c) => (c === 'Cementerio Sin Ruta' ? null : { eje: 'Eje 1', diaSemana: 2, dia: 'Martes' });
+
+test('diasDeProgramacion: los 7 días de la semana, con visitas, ramos y estado listo/no listo (CA-B1)', () => {
+  const filas = [visita(MARTES, 'Cementerio X', 'Standard'), visita(MARTES, 'Cementerio Y', 'Premium', 1), visita(LUNES, 'Cementerio Sin Ruta', 'Standard')];
+  const dias = diasDeProgramacion(filas, { lunesIso: LUNES, valores: VALORES, rutaDe: RUTA_OK });
+  assert.equal(dias.length, 7);
+  const martes = dias.find((d) => d.iso === MARTES);
+  assert.equal(martes.visitas, 2);
+  assert.equal(martes.ramos, 3);
+  assert.equal(martes.listo, true);
+  assert.deepEqual(martes.motivos, []);
+  const lunes = dias.find((d) => d.iso === LUNES);
+  assert.equal(lunes.listo, false);
+  assert.match(lunes.motivos.join(' '), /Sin eje y día de ruta: Cementerio Sin Ruta/);
+  const miercoles = dias.find((d) => d.iso === '2026-12-02');
+  assert.equal(miercoles.listo, false);
+  assert.match(miercoles.motivos.join(' '), /No hay visitas/);
+});
+
+test('diasDeProgramacion: un ruta con eje pero sin día de ruta no cuenta como ruta (R-R2)', () => {
+  const dias = diasDeProgramacion([visita(MARTES, 'Cementerio X', 'Standard')], {
+    lunesIso: LUNES, valores: VALORES, rutaDe: () => ({ eje: 'Eje 1', diaSemana: null, dia: '' }),
+  });
+  assert.equal(dias.find((d) => d.iso === MARTES).listo, false);
+});
+
+test('diasDeProgramacion: sin valores cargados ningún día queda listo y avisa el valor que falta (CA-B1)', () => {
+  const dias = diasDeProgramacion([visita(MARTES, 'Cementerio X', 'Standard')], { lunesIso: LUNES, valores: {}, rutaDe: RUTA_OK });
+  const martes = dias.find((d) => d.iso === MARTES);
+  assert.equal(martes.listo, false);
+  assert.match(martes.motivos.join(' '), /Falta el valor de «1 Ramo Standard»/);
+});
+
+test('diasDeProgramacion: marca el borrador existente del día y si ya se emitió (CA-B3, CA-B5)', () => {
+  const borradores = [{ id: MARTES, data: { estado: 'Borrador' } }, { id: '2026-12-02', data: { estado: 'Borrador', emitidoComo: 'OC-0007' } }];
+  const dias = diasDeProgramacion([visita(MARTES, 'Cementerio X', 'Standard')], { lunesIso: LUNES, valores: VALORES, rutaDe: RUTA_OK, borradores });
+  assert.deepEqual(dias.find((d) => d.iso === MARTES).borrador, { id: MARTES, emitidoComo: '' });
+  assert.deepEqual(dias.find((d) => d.iso === '2026-12-02').borrador, { id: '2026-12-02', emitidoComo: 'OC-0007' });
+  assert.equal(dias.find((d) => d.iso === LUNES).borrador, null);
+});
+
+test('diasDeProgramacion: las visitas ya terminadas no cuentan (no se compra lo ya hecho)', () => {
+  const hecha = { ...visita(MARTES, 'Cementerio X', 'Standard'), terminada: true };
+  const dias = diasDeProgramacion([hecha], { lunesIso: LUNES, valores: VALORES, rutaDe: RUTA_OK });
+  assert.equal(dias.find((d) => d.iso === MARTES).visitas, 0);
+});
+
+test('diasDeProgramacion: cada día trae su detalle para armar el borrador sin recalcular', () => {
+  const dias = diasDeProgramacion([visita(MARTES, 'Cementerio X', 'Standard')], { lunesIso: LUNES, valores: VALORES, rutaDe: RUTA_OK });
+  const r = borradorDesdeDia(dias.find((d) => d.iso === MARTES).detalle);
+  assert.equal(r.ok, true);
+  assert.equal(r.datos.neto, 10000);
+});
+
+import { textoErrorBorrador } from './compra-dia.js';
+
+test('textoErrorBorrador: explica el permiso, la conexión y deja pasar el mensaje propio (nunca un código técnico crudo)', () => {
+  assert.match(textoErrorBorrador({ code: 'permission-denied' }), /no tiene permiso|no están publicadas/);
+  assert.match(textoErrorBorrador({ code: 'unavailable' }), /conexión/);
+  assert.equal(textoErrorBorrador(new Error('La fecha del borrador no es válida (usa AAAA-MM-DD).')), 'La fecha del borrador no es válida (usa AAAA-MM-DD).');
+  assert.match(textoErrorBorrador({}), /No se pudo crear el borrador/);
+});

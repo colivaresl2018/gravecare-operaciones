@@ -65,3 +65,41 @@ test('htmlFilasBorradores: día, líneas, total y estado; un borrador pendiente 
 test('htmlFilasBorradores sin borradores dice que no hay ninguno', () => {
   assert.match(htmlFilasBorradores([]), /No hay borradores de orden por día/);
 });
+
+// ---- Tabla «Días de programación» (Rutas y feriados) ----
+import { htmlFilasDiasProgramacion } from './compra-dia-vistas.js';
+
+const DIA = (extra) => ({ iso: '2026-12-01', nombre: 'Martes', display: '01/12/2026', visitas: 2, ramos: 3, listo: true, motivos: [], borrador: null, ...extra });
+
+test('htmlFilasDiasProgramacion: día listo y con permiso muestra «Crear orden de compra» habilitado (CA-B2)', () => {
+  const html = htmlFilasDiasProgramacion([DIA()], { puedeCrear: true });
+  assert.match(html, /Martes/);
+  assert.match(html, /01\/12\/2026/);
+  assert.match(html, /data-accion="crear-oc-dia" data-fecha="2026-12-01"[^>]*>/);
+  assert.ok(!/crear-oc-dia[^>]*\sdisabled(?=[\s>])/.test(html), "habilitado");
+  assert.match(html, /Listo/);
+  assert.match(html, /Listo/);
+});
+
+test('htmlFilasDiasProgramacion: día no listo deshabilita el botón y muestra los motivos escapados (CA-B1)', () => {
+  const html = htmlFilasDiasProgramacion([DIA({ listo: false, motivos: ['Sin eje y día de ruta: <b>X</b>.'] })], { puedeCrear: true });
+  assert.match(html, /data-accion="crear-oc-dia"[^>]*\sdisabled(?=[\s>])/);
+  assert.ok(html.includes('Sin eje y día de ruta: &lt;b&gt;X&lt;/b&gt;.'));
+  assert.ok(!html.includes('<b>X</b>'));
+});
+
+test('htmlFilasDiasProgramacion: sin permiso no hay botón de crear (R-S)', () => {
+  assert.ok(!htmlFilasDiasProgramacion([DIA()], { puedeCrear: false }).includes('crear-oc-dia'));
+});
+
+test('htmlFilasDiasProgramacion: con borrador existente ofrece abrirlo en vez de crear otro (CA-B3)', () => {
+  const html = htmlFilasDiasProgramacion([DIA({ borrador: { id: '2026-12-01', emitidoComo: '' } })], { puedeCrear: true });
+  assert.match(html, /href="ordenes-compra\.html\?borrador=2026-12-01"/);
+  assert.ok(!html.includes('crear-oc-dia'));
+});
+
+test('htmlFilasDiasProgramacion: un borrador ya emitido dice «Emitida como OC-xxxx» y no se abre', () => {
+  const html = htmlFilasDiasProgramacion([DIA({ borrador: { id: '2026-12-01', emitidoComo: 'OC-0007' } })], { puedeCrear: true });
+  assert.match(html, /Emitida como OC-0007/);
+  assert.ok(!html.includes('?borrador='));
+});

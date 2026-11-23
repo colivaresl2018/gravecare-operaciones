@@ -9,6 +9,7 @@
  */
 import { RAMOS_MAESTRO, calcularTotales } from './ordenes-compra.js';
 import { esFechaIso } from './fechas-semana.js';
+import { construirListaCompra } from './compra-ramos.js';
 
 /**
  * @param {object} dia        Un día de construirListaCompra (con cementerios, visitas, lineas e incompleto).
@@ -60,4 +61,46 @@ export function borradorDesdeDia(dia) {
   if (errores.length) return { ok: false, errores };
   if (lineas.length === 0) return { ok: false, errores: ['El día no tiene ramos que comprar.'] };
   return { ok: true, datos: { lineas, ...calcularTotales(lineas) } };
+}
+
+/**
+ * Los 7 días de una semana con lo necesario para la tabla «Días de programación» de Rutas y feriados.
+ * Usa construirListaCompra (el mismo cálculo de «Compra de flores») y diaListo. No lee ni escribe nada.
+ * @param {object[]} filas   Filas de visitas (Planes y Spot) de construirFilasPlanificacion.
+ * @param {{lunesIso: string, valores?: object, rutaDe?: (cementerio: string) => ({eje?: string, diaSemana?: number|null}|null), borradores?: Array<{id: string, data: object}>}} opciones
+ * @returns {Array<{iso: string, nombre: string, display: string, visitas: number, ramos: number, listo: boolean, motivos: string[], borrador: ({id: string, emitidoComo: string}|null), detalle: object}>}
+ */
+export function diasDeProgramacion(filas, { lunesIso, valores = {}, rutaDe = () => null, borradores = [] } = {}) {
+  const lista = construirListaCompra(filas, { lunesIso, valores });
+  const tieneRuta = (cementerio) => {
+    const r = rutaDe(cementerio);
+    return Boolean(r && String(r.eje ?? '').trim() && r.diaSemana);
+  };
+  const porId = new Map((borradores || []).filter((b) => b && b.id).map((b) => [String(b.id), b.data || {}]));
+  return lista.dias.map((d) => {
+    const { listo, motivos } = diaListo(d, { tieneRuta });
+    const b = porId.get(d.iso);
+    return {
+      iso: d.iso,
+      nombre: d.nombre,
+      display: d.display,
+      visitas: d.visitas,
+      ramos: d.totalRamos ?? 0,
+      listo,
+      motivos,
+      borrador: b ? { id: d.iso, emitidoComo: typeof b.emitidoComo === 'string' ? b.emitidoComo : '' } : null,
+      detalle: d,
+    };
+  });
+}
+
+/** Texto claro para el usuario cuando falla la creación del borrador (sin códigos técnicos crudos). */
+export function textoErrorBorrador(error) {
+  const code = error && error.code;
+  if (code === 'permission-denied') {
+    return 'Firestore rechazó el borrador: tu usuario no tiene permiso, o las reglas de los borradores todavía no están publicadas. No se creó nada.';
+  }
+  if (code === 'unavailable' || code === 'deadline-exceeded') return 'No hay conexión con el servidor. Revisa tu conexión y vuelve a intentar: no se creó nada.';
+  const mensaje = error && typeof error.message === 'string' ? error.message.trim() : '';
+  return mensaje || 'No se pudo crear el borrador. Vuelve a intentar.';
 }
