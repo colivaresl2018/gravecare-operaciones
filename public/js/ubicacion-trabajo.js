@@ -48,24 +48,27 @@ export function coordenadasDeOrden(d) {
 
 // Catálogo de cementerios (copia de referencia; nombres visibles, alias y nombre corto cuando no es ambiguo).
 const CATALOGO = [
-  { nombres: ['Parque del Recuerdo de Huechuraba', 'Parque del Recuerdo Américo Vespucio'], lat: -33.3838805, lng: -70.6345455 },
-  { nombres: ['Cementerio General de Recoleta', 'Cementerio General de Santiago', 'Cementerio General'], lat: -33.4176636, lng: -70.6500999 },
+  { nombres: ['Parque del Recuerdo Américo Vespucio', 'Parque del Recuerdo de Huechuraba'], lat: -33.3838805, lng: -70.6345455 },
+  { nombres: ['Cementerio General de Santiago', 'Cementerio General de Recoleta', 'Cementerio General'], lat: -33.4176636, lng: -70.6500999 },
   { nombres: ['Cementerio Católico de Recoleta'], lat: -33.4134151, lng: -70.6422611 },
   { nombres: ['Parque Canaán de Pudahuel', 'Parque Canaán'], lat: -33.442826, lng: -70.8013175 },
-  { nombres: ['Cementerio Metropolitano de Lo Espejo', 'Cementerio Metropolitano'], lat: -33.5304473, lng: -70.68327 },
-  { nombres: ['Parque del Recuerdo Cordillera de Puente Alto', 'Parque del Recuerdo Cordillera'], lat: -33.5549429, lng: -70.54416 },
-  { nombres: ['Cementerio El Prado de Puente Alto', 'Cementerio El Prado', 'Parque del Prado', 'Parque El Prado', 'Parque del Prado de Puente Alto'], lat: -33.5548133, lng: -70.5598832 },
-  { nombres: ['Parque Sendero de San Bernardo', 'Parque Sendero San Bernardo'], lat: -33.609585, lng: -70.718771 },
-  { nombres: ['Parque Sendero de Maipú', 'Parque Sendero Maipú'], lat: -33.4654272, lng: -70.7671207 },
-  { nombres: ['Parque El Manantial de Maipú', 'Parque El Manantial'], lat: -33.4728208, lng: -70.76073 },
+  { nombres: ['Cementerio Metropolitano', 'Cementerio Metropolitano de Lo Espejo'], lat: -33.5304473, lng: -70.68327 },
+  { nombres: ['Parque del Recuerdo Cordillera', 'Parque del Recuerdo Cordillera de Puente Alto'], lat: -33.5549429, lng: -70.54416 },
+  { nombres: ['Parque del Prado', 'Cementerio El Prado de Puente Alto', 'Cementerio El Prado', 'Parque El Prado', 'Parque del Prado de Puente Alto'], lat: -33.5548133, lng: -70.5598832 },
+  { nombres: ['Parque Sendero San Bernardo', 'Parque Sendero de San Bernardo'], lat: -33.609585, lng: -70.718771 },
+  { nombres: ['Parque Sendero Maipú', 'Parque Sendero de Maipú'], lat: -33.4654272, lng: -70.7671207 },
+  { nombres: ['Parque El Manantial', 'Parque El Manantial de Maipú'], lat: -33.4728208, lng: -70.76073 },
   { nombres: ['Cementerio Católico de Maipú'], lat: -33.5078387, lng: -70.7698562 },
-  { nombres: ['Parque del Recuerdo de Padre Hurtado', 'Parque del Recuerdo Padre Hurtado', 'Padre Hurtado', 'Cementerio Parque Padre Hurtado'], lat: -33.6094158, lng: -70.835687 },
+  { nombres: ['Parque del Recuerdo Padre Hurtado', 'Parque del Recuerdo de Padre Hurtado', 'Padre Hurtado', 'Cementerio Parque Padre Hurtado'], lat: -33.6094158, lng: -70.835687 },
   { nombres: ['Cementerio Municipal N° 1 de Rancagua', 'Cementerio Municipal N° 1'], lat: -34.164688, lng: -70.7472616 },
-  { nombres: ['Cementerio Municipal N° 2 de Rancagua', 'Cementerio Municipal N° 2 (Baquedano)', 'Cementerio Municipal N° 2'], lat: -34.1655658, lng: -70.7670607 },
-  { nombres: ['Parque Jardín de Rancagua', 'Parque Jardín Rancagua'], lat: -34.162336, lng: -70.7975146 },
-  { nombres: ['Parque Jardín Las Flores de Machalí', 'Parque Jardín Las Flores', 'Parque Jardín Las Flores de Rancagua'], lat: -34.1797461, lng: -70.6908177 },
-  { nombres: ['Parque Sendero de Rancagua', 'Parque Sendero Rancagua', 'Sendero Rancagua', 'Parque del Recuerdo Rancagua'], lat: -34.1604909, lng: -70.7563741 },
+  { nombres: ['Cementerio Municipal N° 2 (Baquedano)', 'Cementerio Municipal N° 2 de Rancagua', 'Cementerio Municipal N° 2'], lat: -34.1655658, lng: -70.7670607 },
+  { nombres: ['Parque Jardín Rancagua', 'Parque Jardín de Rancagua'], lat: -34.162336, lng: -70.7975146 },
+  { nombres: ['Parque Jardín Las Flores', 'Parque Jardín Las Flores de Machalí', 'Parque Jardín Las Flores de Rancagua'], lat: -34.1797461, lng: -70.6908177 },
+  { nombres: ['Sendero Rancagua', 'Parque Sendero de Rancagua', 'Parque Sendero Rancagua', 'Parque del Recuerdo Rancagua'], lat: -34.1604909, lng: -70.7563741 },
 ];
+
+/** El mismo catálogo, exportado para «Rutas y feriados» (lista oficial de cementerios). Mismos alias; el nombre oficial va primero. */
+export { CATALOGO as CATALOGO_CEMENTERIOS };
 
 const INDICE = CATALOGO.flatMap((c) => c.nombres.map((n) => ({ clave: normalizarNombre(n), lat: c.lat, lng: c.lng })));
 

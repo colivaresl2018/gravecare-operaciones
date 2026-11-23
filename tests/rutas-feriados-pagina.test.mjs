@@ -29,7 +29,15 @@ test('exige el claim de staff antes de cargar nada (B-13) y los módulos compart
   const iGate = html.indexOf('if (!(await exigirStaff(auth, ', iObs);
   assert.ok(iObs > 0 && iGate > iObs);
   assert.ok(iGate - iObs < html.slice(iObs).search(/\bcargarDatos\(/), 'la barrera precede a la carga de datos');
-  for (const m of ['config-planificacion.js', 'config-planificacion-db.js', 'config-vistas.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=cfg1"`));
+  // config-planificacion.js y config-vistas.js cambiaron (catálogo de cementerios): suben a cfg2 para no usar la copia en caché.
+  for (const [m, v] of [['config-planificacion.js', 'cfg3'], ['config-planificacion-db.js', 'cfg1'], ['config-vistas.js', 'cfg2']]) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=${v}"`));
+});
+
+test('la lista de cementerios sale del catálogo oficial además de las órdenes y las rutas guardadas', () => {
+  assert.match(html, /gruposDeCatalogo\b/);
+  assert.match(html, /const gruposCementerios = gruposDeCatalogo\(\)/);
+  assert.match(html, /filasDeRutas\(docsRutas, nombresOrdenes, gruposCementerios\)/);
+  assert.match(html, /solo se ven los del catálogo oficial y los que ya tienen ruta/);
 });
 
 test('dos pestañas, «Rutas por cementerio» y «Feriados», y un encabezado con el nombre de la pantalla', () => {
@@ -92,7 +100,11 @@ test('sin datos escritos en el código: ni ejes, ni días por cementerio, ni fer
   const fuentes = [html, ...NUEVOS.map(lee)].join('\n');
   assert.ok(!/Eje (Santiago|Rancagua|Norte|Sur|Poniente|Oriente|Centro)/i.test(fuentes.replace(/placeholder="[^"]*"/g, '')), 'hay un eje escrito');
   assert.ok(!/Navidad|Año Nuevo|Inmaculada|Viernes Santo|Independencia/.test(fuentes.replace(/placeholder="[^"]*"/g, '')), 'hay un feriado escrito');
-  assert.ok(!/(Parque Canaán|Cementerio General de|Parque Sendero|Parque del Recuerdo)/.test(fuentes.replace(/placeholder="[^"]*"/g, '')), 'hay un cementerio escrito');
+  // Los nombres de cementerio solo aparecen en la lista oficial de 17 (CEMENTERIOS_OFICIALES, pedida por el dueño) y en su catálogo con alias (ubicacion-trabajo.js).
+  const lista = lee('js/config-planificacion.js').match(/export const CEMENTERIOS_OFICIALES = \[[\s\S]*?\];/);
+  assert.ok(lista, 'la lista oficial de cementerios debe estar en config-planificacion.js');
+  const sinLista = fuentes.replace(lista[0], '');
+  assert.ok(!/(Parque Canaán|Cementerio General de|Parque Sendero|Parque del Recuerdo)/.test(sinLista.replace(/placeholder="[^"]*"/g, '')), 'hay un cementerio escrito fuera de la lista oficial');
 });
 
 test('si falla una lectura o una escritura, la pantalla avisa con un texto claro (no se queda en blanco ni en silencio)', () => {
