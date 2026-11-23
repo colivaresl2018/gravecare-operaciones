@@ -1,7 +1,7 @@
 # Pantalla «Órdenes de compra» — maestro de materiales y órdenes de compra a proveedores (spec 055)
 
 **Fecha:** 2026-11-22 · **Rama:** `feat/ordenes-compra` (desde `main`, tag `ops-planserv-8`) · **Estado:** listo para revisión (PR a `main`). **No desplegado**: el despliegue lo ejecuta el dueño. **Bloqueo para usarla en producción: las reglas de Firestore todavía no están publicadas** (ver más abajo).
-**Autorización:** el dueño autorizó «Órdenes de Compra (spec 055)» en la conversación (2026-11-22). La spec 055 figura como borrador; se implementó con sus propuestas por defecto y la decisión 4 ya resuelta («sí», enmienda 056 §12). Las demás decisiones abiertas quedaron como se anota en «Decisiones mías».
+**Autorización:** el dueño autorizó «Órdenes de Compra (spec 055)» en la conversación (2026-11-22). La spec 055 está **aprobada por el dueño desde el 2026-11-22** (corregido el 2026-11-23; antes este reporte la llamaba «borrador»); se implementó con sus propuestas por defecto y la decisión 4 ya resuelta («sí», enmienda 056 §12). Las demás decisiones abiertas quedaron como se anota en «Decisiones mías».
 
 ## Para qué sirve
 La operación compra insumos y ramos a proveedores y hoy no hay una orden formal. La pantalla permite emitir órdenes de compra numeradas (OC-0001, OC-0002…) con proveedor, fechas, condiciones de pago, líneas y totales con IVA 19 %, mantener un maestro de materiales con código único, e imprimir o guardar como PDF desde el navegador.

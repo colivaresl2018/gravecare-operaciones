@@ -88,6 +88,26 @@
       </div>
       <div id="resultado-rutas" class="mt-3" aria-live="polite"></div>
     </section>
+
+    <section id="dias-programacion" class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-bold text-[#002d1a]">Días de programación</h2>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="btn-semana-anterior" class="px-3 py-1 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Anterior</button>
+          <span id="titulo-semana" class="text-xs text-slate-600"></span>
+          <button type="button" id="btn-semana-hoy" class="px-3 py-1 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Hoy</button>
+          <button type="button" id="btn-semana-siguiente" class="px-3 py-1 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Siguiente</button>
+        </div>
+      </div>
+      <p class="px-4 pt-3 text-xs text-slate-500">Un día está listo cuando tiene visitas, cada cementerio tiene eje y día de ruta y todos los ramos tienen valor. Aquí solo se ve el estado de cada día; la orden de compra del día se crea desde «Compra de flores», en Planificación Planes y Spot.</p>
+      <div id="aviso-dias" class="hidden mx-4 mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900" role="alert"></div>
+      <div class="overflow-x-auto mt-3">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Día</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3 text-right">Visitas</th><th class="py-2 px-3 text-right">Ramos</th><th class="py-2 px-3">Estado</th></tr></thead>
+          <tbody id="tbody-dias"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <!-- Pestaña FERIADOS -->
@@ -153,7 +173,17 @@
     import { prepararLoteRutas, parsearFeriados, permisosDeStaff, cementeriosDeOrdenes, filasDeRutas, resumenDeRutas } from "./js/config-planificacion.js?v=cfg1";
     import { COLECCION_RUTAS, COLECCION_FERIADOS, guardarRutasEnLote, cambiarEstadoRuta, guardarFeriado, guardarFeriados, cambiarEstadoFeriado, textoErrorGuardar } from "./js/config-planificacion-db.js?v=cfg1";
     import { htmlResumenRutas, htmlFilasRutas, htmlFilasFeriados, htmlListaErroresFeriados, htmlResultadosGuardado } from "./js/config-vistas.js?v=cfg1";
-
+    // Spec 057 (parte c): estado de los días de programación (solo lectura). El cálculo es el mismo de «Compra de flores»;
+    // el botón para crear la orden de compra del día vive allí (planificacion-servicios.html).
+    import { esOrdenPagada } from "./js/orden-pagada.js";
+    import { crearIndiceInformes } from "./js/servicio-terminado.js?v=ops13";
+    import { construirFilasPlanificacion } from "./js/planificacion-servicios.js?v=b5";
+    import { crearIndiceRutas } from "./js/rutas-planificacion.js?v=cfg1";
+    import { lunesDeLaSemana, sumarDias, hoyIso } from "./js/fechas-semana.js?v=b5";
+    import { RUTA_VALORES, leerValoresRamos } from "./js/valores-ramos-db.js?v=b5e2";
+    import { diasDeProgramacion } from "./js/compra-dia.js?v=057";
+    import { htmlFilasDiasProgramacion } from "./js/compra-dia-vistas.js?v=057";
+    
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -168,6 +198,10 @@
     let docsFeriados = [];
     let nombresOrdenes = [];
     let ordenesFallo = false;
+    let ordenesDocs = []; // órdenes leídas (también alimentan los días de programación)
+    let indiceInformes = crearIndiceInformes([]);
+    let valoresCompra = {};
+    let lunesDias = lunesDeLaSemana(hoyIso());
     let cargaFallo = false; // si la carga falla se ve solo el aviso con «Reintentar», no un panel vacío
     const PESTANAS = ["rutas", "feriados"];
     let pestanaActiva = "rutas";
@@ -227,6 +261,36 @@
       $("aviso-permisos-feriados").classList.toggle("hidden", editar);
     }
 
+    function pintarDias() {
+      const rutas = crearIndiceRutas(docsRutas);
+      const ordenesPagadas = ordenesDocs.filter((o) => esOrdenPagada(o.data));
+      const { planes, spot } = construirFilasPlanificacion(ordenesPagadas, { indiceInformes, rutas });
+      const dias = diasDeProgramacion([...planes, ...spot], { lunesIso: lunesDias, valores: valoresCompra, rutaDe: rutas.rutaDe });
+      $("titulo-semana").textContent = "Semana del " + dias[0].display + " al " + dias[6].display;
+      $("tbody-dias").innerHTML = htmlFilasDiasProgramacion(dias);
+    }
+
+    // Lecturas auxiliares de los días de programación: si fallan, la pantalla de rutas sigue y lo avisa.
+    async function cargarDias() {
+      const avisos = [];
+      try {
+        indiceInformes = crearIndiceInformes((await leerColeccion("informes")).map((i) => [i.id, i.data]));
+      } catch (e) {
+        indiceInformes = crearIndiceInformes([]);
+        avisos.push("No se pudieron leer los informes de visitas: los días pueden mostrar visitas que ya se hicieron.");
+      }
+      if (ordenesFallo) avisos.push("No se pudieron leer las órdenes: no hay visitas que mostrar.");
+      try {
+        valoresCompra = (await leerValoresRamos({ obtener: getDoc, referencia: () => doc(db, ...RUTA_VALORES) })).valores;
+      } catch (e) {
+        valoresCompra = {};
+        avisos.push("No se pudieron leer los valores de ramos: los días quedan «no listos» por falta de valor.");
+      }
+      $("aviso-dias").innerHTML = avisos.map((t) => esc(t)).join("<br>");
+      $("aviso-dias").classList.toggle("hidden", avisos.length === 0);
+      pintarDias();
+    }
+
     async function cargarDatos(user) {
       $("aviso-error").classList.add("hidden");
       $("estado-carga").classList.remove("hidden");
@@ -240,13 +304,16 @@
         try {
           const ordenes = await leerColeccion("ordenes"); // solo para listar los nombres de cementerio
           nombresOrdenes = cementeriosDeOrdenes(ordenes);
+          ordenesDocs = ordenes;
           ordenesFallo = false;
         } catch (e) {
           nombresOrdenes = [];
+          ordenesDocs = [];
           ordenesFallo = true; // la pantalla sigue con los cementerios que ya tienen ruta
         }
         pintarRutas();
         pintarFeriados();
+        try { await cargarDias(); } catch (e) { console.warn("Días de programación:", e && e.code ? e.code : "ERROR"); }
       } catch (e) {
         console.error("Rutas y feriados:", e);
         cargaFallo = true;
@@ -260,6 +327,7 @@
     async function recargarRutas() {
       docsRutas = await leerColeccion(COLECCION_RUTAS);
       pintarRutas();
+      try { pintarDias(); } catch (e) { console.warn("Días de programación:", e && e.code ? e.code : "ERROR"); }
     }
 
     async function recargarFeriados() {
@@ -386,6 +454,14 @@
         }
       });
     });
+
+    function irASemana(lunes) {
+      lunesDias = lunes;
+      pintarDias();
+    }
+    $("btn-semana-anterior").addEventListener("click", () => irASemana(sumarDias(lunesDias, -7)));
+    $("btn-semana-siguiente").addEventListener("click", () => irASemana(sumarDias(lunesDias, 7)));
+    $("btn-semana-hoy").addEventListener("click", () => irASemana(lunesDeLaSemana(hoyIso())));
 
     document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
     $("btn-reintentar").addEventListener("click", () => { if (usuarioActual) cargarDatos(usuarioActual); });
