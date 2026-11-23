@@ -146,3 +146,26 @@ test('textoErrorProveedor: mensajes claros para RUT repetido y para permiso dene
   assert.match(textoErrorProveedor({ code: 'permission-denied' }), /permiso/);
   assert.match(textoErrorProveedor({}), /Vuelve a intentar/);
 });
+
+test('contrato con las reglas de la web: el proveedor guarda el RUT con puntos y K mayúscula, y el id del candado es ese RUT sin puntos (con guion)', async () => {
+  // Entradas de todo tipo (con y sin puntos, con k minúscula, con espacios) deben terminar en el mismo formato.
+  const casos = [['76.543.210-3', '76543210-3'], ['76543210-3', '76543210-3'], [' 30.000.007-k ', '30000007-K'], ['30000007-k', '30000007-K']];
+  for (const [entrada, idCandado] of casos) {
+    const { s, base } = entorno();
+    const id = await crearProveedor({ ...base, datos: { ...DATOS, rut: entrada }, uid: 'u1', ahora: AHORA });
+    const rut = s.almacen.get(`proveedores/${id}`).rut;
+    assert.match(rut, /^\d{1,2}\.\d{3}\.\d{3}-[0-9K]$/, `RUT guardado con puntos y K mayúscula (${entrada})`);
+    assert.equal(rut.replace(/\./g, ''), idCandado, 'el id del candado es el RUT guardado sin puntos');
+    assert.ok(s.almacen.has(`proveedoresRut/${idCandado}`), 'el candado existe con ese id');
+    assert.equal(s.almacen.get(`proveedoresRut/${idCandado}`).proveedorId, id);
+  }
+});
+
+test('contrato con las reglas de la web: al editar el RUT se mantiene el mismo formato en el proveedor y en los dos candados', async () => {
+  const { s, base } = entorno();
+  const id = await crearProveedor({ ...base, datos: DATOS, uid: 'u1', ahora: AHORA });
+  await editarProveedor({ ...base, id, cambios: { rut: '30000007-k' }, uid: 'u1', ahora: AHORA });
+  assert.equal(s.almacen.get(`proveedores/${id}`).rut, '30.000.007-K');
+  assert.equal(s.almacen.get('proveedoresRut/30000007-K').liberado, false);
+  assert.equal(s.almacen.get('proveedoresRut/76543210-3').liberado, true);
+});

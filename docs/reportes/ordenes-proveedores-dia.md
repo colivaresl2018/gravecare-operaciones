@@ -33,6 +33,9 @@
 2. Después, **Hosting del backoffice**. Si se publica antes que las reglas: la pestaña Proveedores y los borradores muestran el aviso de permiso, y emitir con un proveedor de la lista falla (con «Otro proveedor» sigue como hoy).
 3. El dueño carga **Valores de los Ramos** y las **rutas** de los cementerios para que los días queden listos.
 
+## Formato del RUT (contrato con las reglas de la web)
+El proveedor guarda `rut` **con puntos, guion y `K` mayúscula** (`12.345.678-5`, `30.000.007-K`), aunque se escriba sin puntos o con `k` minúscula. El id del candado `proveedoresRut/{id}` es ese mismo RUT **sin puntos** (`12345678-5`, `30000007-K`). Lo fijan dos pruebas en `public/js/proveedores-db.test.mjs` (crear y editar el RUT).
+
 ## Seguridad (checklist del PR)
 - [x] Todo dato mostrado pasa por `esc()` (proveedores, borradores, días, motivos): pruebas con `<b>`.
 - [x] RUT de prueba generados (`76.543.210-3`, `12.345.678-5`, `30.000.007-K`); ningún dato personal real en código, pruebas ni emulador.
@@ -45,7 +48,7 @@
 
 ## Decisiones pendientes del dueño
 1. **Retención de datos de proveedores** y los datos de GraveCare (RUT y dirección) para el encabezado de la OC.
-2. **Estado real de la spec 055:** el repo de la web la dice «Aprobada», el reporte del backoffice «borrador»; corregir una.
+2. ~~Estado real de la spec 055~~ — resuelto el 2026-11-23: está aprobada desde el 2026-11-22; se corrigió `docs/reportes/ordenes-compra.md`.
 
 ## Despliegue y reversa (lo ejecuta el dueño)
 - **Requisito previo:** reglas publicadas (arriba). Tag sugerido `ops-planserv-10`, desde `C:\Despliegue\GravecareOps` (clon limpio): `git fetch --tags origin`, `git checkout ops-planserv-10`, `git describe --tags`; `public/` debe tener **102 archivos** (93 de `ops-planserv-9` + 9 nuevos) y la salida de Firebase debe decir **«found 102 files»**. Luego `firebase deploy --only hosting:gravecare-ops --project gravecare-2e8d2`. Nada de Functions.

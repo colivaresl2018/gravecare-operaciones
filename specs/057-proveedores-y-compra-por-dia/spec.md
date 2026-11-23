@@ -183,7 +183,7 @@ Verificado sin modificar nada y sin mostrar datos personales (solo nombres de co
 **Siguen abiertas (no bloquean la implementación):**
 
 1. **Retención de datos de proveedores** (personas naturales) y **RUT y dirección de GraveCare** para el encabezado (sigue pendiente de la 055).
-2. **Estado de la spec 055:** la cabecera del repo de la web dice «Aprobada» y el reporte del backoffice dice «borrador». ¿Cuál es el correcto?
+2. **Estado de la spec 055:** resuelto el 2026-11-23: está **aprobada por el dueño desde el 2026-11-22**; se corrigió el reporte del backoffice (`docs/reportes/ordenes-compra.md`).
 
 ## 14. Código de referencia
 

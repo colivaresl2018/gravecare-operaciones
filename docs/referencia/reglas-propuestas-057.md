@@ -21,6 +21,7 @@ Todo va dentro de **transacciones** (`runTransaction`: la lectura siempre antes 
 
 Notas del diseño:
 
+- **Formato del RUT (fijado por pruebas):** `proveedores.rut` se guarda **con puntos, guion y `K` mayúscula** (`12.345.678-5`, `30.000.007-K`), aunque se escriba sin puntos o con `k` minúscula. El id de `proveedoresRut` es ese mismo RUT **sin puntos** (`12345678-5`, `30000007-K`). La pantalla normaliza antes de escribir, así que las reglas pueden exigirlo, por ejemplo `rut.matches('^[0-9]{1,2}[.][0-9]{3}[.][0-9]{3}-[0-9K]$')` y `rutNormalizado.matches('^[0-9]{7,8}-[0-9K]$')`. Pruebas: `public/js/proveedores-db.test.mjs` (crear y editar el RUT).
 - **RUT único sin consultas en la transacción:** el documento `proveedoresRut/{rutNormalizado}` hace de candado. Crear un proveedor lee el candado; si existe y no está `liberado`, la pantalla rechaza con «Ya existe un proveedor con ese RUT.». Las reglas **no pueden** consultar por RUT, solo por id: por eso el candado.
 - **Snapshot en la OC:** la emisión relee el proveedor dentro de la transacción y guarda en `ordenesCompra.proveedor` una copia de `razonSocial`, `rut`, `contacto`, `telefono` y `direccion`. Un proveedor quitado (`activo: false`) o inexistente se rechaza en la pantalla («El proveedor ya no está activo; elige otro.»).
 - **El borrador no tiene número:** no toca `contadores/ordenesCompra`. El número nace solo al emitir, con la regla de la 055 sin cambios.
