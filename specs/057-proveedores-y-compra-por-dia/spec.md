@@ -127,7 +127,7 @@ Verificado sin modificar nada y sin mostrar datos personales (solo nombres de co
 | Colección / documento | ID | Campos | Quién escribe | Cambio de contrato |
 |---|---|---|---|---|
 | `proveedores/{id}` | generado | R-P1 | staff con claim (alta, edición, quitar) | **Nueva**, aditiva |
-| `ordenesCompraBorradores/{id}` | `{AAAA-MM-DD}-{cementerio o semana}` (decisión 6) | `fechaDia`, `origenDia`, `lineas` (igual que OC), `proveedor` (opcional), `neto`, `iva`, `total`, `estado` = `Borrador`, `creadoEl`, `creadoPor`, `emitidoComo` (opcional) | staff con claim | **Nueva**, aditiva |
+| `ordenesCompraBorradores/{id}` | `{AAAA-MM-DD}` (un borrador por día; la fecha es el id) | `fechaDia`, `lineas` (igual que OC), `proveedor` (opcional), `neto`, `iva`, `total`, `estado` = `Borrador`, `creadoEl`, `creadoPor`, `emitidoComo` (opcional) | staff con claim | **Nueva**, aditiva |
 | `ordenesCompra/{numero}` | `OC-NNNN` | campos de la 055 + `proveedorId` (opcional) | staff, en la transacción de emisión | **Aditiva** (un campo opcional) |
 | `materiales`, `contadores/ordenesCompra` | — | sin cambio | — | — |
 | `valores_ramos/compra` | — | sin cambio; **se lee** y no se escribe desde esta spec | dueño/staff desde «Valores de ramos» | — |
@@ -176,7 +176,7 @@ Verificado sin modificar nada y sin mostrar datos personales (solo nombres de co
 - 3: «Otro proveedor» escrito a mano solo como excepción.
 - 4: «día listo» = visitas con cementerio, eje y día de ruta; ramos con valor en `valores_ramos/compra`; ninguna línea «sin valor». Sin cierre manual por ahora.
 - 5: el borrador trae solo ramos; los insumos se agregan a mano. Un catálogo de insumos por tipo de servicio queda como etapa siguiente.
-- 6: id del borrador `AAAA-MM-DD` + cementerio o semana.
+- 6: id del borrador `AAAA-MM-DD`: un borrador por día (el día entero, todos los cementerios). Se implementó así; el campo `origenDia` de R-B5 quedó como `fechaDia`.
 - 8: campo `proveedorId` opcional en `ordenesCompra` (cambio aditivo, coordinado con la sesión de la web).
 - 9: pestaña «Proveedores» dentro de «Órdenes de compra», junto al maestro de materiales.
 
