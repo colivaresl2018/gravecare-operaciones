@@ -133,7 +133,7 @@
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
-          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Número</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3">Proveedor</th><th class="py-2 px-3 text-right">Total</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3"></th></tr></thead>
+          <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th class="py-2 px-3">Número</th><th class="py-2 px-3">Fecha</th><th class="py-2 px-3">Proveedor</th><th class="py-2 px-3 text-right">Total</th><th class="py-2 px-3">Estado</th><th class="py-2 px-3">Pagado con factura N°</th><th class="py-2 px-3">Fecha de pago</th><th class="py-2 px-3"></th></tr></thead>
           <tbody id="tbody-ordenes"></tbody>
         </table>
       </div>
@@ -271,6 +271,48 @@
     </div>
   </div>
 
+  <!-- Spec 063: seguimiento de pago de una orden (estado, N° de factura, fecha de pago y comentario). Se cierra con ×, Cancelar o Escape -->
+  <div id="modal-seguimiento" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="modal-seguimiento-titulo">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-4 py-3 bg-[#002d1a] text-white rounded-t-xl">
+        <h2 id="modal-seguimiento-titulo" class="text-sm font-bold">Seguimiento de la orden</h2>
+        <button type="button" id="modal-seguimiento-cerrar" aria-label="Cerrar" class="text-white text-xl leading-none px-2">&times;</button>
+      </div>
+      <div class="p-5 space-y-3">
+        <p id="seg-resumen" class="text-xs text-slate-600"></p>
+        <p id="seg-solo-lectura" class="hidden text-[11px] text-slate-500">Solo el dueño o un administrador puede cambiar el estado y el pago. Puedes agregar un comentario.</p>
+        <label class="block text-[11px] font-bold text-slate-600">Estado
+          <select id="seg-estado" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal bg-white"></select>
+        </label>
+        <div id="seg-bloque-pago" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="text-[11px] font-bold text-slate-600">Pagado con factura N°
+            <input type="text" id="seg-factura" maxlength="20" autocomplete="off" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+          </label>
+          <label class="text-[11px] font-bold text-slate-600">Fecha de pago
+            <input type="date" id="seg-fecha" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+          </label>
+        </div>
+        <div id="seg-bloque-motivo" class="hidden">
+          <label class="block text-[11px] font-bold text-slate-600"><span id="seg-motivo-etiqueta">Motivo</span>
+            <textarea id="seg-motivo" maxlength="500" rows="2" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal"></textarea>
+          </label>
+        </div>
+        <label class="block text-[11px] font-bold text-slate-600">Comentario (opcional)
+          <textarea id="seg-comentario" maxlength="500" rows="3" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal"></textarea>
+        </label>
+        <p class="text-[11px] text-slate-400 text-right"><span id="seg-contador">0</span> / 500 · El comentario es interno: no sale en la orden impresa ni en el correo.</p>
+        <div id="aviso-seguimiento" class="hidden" role="status" aria-live="polite"></div>
+        <div class="flex justify-end gap-2">
+          <button type="button" id="btn-cancelar-seguimiento" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition">Cancelar</button>
+          <button type="button" id="btn-guardar-seguimiento" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50 disabled:cursor-not-allowed">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spec 063: globo con el comentario de una orden (al pasar el cursor, con el teclado o al tocar el ícono). El texto se pone con textContent -->
+  <div id="globo-comentario" role="tooltip" class="hidden fixed z-[60] max-w-xs max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-slate-800 text-white text-xs px-3 py-2 shadow-lg pointer-events-none"></div>
+
   <!-- Lo único que sale al imprimir -->
   <div id="zona-impresion"></div>
 
@@ -286,12 +328,14 @@
     import { catalogoMateriales, validarLinea, calcularTotales } from "./js/ordenes-compra.js?v=oc1";
     import {
       COLECCION_MATERIALES, COLECCION_ORDENES, COLECCION_CONTADORES, DOC_CONTADOR_ORDENES, COLECCION_BORRADORES,
-      crearMaterial, actualizarMaterial, emitirOrden, emitirDesdeBorrador, anularOrden, textoErrorOC, textoErrorCarga,
-    } from "./js/ordenes-compra-db.js?v=057";
+      crearMaterial, actualizarMaterial, emitirOrden, emitirDesdeBorrador, anularOrden, guardarSeguimientoOrden, textoErrorOC, textoErrorCarga,
+    } from "./js/ordenes-compra-db.js?v=063";
     import {
-      htmlFilasMateriales, htmlFilasOrdenes, htmlLineasBorrador, htmlTotales, htmlImpresion,
+      formatoPesos, htmlFilasMateriales, htmlFilasOrdenes, htmlLineasBorrador, htmlTotales, htmlImpresion, htmlOpcionesEstado,
       htmlFilasProveedores, htmlOpcionesRazon, htmlFilasBorradores, VALOR_OTRO_PROVEEDOR, htmlEstadoEnvio, htmlHistorialEnvios,
-    } from "./js/ordenes-compra-vistas.js?v=058";
+    } from "./js/ordenes-compra-vistas.js?v=063";
+    // Spec 063: seguimiento de pago (estado Pagada, N° de factura, fecha de pago y comentario). Lógica pura; las reglas de Firestore mandan.
+    import { transicionesDisponibles, puedeRegistrarPago } from "./js/ordenes-compra-pago.js?v=063";
     // Spec 058: envío de la OC por correo. El SDK de Functions se carga solo al pulsar el botón (import dinámico, más abajo).
     import { estadoEnvio, textoConfirmacion, mensajeErrorEnvio, textoResultado, enviarOrden } from "./js/ordenes-compra-envio.js?v=058";
     // Spec 061: «Imprimir» abre el PDF archivado en Storage (spec 060). El SDK de Storage se carga solo al pulsar (import dinámico, más abajo).
@@ -321,6 +365,9 @@
 
     let usuarioActual = null;
     let puedeAnular = false; // solo el dueño anula y quita proveedores (las reglas de Firestore siguen siendo la barrera real)
+    let puedePago = false; // spec 063: el dueño y el administrador registran pagos; los demás solo comentan (las reglas mandan igual)
+    let perfilActual = null; // perfil staff/{uid} ya leído (para decidir qué ofrece el panel de seguimiento)
+    let seguimiento = null; // orden abierta en el panel de seguimiento: { numero, estadoVisto, orden }
     let docsMateriales = [];
     let docsOrdenes = [];
     let docsProveedores = [];
@@ -438,6 +485,8 @@
       try {
         const perfil = await leerPerfil(user);
         puedeAnular = Boolean(perfil) && perfil.dueno === true;
+        perfilActual = perfil;
+        puedePago = puedeRegistrarPago(perfil);
         docsMateriales = await leerColeccion(COLECCION_MATERIALES);
         docsOrdenes = await leerColeccion(COLECCION_ORDENES);
         try {
@@ -725,6 +774,8 @@
         if (encontrada) abrirOrden({ ...encontrada.data, numero });
         return;
       }
+      if (accion === "seguimiento-orden") { abrirSeguimiento(numero); return; }
+      if (accion === "ver-comentario") { mostrarGlobo(boton.closest("td")); return; } // táctil: tocar el ícono abre el globo
       if (accion !== "anular-orden" || !puedeAnular) return;
       const motivo = window.prompt("Motivo de la anulación de " + numero + ":");
       if (motivo === null) return;
@@ -739,6 +790,126 @@
         }
       });
     });
+
+    // ---------- Seguimiento de pago (spec 063) ----------
+    // Comentario en un globo: al pasar el cursor por el número, con el teclado (foco en el ícono) o tocando el ícono. El texto se pone con
+    // textContent: un comentario con HTML se ve literal, nunca se interpreta (AUD-01). El texto no viaja en el HTML de la fila.
+    const globo = $("globo-comentario");
+    let globoCelda = null;
+    const celdaConComentario = (el) => (el && el.closest ? el.closest("td[data-tiene-comentario]") : null);
+
+    function comentarioDe(numero) {
+      const d = docsOrdenes.find((x) => ((x.data && x.data.numero) || x.id) === numero);
+      return d && d.data && typeof d.data.comentario === "string" ? d.data.comentario.trim() : "";
+    }
+    function ocultarGlobo() {
+      globo.classList.add("hidden");
+      globo.textContent = "";
+      globoCelda = null;
+    }
+    function mostrarGlobo(celda) {
+      if (!celda) return;
+      const texto = comentarioDe(celda.dataset.numero);
+      if (!texto) { ocultarGlobo(); return; }
+      globo.textContent = texto;
+      globo.classList.remove("hidden");
+      const r = celda.getBoundingClientRect();
+      globo.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - globo.offsetHeight - 8)) + "px";
+      globo.style.left = Math.max(8, Math.min(r.left, window.innerWidth - globo.offsetWidth - 8)) + "px";
+      globoCelda = celda;
+    }
+    $("tbody-ordenes").addEventListener("mouseover", (ev) => { const c = celdaConComentario(ev.target); if (c && c !== globoCelda) mostrarGlobo(c); });
+    $("tbody-ordenes").addEventListener("mouseout", (ev) => { const c = celdaConComentario(ev.target); if (c && !c.contains(ev.relatedTarget)) ocultarGlobo(); });
+    $("tbody-ordenes").addEventListener("focusin", (ev) => { const c = celdaConComentario(ev.target); if (c) mostrarGlobo(c); });
+    $("tbody-ordenes").addEventListener("focusout", (ev) => { const c = celdaConComentario(ev.target); if (c && !c.contains(ev.relatedTarget)) ocultarGlobo(); });
+    document.addEventListener("click", (ev) => { if (globoCelda && !celdaConComentario(ev.target)) ocultarGlobo(); });
+    window.addEventListener("scroll", ocultarGlobo, true);
+
+    function cerrarSeguimiento() {
+      seguimiento = null;
+      $("modal-seguimiento").classList.add("hidden");
+    }
+    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { ocultarGlobo(); cerrarSeguimiento(); } });
+
+    // Qué campos se ven y cuáles se pueden editar según el estado elegido (R13). El comentario se deshabilita al anular (la regla de
+    // anulación no admite otros campos: se guarda aparte, antes).
+    function actualizarCamposSeguimiento() {
+      if (!seguimiento) return;
+      const destino = $("seg-estado").value;
+      const pagando = destino === "Pagada";
+      $("seg-bloque-pago").classList.toggle("hidden", !pagando);
+      $("seg-factura").disabled = !puedePago || !pagando;
+      $("seg-fecha").disabled = !puedePago || !pagando;
+      const revierte = seguimiento.estadoVisto === "Pagada" && destino === "Emitida";
+      const anula = destino === "Anulada";
+      $("seg-bloque-motivo").classList.toggle("hidden", !revierte && !anula);
+      $("seg-motivo-etiqueta").textContent = anula ? "Motivo de la anulación" : "Motivo de la reversión";
+      $("seg-comentario").disabled = destino === "Anulada";
+    }
+
+    function abrirSeguimiento(numero) {
+      const encontrada = docsOrdenes.find((d) => ((d.data && d.data.numero) || d.id) === numero);
+      if (!encontrada) return;
+      const orden = { ...encontrada.data, numero };
+      if (orden.estado !== "Emitida" && orden.estado !== "Pagada") return; // una Anulada no admite cambios
+      ocultarGlobo();
+      seguimiento = { numero, estadoVisto: orden.estado, orden };
+      const opciones = transicionesDisponibles({ estado: orden.estado, puedePago, puedeAnular });
+      $("modal-seguimiento-titulo").textContent = "Seguimiento de la orden " + numero;
+      const proveedor = orden.proveedor && typeof orden.proveedor === "object" ? orden.proveedor.razonSocial : "";
+      $("seg-resumen").textContent = [numero, proveedor, formatoPesos(orden.total)].filter(Boolean).join(" · ");
+      $("seg-estado").innerHTML = htmlOpcionesEstado(opciones, orden.estado);
+      $("seg-estado").disabled = opciones.length <= 1;
+      $("seg-factura").value = orden.facturaNumero || "";
+      $("seg-fecha").value = orden.fechaPago || "";
+      $("seg-fecha").min = orden.fecha || "";
+      $("seg-fecha").max = hoyIso();
+      $("seg-motivo").value = "";
+      $("seg-comentario").value = orden.comentario || "";
+      $("seg-contador").textContent = String($("seg-comentario").value.length);
+      $("seg-solo-lectura").classList.toggle("hidden", puedePago);
+      $("aviso-seguimiento").className = "hidden";
+      actualizarCamposSeguimiento();
+      $("modal-seguimiento").classList.remove("hidden");
+      ($("seg-estado").disabled ? $("seg-comentario") : $("seg-estado")).focus();
+    }
+
+    $("seg-estado").addEventListener("change", actualizarCamposSeguimiento);
+    $("seg-comentario").addEventListener("input", () => { $("seg-contador").textContent = String($("seg-comentario").value.length); });
+    $("btn-cancelar-seguimiento").addEventListener("click", cerrarSeguimiento);
+    $("modal-seguimiento-cerrar").addEventListener("click", cerrarSeguimiento);
+    $("modal-seguimiento").addEventListener("click", (ev) => { if (ev.target === $("modal-seguimiento")) cerrarSeguimiento(); });
+
+    $("btn-guardar-seguimiento").addEventListener("click", () => conBoton($("btn-guardar-seguimiento"), async () => {
+      if (!seguimiento) return;
+      const { numero, estadoVisto } = seguimiento;
+      const destino = $("seg-estado").value;
+      const pagando = destino === "Pagada" && puedePago;
+      $("aviso-seguimiento").className = "hidden";
+      try {
+        if (destino === "Anulada") {
+          if (!window.confirm("¿Anular la orden " + numero + "? Queda guardada como anulada y su número no se reutiliza.")) return;
+          await anularOrden({ ...escritura, numero, motivo: $("seg-motivo").value, uid: usuarioActual.uid });
+          cerrarSeguimiento();
+          avisar("aviso-oc", "La orden " + numero + " quedó anulada.", "ok");
+        } else {
+          const factura = $("seg-factura").value.trim();
+          const fechaPago = $("seg-fecha").value;
+          if (destino === "Pagada" && estadoVisto !== "Pagada" && !window.confirm("¿Marcar la orden " + numero + " como Pagada con la factura N° " + factura + " el " + fechaPago + "?")) return;
+          if (destino === "Emitida" && estadoVisto === "Pagada" && !window.confirm("¿Revertir la orden " + numero + " a Emitida? Se quitan la factura y la fecha de pago (quedan escritas en el motivo).")) return;
+          await guardarSeguimientoOrden({ ...escritura,
+            numero, estadoVisto, estadoNuevo: destino,
+            facturaNumero: pagando ? factura : undefined, fechaPago: pagando ? fechaPago : undefined,
+            comentario: $("seg-comentario").value, motivo: $("seg-motivo").value, perfil: perfilActual, uid: usuarioActual.uid, hoy: hoyIso(),
+          });
+          cerrarSeguimiento();
+          avisar("aviso-oc", "Se guardó el seguimiento de la orden " + numero + ".", "ok");
+        }
+        await recargarOrdenes();
+      } catch (e) {
+        avisar("aviso-seguimiento", textoErrorOC(e), "error");
+      }
+    }));
 
     // ---------- Proveedores (spec 057) ----------
     function salirDeEdicionProveedor() {
