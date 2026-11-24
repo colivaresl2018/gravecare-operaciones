@@ -11,7 +11,7 @@ const PUBLIC = join(RAIZ, 'public');
 const lee = (p) => readFileSync(join(PUBLIC, p), 'utf8').replace(/\r/g, '');
 const html = lee('ordenes-compra.html');
 const portal = lee('portal.html');
-const NUEVOS = ['js/ordenes-compra.js', 'js/ordenes-compra-db.js', 'js/ordenes-compra-vistas.js', 'js/proveedores.js', 'js/proveedores-db.js'];
+const NUEVOS = ['js/ordenes-compra.js', 'js/ordenes-compra-db.js', 'js/ordenes-compra-vistas.js', 'js/ordenes-compra-pago.js', 'js/proveedores.js', 'js/proveedores-db.js'];
 
 function importsRelativos(src) {
   return [...src.matchAll(/from\s+["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1].replace(/\?.*$/, ''));
@@ -33,8 +33,10 @@ test('exige el claim de staff antes de cargar nada (B-13) y los módulos nuevos 
   assert.match(html, /from "\.\/js\/ordenes-compra\.js\?v=oc1"/);
   // Los módulos que cambiaron en la spec 057 suben de versión para que el navegador no use la copia anterior.
   // La spec 058 (correo) subió a ?v=058 los que tocó: ordenes-compra-vistas.js, proveedores.js y proveedores-db.js.
-  assert.match(html, /from \"\.\/js\/ordenes-compra-db\.js\?v=057\"/);
-  for (const m of ['ordenes-compra-vistas.js', 'proveedores.js', 'proveedores-db.js']) assert.match(html, new RegExp(`from \"\\./js/${m.replace(/\./g, '\\.')}\\?v=058\"`));
+  // La spec 063 (seguimiento de pago) subió a ?v=063 los que tocó: ordenes-compra-db.js y ordenes-compra-vistas.js.
+  assert.match(html, /from \"\.\/js\/ordenes-compra-db\.js\?v=063\"/);
+  assert.match(html, /from \"\.\/js\/ordenes-compra-vistas\.js\?v=063\"/);
+  for (const m of ['proveedores.js', 'proveedores-db.js']) assert.match(html, new RegExp(`from \"\\./js/${m.replace(/\./g, '\\.')}\\?v=058\"`));
 });
 
 test('tres pestañas, «Órdenes de compra», «Proveedores» y «Maestro de materiales», y un encabezado con el nombre de la pantalla', () => {
@@ -167,7 +169,7 @@ test('spec 058: el controlador lee, rellena y limpia el correo del proveedor', (
 });
 
 test('spec 058: los módulos tocados se piden con ?v=058 (también el import interno de proveedores-db.js)', () => {
-  for (const m of ['proveedores.js', 'proveedores-db.js', 'ordenes-compra-vistas.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=058"`), m);
+  for (const m of ['proveedores.js', 'proveedores-db.js']) assert.match(html, new RegExp(`from "\\./js/${m.replace('.', '\\.')}\\?v=058"`), m); // las vistas pasaron a ?v=063 (spec 063)
   assert.match(lee('js/proveedores-db.js'), /from '\.\/proveedores\.js\?v=058'/);
 });
 
@@ -215,4 +217,68 @@ test('spec 058: la pantalla no escribe nada del envío: ni la colección mail, n
   }
   // el envío usa los datos que la pantalla ya cargó: ni lecturas nuevas ni historial escrito desde el navegador
   assert.match(html, /orden\.envios|ordenAbierta\.envios|\.envios\)/);
+});
+
+// ---- Spec 063: seguimiento de pago (estado Pagada, factura, fecha de pago, comentario)
+const panel = () => html.slice(html.indexOf('id="modal-seguimiento"'), html.indexOf('id="modal-oc"') > html.indexOf('id="modal-seguimiento"') ? html.indexOf('id="modal-oc"') : html.indexOf('id="zona-impresion"'));
+
+test('spec 063: la lista de órdenes tiene 8 columnas con «Pagado con factura N°» y «Fecha de pago» junto a «Estado»', () => {
+  const tabla = html.slice(html.indexOf('id="tbody-ordenes"') - 700, html.indexOf('id="tbody-ordenes"'));
+  const th = [...tabla.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1]);
+  assert.deepEqual(th, ['Número', 'Fecha', 'Proveedor', 'Total', 'Estado', 'Pagado con factura N°', 'Fecha de pago', '']);
+});
+
+test('spec 063: el panel de seguimiento tiene menú de estado (select), N° de factura, calendario de fecha, motivo, comentario y Guardar', () => {
+  const p = panel();
+  assert.ok(p.length > 200, 'existe el panel');
+  assert.match(p, /role="dialog"/);
+  assert.match(p, /<select id="seg-estado"/);
+  assert.match(p, /<input type="text" id="seg-factura" maxlength="20"/);
+  assert.match(p, /<input type="date" id="seg-fecha"/);
+  assert.match(p, /<textarea id="seg-motivo" maxlength="500"/);
+  assert.match(p, /<textarea id="seg-comentario" maxlength="500"/);
+  for (const id of ['seg-bloque-pago', 'seg-bloque-motivo', 'seg-resumen', 'seg-solo-lectura', 'seg-contador', 'aviso-seguimiento', 'btn-guardar-seguimiento', 'btn-cancelar-seguimiento', 'modal-seguimiento-cerrar']) {
+    assert.match(p, new RegExp(`id="${id}"`), id);
+  }
+});
+
+test('spec 063: el seguimiento se guarda con guardarSeguimientoOrden (o anularOrden) en transacción, con confirmación y sin doble clic', () => {
+  assert.match(html, /from "\.\/js\/ordenes-compra-pago\.js\?v=063"/);
+  assert.match(html, /guardarSeguimientoOrden\(\{ \.\.\.escritura,/);
+  assert.match(html, /transicionesDisponibles\(/);
+  assert.match(html, /htmlOpcionesEstado\(/);
+  assert.match(html, /puedeRegistrarPago\(/);
+  assert.match(html, /conBoton\(\$\("btn-guardar-seguimiento"\)/);
+  assert.match(html, /window\.confirm\([^)]*(Pagada|Emitida)/);
+  assert.match(html, /textoErrorOC\(e\), "error"/);
+  assert.match(html, /estadoVisto/);
+  assert.match(html, /hoy: hoyIso\(\)/);
+});
+
+test('spec 063: «Anulada» desde el panel reutiliza anularOrden y deshabilita el comentario en ese guardado', () => {
+  assert.match(html, /await anularOrden\(\{ \.\.\.escritura, numero, motivo: \$\("seg-motivo"\)\.value/);
+  assert.match(html, /\$\("seg-comentario"\)\.disabled = destino === "Anulada"/);
+});
+
+test('spec 063: el globo del comentario se llena con textContent (nunca innerHTML) y se abre con cursor, teclado y toque', () => {
+  assert.match(html, /id="globo-comentario"[^>]*role="tooltip"/);
+  assert.match(html, /globo\.textContent = /);
+  assert.doesNotMatch(html, /globo\.innerHTML/);
+  assert.match(html, /addEventListener\("mouseover"/);
+  assert.match(html, /addEventListener\("focusin"/);
+  assert.match(html, /accion === "ver-comentario"/);
+  assert.match(html, /ev\.key === "Escape"/);
+});
+
+test('spec 063: el permiso de pago sale del perfil staff ya leído; las reglas de Firestore siguen siendo la barrera real', () => {
+  assert.match(html, /puedePago = puedeRegistrarPago\(perfil\)/);
+  assert.match(html, /perfilActual = perfil/);
+  assert.match(html, /\$\("seg-solo-lectura"\)\.classList\.toggle\("hidden", puedePago\)/);
+});
+
+test('spec 063: ninguna escritura nueva toca gastos_ingresos, comprobantes_tributarios ni los campos comerciales o de envío de la orden', () => {
+  for (const f of ['js/ordenes-compra-pago.js', 'js/ordenes-compra-db.js']) assert.doesNotMatch(lee(f), /gastos_ingresos|comprobantes_tributarios/, f);
+  const db = lee('js/ordenes-compra-db.js');
+  const bloque = db.slice(db.indexOf('export async function guardarSeguimientoOrden'), db.indexOf('export function textoErrorOC'));
+  assert.doesNotMatch(bloque, /datos\.(lineas|neto|iva|total|proveedor|proveedorId|envios|numero|fecha|creada\w*|anulada\w*)\b/);
 });

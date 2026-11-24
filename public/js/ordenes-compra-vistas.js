@@ -105,26 +105,58 @@ export function htmlFilasMateriales(catalogo, { puedeEditar = false } = {}) {
   }).join('');
 }
 
-/** Filas (<tr>) de las órdenes emitidas, la más nueva primero. «Anular» solo para quien puede y solo si está Emitida. */
+const INSIGNIA = 'px-2 py-0.5 rounded-full text-[11px] font-bold';
+const ICONO_COMENTARIO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path d="M2 5a3 3 0 013-3h10a3 3 0 013 3v6a3 3 0 01-3 3H9l-4 3.5V14a3 3 0 01-3-3V5z"/></svg>';
+
+/** Insignia del estado de una orden según su valor real (spec 063, R16): un valor desconocido se muestra tal cual (escapado), no como «Emitida». */
+function insigniaEstado(estado) {
+  if (estado === 'Emitida') return `<span class="${INSIGNIA} bg-emerald-100 text-emerald-800">Emitida</span>`;
+  if (estado === 'Pagada') return `<span class="${INSIGNIA} bg-sky-100 text-sky-800">Pagada</span>`;
+  if (estado === 'Anulada') return `<span class="${INSIGNIA} bg-slate-200 text-slate-600">Anulada</span>`;
+  return `<span class="${INSIGNIA} bg-amber-100 text-amber-800">${esc(estado ?? '')}</span>`;
+}
+
+/**
+ * Filas (<tr>) de las órdenes emitidas, la más nueva primero (8 columnas, spec 063). «Anular» solo para quien puede y solo si está Emitida
+ * (una Pagada no se anula). «Seguimiento» (pago y comentario) en las Emitidas y Pagadas. El texto del comentario NO va en la fila: la página
+ * lo pone en el globo con textContent; aquí solo se marca que existe.
+ */
 export function htmlFilasOrdenes(ordenes, { puedeAnular = false } = {}) {
   const lista = (Array.isArray(ordenes) ? ordenes : []).filter((o) => o && o.numero)
     .sort((a, b) => String(b.numero).localeCompare(String(a.numero), 'es', { numeric: true }));
   if (lista.length === 0) {
-    return '<tr><td colspan="6" class="py-6 text-center text-slate-400 text-sm">No hay órdenes de compra todavía.</td></tr>';
+    return '<tr><td colspan="8" class="py-6 text-center text-slate-400 text-sm">No hay órdenes de compra todavía.</td></tr>';
   }
   return lista.map((o) => {
     const anulada = o.estado === 'Anulada';
-    const estado = anulada
-      ? '<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[11px] font-bold">Anulada</span>'
-      : '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">Emitida</span>';
+    const pagada = o.estado === 'Pagada';
     const datos = `data-numero="${esc(o.numero)}"`;
     const ver = `<button type="button" data-accion="ver-orden" ${datos} class="${BOTON} border-slate-300 text-slate-700 hover:bg-slate-100">Ver / imprimir</button>`;
-    const anular = puedeAnular && !anulada
+    const seguimiento = o.estado === 'Emitida' || pagada
+      ? ` <button type="button" data-accion="seguimiento-orden" ${datos} class="${BOTON} border-sky-300 text-sky-800 hover:bg-sky-50">Seguimiento</button>`
+      : '';
+    const anular = puedeAnular && o.estado === 'Emitida'
       ? ` <button type="button" data-accion="anular-orden" ${datos} class="${BOTON} border-rose-300 text-rose-700 hover:bg-rose-50">Anular</button>`
       : '';
+    const conComentario = typeof o.comentario === 'string' && o.comentario.trim() !== '';
+    const indicador = conComentario
+      ? ` <button type="button" data-accion="ver-comentario" ${datos} aria-label="Ver comentario de ${esc(o.numero)}" class="inline-flex align-middle text-sky-700 hover:text-sky-900">${ICONO_COMENTARIO}</button>`
+      : '';
+    const marca = conComentario ? ' data-tiene-comentario="1"' : '';
     const proveedor = o.proveedor && typeof o.proveedor === 'object' ? o.proveedor.razonSocial : '';
-    return `<tr class="border-b border-slate-100 ${anulada ? 'text-slate-400' : ''}"><td class="${TD} font-semibold whitespace-nowrap">${esc(o.numero)}</td><td class="${TD} whitespace-nowrap">${esc(fecha(o.fecha))}</td><td class="${TD}">${esc(proveedor)}</td><td class="${TD} text-right whitespace-nowrap">${esc(formatoPesos(o.total))}</td><td class="${TD}">${estado}</td><td class="${TD} text-right whitespace-nowrap">${ver}${anular}</td></tr>`;
+    const factura = pagada && typeof o.facturaNumero === 'string' && o.facturaNumero !== '' ? esc(o.facturaNumero) : '—';
+    const pago = pagada && esFechaIso(String(o.fechaPago ?? '')) ? esc(fecha(o.fechaPago)) : '—';
+    return `<tr class="border-b border-slate-100 ${anulada ? 'text-slate-400' : ''}"><td class="${TD} font-semibold whitespace-nowrap" ${datos}${marca}>${esc(o.numero)}${indicador}</td><td class="${TD} whitespace-nowrap">${esc(fecha(o.fecha))}</td><td class="${TD}">${esc(proveedor)}</td><td class="${TD} text-right whitespace-nowrap">${esc(formatoPesos(o.total))}</td><td class="${TD}">${insigniaEstado(o.estado)}</td><td class="${TD} whitespace-nowrap">${factura}</td><td class="${TD} whitespace-nowrap">${pago}</td><td class="${TD} text-right whitespace-nowrap">${ver}${seguimiento}${anular}</td></tr>`;
   }).join('');
+}
+
+/** Opciones del menú de estado del panel de seguimiento: las transiciones válidas, con la actual elegida (spec 063, R13). Todo escapado. */
+export function htmlOpcionesEstado(transiciones, actual) {
+  const lista = Array.isArray(transiciones) ? transiciones : [];
+  if (lista.length === 0 || actual === 'Anulada') {
+    return `<option value="${esc(actual ?? '')}" selected disabled>${esc(actual ?? '')}</option>`;
+  }
+  return lista.map((e) => `<option value="${esc(e)}"${e === actual ? ' selected' : ''}>${esc(e)}</option>`).join('');
 }
 
 /** Filas del borrador de una orden: cada línea con su valor y un botón para quitarla (solo del borrador, antes de emitir). */
