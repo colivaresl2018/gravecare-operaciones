@@ -12,6 +12,9 @@ import {
   RAMOS_MAESTRO, TIPOS_MATERIAL, validarMaterial, validarOrden, formatearNumeroOC, esNumeroOC, normalizarCodigo, calcularTotales,
 } from './ordenes-compra.js';
 import { esFechaIso } from './fechas-semana.js';
+import {
+  transicionesDisponibles, validarPago, validarComentario, textoReversion, puedeRegistrarPago,
+} from './ordenes-compra-pago.js';
 
 export const COLECCION_MATERIALES = 'materiales';
 export const COLECCION_ORDENES = 'ordenesCompra';
@@ -183,6 +186,103 @@ export async function anularOrden({ ejecutarTransaccion, refs, numero, motivo, u
     if (estado === 'Anulada') throw new Error(`La orden ${numero} ya está anulada.`);
     if (estado !== 'Emitida') throw new Error(`La orden ${numero} no se puede anular desde el estado «${estado}».`);
     tx.update(ref, { estado: 'Anulada', anuladaEl: ahora.toISOString(), anuladaPor: uid, motivoAnulacion: razon });
+  });
+}
+
+/**
+ * Seguimiento de pago de una OC (spec 063): marcar Pagada con N° de factura y fecha, corregirlos, revertir a Emitida con motivo y
+ * escribir el comentario. UNA escritura atómica con solo los campos de la transición: nunca líneas, montos, proveedor ni envíos (R10).
+ * `estadoVisto` es el estado que tenía la pantalla al abrir el panel: si otra persona lo cambió, no se escribe (R14, CA11).
+ * Anular no pasa por aquí (usa `anularOrden`). Quién puede lo deciden las reglas; `perfil` solo evita ofrecer lo que será rechazado.
+ * @returns {Promise<object>} los campos escritos
+ */
+export async function guardarSeguimientoOrden({
+  ejecutarTransaccion, refs, numero, estadoVisto, estadoNuevo, facturaNumero, fechaPago, comentario, motivo, perfil, uid,
+  ahora = new Date(), hoy = ahora.toISOString().slice(0, 10),
+}) {
+  if (!esNumeroOC(numero)) throw new Error('El número de la orden de compra no es válido.');
+  exigirUsuario(uid);
+  const puedePago = puedeRegistrarPago(perfil);
+  const iso = ahora.toISOString();
+  return ejecutarTransaccion(async (tx) => {
+    const ref = refs.orden(numero);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(`La orden ${numero} no existe.`);
+    const orden = snap.data() || {};
+    const actual = orden.estado;
+    if (actual !== estadoVisto) {
+      throw Object.assign(
+        new Error(`La orden ${numero} cambió de estado mientras la editabas (ahora está «${actual}»). Cierra el panel y vuelve a abrirlo.`),
+        { code: 'estado-cambiado' },
+      );
+    }
+    if (actual === 'Anulada') throw new Error(`La orden ${numero} está anulada: no admite cambios.`);
+    const destino = estadoNuevo ?? actual;
+    if (destino === 'Anulada') {
+      if (actual !== 'Emitida') throw new Error(`La orden ${numero} no se puede anular desde el estado «${actual}».`);
+      throw new Error('Para anular la orden usa la opción «Anular».');
+    }
+    const guardadoFactura = typeof orden.facturaNumero === 'string' ? orden.facturaNumero : '';
+    const guardadoFecha = typeof orden.fechaPago === 'string' ? orden.fechaPago : '';
+    const sinPermisoPago = () => new Error('Tu usuario no puede registrar ni cambiar pagos: pídeselo al dueño o a un administrador.');
+    const datos = {};
+
+    if (destino !== actual) {
+      if (!puedePago) throw sinPermisoPago();
+      if (!transicionesDisponibles({ estado: actual, puedePago: true, puedeAnular: false }).includes(destino)) {
+        throw new Error(`La orden ${numero} no puede pasar de «${actual}» a «${destino}».`);
+      }
+      if (destino === 'Pagada') {
+        const r = validarPago({ facturaNumero, fechaPago, fechaOrden: orden.fecha, hoy });
+        if (!r.ok) throw new Error(r.errores.join(' '));
+        datos.estado = 'Pagada';
+        datos.facturaNumero = r.datos.facturaNumero;
+        datos.fechaPago = r.datos.fechaPago;
+        datos.pagoRegistradoEl = iso;
+        datos.pagoRegistradoPor = uid;
+      } else {
+        const r = textoReversion({ facturaNumero: guardadoFactura, fechaPago: guardadoFecha, motivo });
+        if (!r.ok) throw new Error(r.errores.join(' '));
+        datos.estado = 'Emitida';
+        datos.facturaNumero = '';
+        datos.fechaPago = '';
+        datos.pagoRevertidoEl = iso;
+        datos.pagoRevertidoPor = uid;
+        datos.motivoReversionPago = r.texto;
+      }
+    } else {
+      const pidioPago = facturaNumero !== undefined || fechaPago !== undefined;
+      if (pidioPago && actual !== 'Pagada') {
+        if (String(facturaNumero ?? '').trim() || String(fechaPago ?? '').trim()) throw new Error('Para guardar factura y fecha marca la orden como Pagada.');
+      } else if (pidioPago) {
+        const factura = facturaNumero === undefined ? guardadoFactura : String(facturaNumero).trim();
+        const fecha = fechaPago === undefined ? guardadoFecha : String(fechaPago).trim();
+        if (factura !== guardadoFactura || fecha !== guardadoFecha) {
+          if (!puedePago) throw sinPermisoPago();
+          const r = validarPago({ facturaNumero: factura, fechaPago: fecha, fechaOrden: orden.fecha, hoy });
+          if (!r.ok) throw new Error(r.errores.join(' '));
+          if (r.datos.facturaNumero !== guardadoFactura) datos.facturaNumero = r.datos.facturaNumero;
+          if (r.datos.fechaPago !== guardadoFecha) datos.fechaPago = r.datos.fechaPago;
+          datos.pagoRegistradoEl = iso;
+          datos.pagoRegistradoPor = uid;
+        }
+      }
+    }
+
+    if (comentario !== undefined) {
+      const c = validarComentario(comentario);
+      if (!c.ok) throw new Error(c.errores.join(' '));
+      const guardado = typeof orden.comentario === 'string' ? orden.comentario.trim() : '';
+      if (c.comentario !== guardado) {
+        datos.comentario = c.comentario;
+        datos.comentarioActualizadoEl = iso;
+        datos.comentarioActualizadoPor = uid;
+      }
+    }
+
+    if (Object.keys(datos).length === 0) throw new Error('No hay ningún cambio para guardar.');
+    tx.update(ref, datos);
+    return datos;
   });
 }
 
