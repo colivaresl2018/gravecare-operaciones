@@ -3,11 +3,11 @@
  *
  * - Las dependencias de Firestore (`guardar` = setDoc y `referencia(id)`) se inyectan: se prueba sin red.
  * - Solo se escribe con `merge`; NUNCA se borra un documento. «Quitar» = `activo: false` (campo aditivo) y se puede reactivar.
- * - Qué se escribe: rutas → `cementerio`, `eje`, `diaSemana`, `activo`; feriados → `nombre`, `alcance`, `activo` (la fecha va en el id).
+ * - Qué se escribe: rutas → `cementerio`, `eje`, `diaSemana`, `region` (opcional), `activo`; feriados → `nombre`, `alcance`, `region` (solo regionales), `activo` (la fecha va en el id).
  *   Siempre con `actualizadoPor` (uid) y `actualizadoEn` (texto ISO). Ningún otro campo ni colección.
  * - Quién puede escribir lo deciden las reglas de Firestore (rutas: dueño; feriados: administrador). Aquí solo se traduce el rechazo.
  */
-import { validarRuta, validarFeriado } from './config-planificacion.js';
+import { validarRuta, validarFeriado } from './config-planificacion.js?v=cfg5';
 import { esFechaIso } from './fechas-semana.js';
 
 export const COLECCION_RUTAS = 'rutas';
@@ -32,7 +32,7 @@ export async function guardarRuta({ guardar, referencia, id, datos, uid, ahora =
   exigirUsuario(uid);
   const r = validarRuta(datos);
   if (!r.ok) throw new Error(r.errores.join(' '));
-  const escrito = { ...r.datos, activo: true, ...quien(uid, ahora) };
+  const escrito = { ...r.datos, activo: true, ...quien(uid, ahora) }; // r.datos trae `region` solo si se eligió una (merge conserva la anterior)
   await guardar(referencia(idLimpio), escrito, { merge: true });
   return escrito;
 }
@@ -74,8 +74,8 @@ export async function guardarFeriado({ guardar, referencia, datos, uid, ahora = 
   exigirUsuario(uid);
   const r = validarFeriado(datos);
   if (!r.ok) throw new Error(r.errores.join(' '));
-  const { fecha, nombre, alcance } = r.datos;
-  const escrito = { nombre, alcance, activo: true, ...quien(uid, ahora) };
+  const { fecha, nombre, alcance, region } = r.datos; // region solo existe cuando el alcance es «regional»
+  const escrito = { nombre, alcance, ...(region ? { region } : {}), activo: true, ...quien(uid, ahora) };
   await guardar(referencia(fecha), escrito, { merge: true });
   return escrito;
 }

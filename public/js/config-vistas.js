@@ -6,7 +6,7 @@
  */
 import { esc } from './html-seguro.js';
 import { DIAS_SEMANA, esFechaIso, diaSemanaIso, fechaDisplay } from './fechas-semana.js';
-import { textoErrorGuardar } from './config-planificacion-db.js';
+import { textoErrorGuardar } from './config-planificacion-db.js?v=cfg2';
 
 const TD = 'py-2.5 px-3 align-top';
 const BOTON = 'px-2.5 py-1 rounded-lg text-[11px] font-bold border transition';
@@ -23,7 +23,7 @@ export function htmlResumenRutas(resumen) {
 
 function botonesRuta(f) {
   if (f.estado === 'sin-ruta') return '';
-  const datos = `data-id="${esc(f.id)}" data-cementerio="${esc(f.nombre)}" data-eje="${esc(f.eje)}" data-dia="${esc(f.diaSemana ?? '')}"`;
+  const datos = `data-id="${esc(f.id)}" data-cementerio="${esc(f.nombre)}" data-eje="${esc(f.eje)}" data-dia="${esc(f.diaSemana ?? '')}" data-region="${esc(f.region ?? '')}"`;
   const editar = `<button type="button" data-accion="editar-ruta" ${datos} class="${BOTON} border-slate-300 text-slate-700 hover:bg-slate-100">Editar</button>`;
   const estado = f.estado === 'inactiva'
     ? `<button type="button" data-accion="reactivar-ruta" ${datos} class="${BOTON} border-emerald-300 text-emerald-800 hover:bg-emerald-50">Reactivar</button>`
@@ -49,7 +49,7 @@ export function htmlFilasRutas(filas, { puedeEditar = false } = {}) {
       ? `<td class="${TD} w-8"><input type="checkbox" class="chk-cementerio" data-cementerio="${esc(f.nombre)}" data-sin-ruta="${sinRuta ? '1' : '0'}" aria-label="Marcar ${esc(f.nombre)}"></td>`
       : '';
     const acciones = puedeEditar ? `<td class="${TD} text-right whitespace-nowrap">${botonesRuta(f)}</td>` : '';
-    return `<tr class="border-b border-slate-100 ${f.estado === 'inactiva' ? 'text-slate-400' : ''}">${casilla}<td class="${TD} font-semibold">${esc(f.etiqueta || f.nombre)}</td><td class="${TD}">${eje}</td><td class="${TD}">${dia}</td><td class="${TD}">${estado}</td>${acciones}</tr>`;
+    return `<tr class="border-b border-slate-100 ${f.estado === 'inactiva' ? 'text-slate-400' : ''}">${casilla}<td class="${TD} font-semibold">${esc(f.etiqueta || f.nombre)}${f.region ? `<span class="block text-[11px] font-normal text-slate-500">${esc(f.region)}</span>` : ''}</td><td class="${TD}">${eje}</td><td class="${TD}">${dia}</td><td class="${TD}">${estado}</td>${acciones}</tr>`;
   }).join('');
 }
 
@@ -73,11 +73,12 @@ export function htmlFilasFeriados(docs, { puedeEditar = false } = {}) {
     const activo = datos.activo !== false;
     const regional = String(datos.alcance ?? '').trim().toLowerCase() === 'regional';
     const dia = DIAS_SEMANA[diaSemanaIso(d.id) - 1] || '';
+    const region = regional ? String(datos.region ?? '').trim() : '';
     const estado = activo
       ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">Activo</span>'
       : '<span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[11px] font-bold">Quitado</span>';
     const acciones = puedeEditar ? `<td class="${TD} text-right whitespace-nowrap">${botonesFeriado(d.id, activo)}</td>` : '';
-    return `<tr class="border-b border-slate-100 ${activo ? '' : 'text-slate-400'}"><td class="${TD} font-semibold whitespace-nowrap">${esc(fechaDisplay(d.id))}</td><td class="${TD}">${esc(dia)}</td><td class="${TD}">${esc(String(datos.nombre ?? '').trim() || 'Feriado')}</td><td class="${TD}">${regional ? 'Regional' : 'Nacional'}</td><td class="${TD}">${estado}</td>${acciones}</tr>`;
+    return `<tr class="border-b border-slate-100 ${activo ? '' : 'text-slate-400'}"><td class="${TD} font-semibold whitespace-nowrap">${esc(fechaDisplay(d.id))}</td><td class="${TD}">${esc(dia)}</td><td class="${TD}">${esc(String(datos.nombre ?? '').trim() || 'Feriado')}</td><td class="${TD}">${regional ? 'Regional' : 'Nacional'}${region ? ` · ${esc(region)}` : ''}</td><td class="${TD}">${estado}</td>${acciones}</tr>`;
   }).join('');
 }
 

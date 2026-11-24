@@ -1,8 +1,8 @@
 /**
  * config-planificacion.js — lógica pura de la pantalla «Rutas y feriados» (sin Firestore ni DOM).
  *
- * - `rutas/{idCementerio}`: `cementerio`, `eje`, `diaSemana` (1 = lunes … 5 = viernes). Solo las escribe el dueño (reglas).
- * - `feriados/{AAAA-MM-DD}`: `nombre`, `alcance` («nacional» | «regional»). Solo los escribe un administrador (reglas).
+ * - `rutas/{idCementerio}`: `cementerio`, `eje`, `diaSemana` (1 = lunes … 5 = viernes), `region` (opcional, spec 062). Solo las escribe el dueño (reglas).
+ * - `feriados/{AAAA-MM-DD}`: `nombre`, `alcance` («nacional» | «regional»), `region` (opcional, solo si es regional; spec 062). Solo los escribe un administrador (reglas).
  * - «Quitar» no borra: marca `activo: false` (campo aditivo). Los lectores ignoran solo `activo === false`.
  * - Nada de datos escritos aquí: ni ejes, ni días por cementerio, ni feriados. Los carga el dueño o el administrador.
  * - Los permisos de acá solo deciden qué botones se muestran; la barrera real son las reglas de Firestore.
@@ -13,11 +13,29 @@ import { obtenerCementerio } from './planificacion-servicios.js';
 import { CATALOGO_CEMENTERIOS } from './ubicacion-trabajo.js?v=cfg4'; // con versión: el navegador no reutiliza la copia del catálogo anterior
 
 export const ALCANCES = ['nacional', 'regional'];
+
+/**
+ * Regiones de Chile con su nombre corto (lista cerrada). Copia de `nombreCorto` en docs/referencias/regiones-comunas-chile.json
+ * del repo web: la función `calcularPrimeraVisitaAlPagar` compara contra estos mismos nombres (spec 062).
+ */
+export const REGIONES_CHILE = [
+  'Región de Arica y Parinacota', 'Región de Tarapacá', 'Región de Antofagasta', 'Región de Atacama', 'Región de Coquimbo',
+  'Región de Valparaíso', 'Región Metropolitana', "Región de O'Higgins", 'Región del Maule', 'Región de Ñuble', 'Región del Biobío',
+  'Región de La Araucanía', 'Región de Los Ríos', 'Región de Los Lagos', 'Región de Aysén del General Carlos Ibáñez del Campo',
+  'Región de Magallanes y de la Antártica Chilena',
+];
 const MAX_CEMENTERIO = 120;
 const MAX_EJE = 40;
 const MAX_NOMBRE_FERIADO = 80;
 
 const texto = (v) => String(v ?? '').trim();
+
+/** Nombre canónico de la región (sin importar tildes ni mayúsculas). '' si no se indicó ninguna; null si no está en la lista. */
+export function regionDe(valor) {
+  const clave = normalizarNombre(valor);
+  if (!clave) return '';
+  return REGIONES_CHILE.find((r) => normalizarNombre(r) === clave) ?? null;
+}
 
 /** Id de documento para un cementerio nuevo: su nombre sin tildes ni símbolos, con guiones. */
 export function idDeCementerio(nombre) {
@@ -65,7 +83,7 @@ function diaValido(valor) {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
 }
 
-/** @returns {{ok: true, datos: {cementerio: string, eje: string, diaSemana: number}} | {ok: false, errores: string[]}} */
+/** @returns {{ok: true, datos: {cementerio: string, eje: string, diaSemana: number, region?: string}} | {ok: false, errores: string[]}} */
 export function validarRuta(entrada) {
   const e = entrada && typeof entrada === 'object' ? entrada : {};
   const cementerio = texto(e.cementerio);
@@ -77,7 +95,9 @@ export function validarRuta(entrada) {
   if (!eje) errores.push('Falta el eje.');
   else if (eje.length > MAX_EJE) errores.push(`El nombre del eje es demasiado largo (máximo ${MAX_EJE} letras).`);
   if (diaSemana === null) errores.push('El día de ruta debe ser de lunes a viernes.');
-  return errores.length ? { ok: false, errores } : { ok: true, datos: { cementerio, eje, diaSemana } };
+  const region = regionDe(e.region); // opcional: sin región no se escribe el campo (el documento anterior se conserva)
+  if (region === null) errores.push('La región no es válida: elígela de la lista.');
+  return errores.length ? { ok: false, errores } : { ok: true, datos: { cementerio, eje, diaSemana, ...(region ? { region } : {}) } };
 }
 
 /**
@@ -86,7 +106,7 @@ export function validarRuta(entrada) {
  * nombre con el que se guardó (las matrices lo buscan por ese nombre).
  * @returns {{items: Array<{id: string, datos: object}>, errores: string[]}}
  */
-export function prepararLoteRutas({ cementerios, eje, diaSemana, existentes, grupos = [] } = {}) {
+export function prepararLoteRutas({ cementerios, eje, diaSemana, region, existentes, grupos = [] } = {}) {
   const vistos = new Set();
   const nombres = [];
   for (const c of Array.isArray(cementerios) ? cementerios : []) {
@@ -103,7 +123,7 @@ export function prepararLoteRutas({ cementerios, eje, diaSemana, existentes, gru
   const errores = [];
   const lista = Array.isArray(existentes) ? existentes : [];
   for (const nombre of nombres) {
-    const r = validarRuta({ cementerio: nombre, eje, diaSemana });
+    const r = validarRuta({ cementerio: nombre, eje, diaSemana, region });
     if (!r.ok) {
       for (const m of r.errores) if (!errores.includes(m)) errores.push(m);
       continue;
@@ -118,7 +138,7 @@ export function prepararLoteRutas({ cementerios, eje, diaSemana, existentes, gru
   return errores.length ? { items: [], errores } : { items, errores: [] };
 }
 
-/** @returns {{ok: true, datos: {fecha: string, nombre: string, alcance: string}} | {ok: false, errores: string[]}} */
+/** @returns {{ok: true, datos: {fecha: string, nombre: string, alcance: string, region?: string}} | {ok: false, errores: string[]}} */
 export function validarFeriado(entrada) {
   const e = entrada && typeof entrada === 'object' ? entrada : {};
   const fecha = texto(e.fecha);
@@ -129,7 +149,15 @@ export function validarFeriado(entrada) {
   if (!nombre) errores.push('Falta el nombre del feriado.');
   else if (nombre.length > MAX_NOMBRE_FERIADO) errores.push(`El nombre del feriado es demasiado largo (máximo ${MAX_NOMBRE_FERIADO} letras).`);
   if (!ALCANCES.includes(alcance)) errores.push('El alcance debe ser «nacional» o «regional».');
-  return errores.length ? { ok: false, errores } : { ok: true, datos: { fecha, nombre, alcance } };
+  // La región solo se pide (y se guarda) cuando el alcance es «regional»; con «nacional» el documento no cambia de forma.
+  let region = '';
+  if (alcance === 'regional') {
+    const r = regionDe(e.region);
+    if (r === '') errores.push('Falta la región del feriado regional: elígela de la lista.');
+    else if (r === null) errores.push('La región no es válida: elígela de la lista.');
+    else region = r;
+  }
+  return errores.length ? { ok: false, errores } : { ok: true, datos: { fecha, nombre, alcance, ...(region ? { region } : {}) } };
 }
 
 /** `dd/mm/aaaa` o `dd-mm-aaaa` → `AAAA-MM-DD`; lo demás se devuelve igual. */
@@ -139,9 +167,9 @@ function fechaAIso(bruta) {
 }
 
 /**
- * Lee una lista pegada: una línea por feriado, «fecha | nombre | alcance» (alcance opcional; también vale «;» o tabulación).
+ * Lee una lista pegada: una línea por feriado, «fecha | nombre | alcance | región» (alcance opcional; la región solo para los regionales; también vale «;» o tabulación).
  * Las líneas vacías o que empiezan con # se saltan. Las líneas con problemas se informan con su número y no impiden leer las buenas.
- * @returns {{filas: Array<{linea: number, fecha: string, nombre: string, alcance: string}>, errores: Array<{linea: number, motivo: string}>}}
+ * @returns {{filas: Array<{linea: number, fecha: string, nombre: string, alcance: string, region?: string}>, errores: Array<{linea: number, motivo: string}>}}
  */
 export function parsearFeriados(entrada) {
   const filas = [];
@@ -157,7 +185,7 @@ export function parsearFeriados(entrada) {
       errores.push({ linea, motivo: 'Falta el separador: escribe «fecha | nombre | alcance».' });
       return;
     }
-    const r = validarFeriado({ fecha: fechaAIso(partes[0].trim()), nombre: partes[1], alcance: partes[2] });
+    const r = validarFeriado({ fecha: fechaAIso(partes[0].trim()), nombre: partes[1], alcance: partes[2], region: partes[3] });
     if (!r.ok) {
       errores.push({ linea, motivo: r.errores[0] });
       return;
@@ -257,7 +285,7 @@ export function filasDeRutas(docsRutas, nombresCementerios, grupos = []) {
     if (!clave || filas.has(clave)) continue;
     const diaSemana = diaValido(d.diaSemana);
     filas.set(clave, {
-      nombre, etiqueta: g >= 0 ? grupoLista[g].nombre : nombre, id: String(item.id), eje: texto(d.eje), diaSemana,
+      nombre, etiqueta: g >= 0 ? grupoLista[g].nombre : nombre, id: String(item.id), eje: texto(d.eje), diaSemana, region: texto(d.region),
       dia: diaSemana ? DIAS_SEMANA[diaSemana - 1] : '', estado: estaActivo(d) ? 'activa' : 'inactiva',
     });
   }
@@ -267,11 +295,11 @@ export function filasDeRutas(docsRutas, nombresCementerios, grupos = []) {
     const clave = g >= 0 ? `grupo:${g}` : normalizarNombre(nombre);
     if (!clave || filas.has(clave)) continue;
     const etiqueta = g >= 0 ? grupoLista[g].nombre : nombre;
-    filas.set(clave, { nombre: etiqueta, etiqueta, id: '', eje: '', diaSemana: null, dia: '', estado: 'sin-ruta' });
+    filas.set(clave, { nombre: etiqueta, etiqueta, id: '', eje: '', diaSemana: null, dia: '', region: '', estado: 'sin-ruta' });
   }
   grupoLista.forEach((g, i) => {
     if (filas.has(`grupo:${i}`)) return;
-    filas.set(`grupo:${i}`, { nombre: g.nombre, etiqueta: g.nombre, id: '', eje: '', diaSemana: null, dia: '', estado: 'sin-ruta' });
+    filas.set(`grupo:${i}`, { nombre: g.nombre, etiqueta: g.nombre, id: '', eje: '', diaSemana: null, dia: '', region: '', estado: 'sin-ruta' });
   });
   return [...filas.values()].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'));
 }

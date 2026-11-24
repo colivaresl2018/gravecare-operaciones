@@ -107,7 +107,7 @@ test('guardarFeriados: una por fecha, sigue aunque alguna falle y informa cada r
   const filas = [
     { fecha: '2026-12-25', nombre: 'Navidad', alcance: 'nacional' },
     { fecha: '2026-12-26', nombre: 'Otro', alcance: 'nacional' },
-    { fecha: '2026-12-27', nombre: 'Y otro', alcance: 'regional' },
+    { fecha: '2026-12-27', nombre: 'Y otro', alcance: 'regional', region: 'Región Metropolitana' },
   ];
   const r = await guardarFeriados({ guardar: s.guardar, referencia: s.referencia('feriados'), filas, uid: 'u', ahora: AHORA });
   assert.deepEqual(r.map((x) => [x.id, x.ok]), [['2026-12-25', true], ['2026-12-26', false], ['2026-12-27', true]]);

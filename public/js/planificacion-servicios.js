@@ -12,7 +12,7 @@
  * - Las rutas llevan `?v=` para no usar una copia vieja del navegador (ya nos pasó con fechas-visita.js).
  */
 import { fechaGuardadaVisita } from './fechas-visita.js?v=ps1';
-import { fechaVisitaConOrigen, totalVisitasPlan } from './fechas-tentativas.js?v=ps1';
+import { fechaVisitaConOrigen, totalVisitasPlan } from './fechas-tentativas.js?v=pv062';
 import { esOrdenDePrueba } from './orden-pagada.js';
 import { SIN_EJE } from './rutas-planificacion.js?v=b5';
 import { numerosTerminados } from './servicio-terminado.js?v=ops13';

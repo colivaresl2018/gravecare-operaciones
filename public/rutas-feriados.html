@@ -80,6 +80,10 @@
         <label class="text-xs font-semibold text-slate-600 md:col-span-2">Otro cementerio (si no aparece en la tabla)
           <input type="text" id="ruta-cementerio-otro" maxlength="120" placeholder="Nombre completo del cementerio" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-normal">
         </label>
+        <label class="text-xs font-semibold text-slate-600 md:col-span-2">Región (opcional)
+          <select id="ruta-region" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-normal bg-white"></select>
+          <span class="block mt-1 font-normal text-slate-500">Se usa para aplicar los feriados regionales al calcular la primera visita. Si la dejas vacía, no se cambia la región que ya tenía el cementerio.</span>
+        </label>
       </div>
       <div class="flex flex-wrap gap-2 mt-4">
         <button type="button" id="btn-asignar-ruta" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Asignar a los cementerios marcados</button>
@@ -145,6 +149,9 @@
             <option value="regional">Regional</option>
           </select>
         </label>
+        <label id="feriado-region-wrap" class="hidden text-xs font-semibold text-slate-600 md:col-span-2">Región del feriado
+          <select id="feriado-region" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-normal bg-white"></select>
+        </label>
       </div>
       <div class="mt-4">
         <button type="button" id="btn-guardar-feriado" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Guardar feriado</button>
@@ -153,7 +160,7 @@
       <hr class="my-5 border-slate-200">
 
       <h2 class="text-sm font-bold text-[#002d1a] mb-1">Cargar una lista de feriados</h2>
-      <p class="text-xs text-slate-500 mb-2">Una línea por feriado: fecha, nombre y alcance (el alcance es opcional y por defecto es nacional), separados por «|». La fecha puede ir como AAAA-MM-DD o dd/mm/aaaa. Si alguna línea tiene un problema no se guarda nada hasta que la corrijas.</p>
+      <p class="text-xs text-slate-500 mb-2">Una línea por feriado: fecha, nombre y alcance (el alcance es opcional y por defecto es nacional), separados por «|». Si el alcance es regional, agrega la región al final (por ejemplo: 2026-12-31 | Nombre | regional | Región Metropolitana). La fecha puede ir como AAAA-MM-DD o dd/mm/aaaa. Si alguna línea tiene un problema no se guarda nada hasta que la corrijas.</p>
       <textarea id="feriados-texto" rows="6" placeholder="2026-12-25 | Nombre del feriado | nacional" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-mono"></textarea>
       <div class="mt-3">
         <button type="button" id="btn-cargar-feriados" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Cargar la lista</button>
@@ -170,9 +177,9 @@
     import { getFirestore, collection, getDocs, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esc } from "./js/html-seguro.js"; // AUD-01: todo dato de Firestore se escapa antes de ir en innerHTML
-    import { prepararLoteRutas, parsearFeriados, permisosDeStaff, cementeriosDeOrdenes, filasDeRutas, resumenDeRutas, gruposDeCatalogo } from "./js/config-planificacion.js?v=cfg4";
-    import { COLECCION_RUTAS, COLECCION_FERIADOS, guardarRutasEnLote, cambiarEstadoRuta, guardarFeriado, guardarFeriados, cambiarEstadoFeriado, textoErrorGuardar } from "./js/config-planificacion-db.js?v=cfg1";
-    import { htmlResumenRutas, htmlFilasRutas, htmlFilasFeriados, htmlListaErroresFeriados, htmlResultadosGuardado } from "./js/config-vistas.js?v=cfg2";
+    import { REGIONES_CHILE, prepararLoteRutas, parsearFeriados, permisosDeStaff, cementeriosDeOrdenes, filasDeRutas, resumenDeRutas, gruposDeCatalogo } from "./js/config-planificacion.js?v=cfg5";
+    import { COLECCION_RUTAS, COLECCION_FERIADOS, guardarRutasEnLote, cambiarEstadoRuta, guardarFeriado, guardarFeriados, cambiarEstadoFeriado, textoErrorGuardar } from "./js/config-planificacion-db.js?v=cfg2";
+    import { htmlResumenRutas, htmlFilasRutas, htmlFilasFeriados, htmlListaErroresFeriados, htmlResultadosGuardado } from "./js/config-vistas.js?v=cfg3";
     // Spec 057 (parte c): estado de los días de programación (solo lectura). El cálculo es el mismo de «Compra de flores»;
     // el botón para crear la orden de compra del día vive allí (planificacion-servicios.html).
     import { esOrdenPagada } from "./js/orden-pagada.js";
@@ -346,6 +353,19 @@
       }
     }
 
+    // Región (spec 062): lista cerrada. En rutas es opcional; en feriados solo aparece cuando el alcance es «regional».
+    function llenarRegiones(select, textoVacio) {
+      select.innerHTML = '<option value="">' + esc(textoVacio) + "</option>" + REGIONES_CHILE.map((r) => '<option value="' + esc(r) + '">' + esc(r) + "</option>").join("");
+    }
+    llenarRegiones($("ruta-region"), "Sin cambiar");
+    llenarRegiones($("feriado-region"), "Elige una región");
+    function mostrarRegionFeriado() {
+      const regional = $("feriado-alcance").value === "regional";
+      $("feriado-region-wrap").classList.toggle("hidden", !regional);
+      if (!regional) $("feriado-region").value = "";
+    }
+    $("feriado-alcance").addEventListener("change", mostrarRegionFeriado);
+
     function cementeriosMarcados() {
       const nombres = [...document.querySelectorAll("#tbody-rutas .chk-cementerio:checked")].map((c) => c.dataset.cementerio);
       const otro = $("ruta-cementerio-otro").value.trim();
@@ -357,7 +377,7 @@
       const salida = $("resultado-rutas");
       salida.innerHTML = "";
       if (!permisos.editaRutas) return;
-      const lote = prepararLoteRutas({ cementerios: cementeriosMarcados(), eje: $("ruta-eje").value, diaSemana: $("ruta-dia").value, existentes: docsRutas, grupos: gruposCementerios });
+      const lote = prepararLoteRutas({ cementerios: cementeriosMarcados(), eje: $("ruta-eje").value, diaSemana: $("ruta-dia").value, region: $("ruta-region").value, existentes: docsRutas, grupos: gruposCementerios });
       if (lote.errores.length) {
         salida.innerHTML = '<div class="p-3 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-800" role="alert">' + lote.errores.map((m) => esc(m)).join("<br>") + "</div>";
         return;
@@ -380,12 +400,13 @@
     $("tbody-rutas").addEventListener("click", (ev) => {
       const boton = ev.target.closest("button[data-accion]");
       if (!boton || !permisos.editaRutas) return;
-      const { accion, id, cementerio, eje, dia } = boton.dataset;
+      const { accion, id, cementerio, eje, dia, region } = boton.dataset;
       if (accion === "editar-ruta") {
         document.querySelectorAll("#tbody-rutas .chk-cementerio").forEach((c) => { c.checked = c.dataset.cementerio === cementerio; });
         $("ruta-cementerio-otro").value = "";
         $("ruta-eje").value = eje || "";
         $("ruta-dia").value = dia || "";
+        $("ruta-region").value = region || "";
         $("form-rutas").scrollIntoView({ behavior: "smooth", block: "center" });
         $("ruta-eje").focus();
         return;
@@ -409,10 +430,11 @@
       salida.innerHTML = "";
       if (!permisos.editaFeriados) return;
       try {
-        await guardarFeriado({ ...escrituraFeriados, datos: { fecha: $("feriado-fecha").value, nombre: $("feriado-nombre").value, alcance: $("feriado-alcance").value }, uid: usuarioActual.uid });
+        await guardarFeriado({ ...escrituraFeriados, datos: { fecha: $("feriado-fecha").value, nombre: $("feriado-nombre").value, alcance: $("feriado-alcance").value, region: $("feriado-region").value }, uid: usuarioActual.uid });
         $("feriado-fecha").value = "";
         $("feriado-nombre").value = "";
         $("feriado-alcance").value = "nacional";
+        mostrarRegionFeriado();
         salida.innerHTML = htmlResultadosGuardado([{ id: "feriado", ok: true }], "feriados");
         await recargarFeriados();
       } catch (e) {
