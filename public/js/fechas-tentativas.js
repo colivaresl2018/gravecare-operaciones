@@ -67,12 +67,40 @@ export function planDeOrden(orden) {
   return o.servicio?.planNombre || o.planNombre || o.tipoPlan || o.plan || 'Plan 4';
 }
 
-/** Fecha tentativa de la visita `numero` según el plan y la fecha de inicio, o null. */
+/**
+ * Primera visita guardada por el servidor al pagar un Plan (spec 062): ordenes/{id}.primeraVisitaTentativa.
+ * Solo se LEE; nunca se escribe desde el navegador.
+ * @returns {{sinFecha: true} | {fecha: Date} | null}  null = campo ausente o con forma inesperada (se calcula como antes).
+ */
+export function primeraVisitaGuardada(orden) {
+  const p = orden && typeof orden === 'object' ? orden.primeraVisitaTentativa : null;
+  if (!p || typeof p !== 'object' || Array.isArray(p) || !('fecha' in p)) return null;
+  if (p.fecha === null) return { sinFecha: true };
+  if (typeof p.fecha !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.fecha);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mes = Number(m[2]) - 1;
+  const dia = Number(m[3]);
+  const d = new Date(y, mes, dia, 12, 0, 0); // mediodía local: no cambia de día por la zona horaria
+  return d.getFullYear() === y && d.getMonth() === mes && d.getDate() === dia ? { fecha: d } : null;
+}
+
+/**
+ * Fecha tentativa de la visita `numero` según el plan, o null.
+ * Con primera visita guardada: V1 = esa fecha y Vn = V1 + (n − 1) × intervalo (sin ajustar a ruta ni feriados).
+ * Sin ella: fecha de inicio + n × intervalo, como siempre.
+ */
 export function fechaTentativaVisita(orden, numero) {
   const plan = planDeOrden(orden);
   const total = totalVisitasPlan(plan);
   const intervalo = intervaloMesesPlan(plan);
   if (!intervalo || !Number.isInteger(numero) || numero < 1 || numero > total) return null;
+  const guardada = primeraVisitaGuardada(orden);
+  if (guardada) {
+    if (guardada.sinFecha) return null;
+    return numero === 1 ? guardada.fecha : sumarMeses(guardada.fecha, (numero - 1) * intervalo);
+  }
   const inicio = fechaInicioOrden(orden);
   if (!inicio) return null;
   return sumarMeses(inicio, numero * intervalo);

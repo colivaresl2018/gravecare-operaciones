@@ -29,7 +29,7 @@ test('usa los módulos compartidos reales y con ?v= (no una copia vieja del nave
   assert.match(html, /from "\.\/js\/servicio-terminado\.js\?v=ops13"/);
   assert.match(html, /from "\.\/js\/planificacion-servicios\.js\?v=b5"/);
   assert.match(js, /from '\.\/fechas-visita\.js\?v=ps1'/);
-  assert.match(js, /from '\.\/fechas-tentativas\.js\?v=ps1'/);
+  assert.match(js, /from '\.\/fechas-tentativas\.js\?v=pv062'/);
   assert.doesNotMatch(html, /\.\/js\/(contratos|visitas-estado)\.js/);
 });
 

@@ -95,7 +95,7 @@ test('validarFeriado: fecha AAAA-MM-DD real, nombre y alcance (nacional por defe
   const r = validarFeriado({ fecha: '2026-12-25', nombre: ' Navidad ', alcance: '' });
   assert.equal(r.ok, true);
   assert.deepEqual(r.datos, { fecha: '2026-12-25', nombre: 'Navidad', alcance: 'nacional' });
-  assert.equal(validarFeriado({ fecha: '2026-12-25', nombre: 'X', alcance: 'Regional' }).datos.alcance, 'regional');
+  assert.equal(validarFeriado({ fecha: '2026-12-25', nombre: 'X', alcance: 'Regional', region: 'Región Metropolitana' }).datos.alcance, 'regional'); // el regional exige región (spec 062)
 });
 
 test('validarFeriado: rechaza fecha inexistente o mal escrita, nombre vacío y alcance desconocido', () => {
@@ -115,15 +115,15 @@ test('parsearFeriados: una línea por feriado «fecha | nombre | alcance»; acep
     '2026-12-08 | Inmaculada Concepción',
     '',
     '25/12/2026;Navidad;nacional',
-    '2026-12-31\tFeriado bancario\tregional',
+    '2026-12-31\tFeriado bancario\tregional\tRegión Metropolitana',
     '01-01-2027 | Año Nuevo',
   ].join('\r\n');
   const r = parsearFeriados(texto);
   assert.deepEqual(r.errores, []);
-  assert.deepEqual(r.filas.map(({ fecha, nombre, alcance }) => ({ fecha, nombre, alcance })), [
+  assert.deepEqual(r.filas.map(({ fecha, nombre, alcance, region }) => (region ? { fecha, nombre, alcance, region } : { fecha, nombre, alcance })), [
     { fecha: '2026-12-08', nombre: 'Inmaculada Concepción', alcance: 'nacional' },
     { fecha: '2026-12-25', nombre: 'Navidad', alcance: 'nacional' },
-    { fecha: '2026-12-31', nombre: 'Feriado bancario', alcance: 'regional' },
+    { fecha: '2026-12-31', nombre: 'Feriado bancario', alcance: 'regional', region: 'Región Metropolitana' },
     { fecha: '2027-01-01', nombre: 'Año Nuevo', alcance: 'nacional' },
   ]);
   assert.deepEqual(r.filas.map((f) => f.linea), [2, 4, 5, 6]); // número de línea del texto pegado
