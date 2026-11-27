@@ -20,7 +20,7 @@ const relectura = corte('async function verUltimaSugerencia');
 const preparar = corte('function prepararRutasIA');
 
 test('importa el módulo (con ?v=) y carga el SDK de Functions solo al pulsar el botón', () => {
-  assert.match(script, /from "\.\/js\/ia-rutas\.js\?v=ia3"/);
+  assert.match(script, /from "\.\/js\/ia-rutas\.js\?v=ia3b"/);
   assert.match(manejador, /await import\("https:\/\/www\.gstatic\.com\/firebasejs\/10\.7\.0\/firebase-functions\.js"\)/);
   assert.match(manejador, /httpsCallable\(getFunctions\(app, "us-central1"\), FUNCION_RUTAS\)/);
   assert.doesNotMatch(script, /^\s*import [^\n]*firebase-functions\.js/m, 'ningún import estático: si no carga, solo falla la IA (R6)');
@@ -90,4 +90,18 @@ test('lo existente se conserva: pestañas, edición de visitas (085) y su única
     assert.ok(html.includes(t), t);
   }
   assert.doesNotMatch(html, /AIza[0-9A-Za-z_-]{20,}/);
+});
+
+// Falla real de producción (2026-11-27): ia-rutas.js importaba './planificacion-edicion.js' SIN ?v=. Esa URL es distinta de la que usa la
+// página (?v=085b): el navegador tenía guardada (max-age 3600) una copia vieja sin textoVisitaEdicion y TODA la página dejó de cargar.
+test('los imports de ia-rutas.js llevan ?v= y usan la MISMA versión que la página (si no, el navegador mezcla copias viejas y no carga)', () => {
+  const fuente = readFileSync(join(PUBLIC, 'js', 'ia-rutas.js'), 'utf8').replace(/\r/g, '');
+  const imports = [...fuente.matchAll(/^import [^\n]*? from '(\.\/[^']+)';/gm)].map((m) => m[1]);
+  assert.ok(imports.length >= 4, 'se encontraron los imports del módulo');
+  for (const esp of imports) {
+    assert.match(esp, /\?v=[A-Za-z0-9]+$/, `${esp} debe llevar ?v=`);
+    const archivo = esp.replace(/^\.\//, '').replace(/\?v=.*$/, '');
+    const enPagina = html.match(new RegExp(`from "\\./js/${archivo.replace('.', '\\.')}(\\?v=[A-Za-z0-9]+)?"`));
+    if (enPagina) assert.equal(esp.slice(esp.indexOf('?')), enPagina[1] || '', `${archivo}: misma versión que la página`);
+  }
 });
