@@ -34,6 +34,12 @@ export function visitaEditable(fila) {
   return !ESTADOS_CERRADOS.includes(String(fila.estadoClave || '').toLowerCase());
 }
 
+/** «Visita 2 de 4» en Planes; en Spot (una sola visita, sin `visitaTexto`) «Servicio Spot». Para el modal y el aviso de éxito. */
+export function textoVisitaEdicion(fila) {
+  const t = fila && typeof fila === 'object' ? texto(fila.visitaTexto) : '';
+  return t ? `Visita ${t}` : 'Servicio Spot';
+}
+
 /**
  * Valores del selector de operador: «Sin asignar» y el personal activo (nombre o, si no tiene, correo), sin repetir.
  * El operador actual se agrega si ya no está en el personal, para no perderlo al abrir el selector.

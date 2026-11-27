@@ -236,3 +236,26 @@ test('aplicarCambioEnOrden crea los mapas si la orden no los tenía y rechaza cl
     assert.throws(() => aplicarCambioEnOrden({}, { [k]: 'x' }), /no se puede/i, k);
   }
 });
+
+// ─── Etapa 2 (Spot) ─────────────────────────────────────────────────────────────────────────────────────────────
+import { textoVisitaEdicion } from './planificacion-edicion.js';
+
+test('textoVisitaEdicion: Planes dice «n de N»; Spot (sin visitaTexto) dice «Servicio Spot»', () => {
+  assert.equal(textoVisitaEdicion({ visitaTexto: '2 de 4' }), 'Visita 2 de 4');
+  assert.equal(textoVisitaEdicion({ visitaNumero: 1 }), 'Servicio Spot');
+  assert.equal(textoVisitaEdicion(null), 'Servicio Spot');
+});
+
+test('Spot: una fila de Spot (V1, sin visitaTexto) se puede editar salvo realizada o aprobada', () => {
+  assert.equal(visitaEditable({ visitaNumero: 1, estadoClave: 'pendiente', terminada: false }), true);
+  assert.equal(visitaEditable({ visitaNumero: 1, estadoClave: 'completada', terminada: true }), false);
+  assert.equal(visitaEditable({ visitaNumero: 1, estadoClave: 'en revision' }), false);
+});
+
+test('Spot: la orden se actualiza solo con las llaves de V1 (la fecha que eligió el cliente deja de mandar sobre fechasPorVisita.V1)', () => {
+  const orden = { tipoServicio: 'Spot', fechaProgramada: '2026-12-10', cliente: 'X' };
+  const c = aplicarCambioEnOrden(orden, { 'fechasPorVisita.V1': '2026-12-15T13:00:00.000Z', fechaProgramada: '2026-12-15T13:00:00.000Z', proximaVisita: '2026-12-15T13:00:00.000Z' });
+  assert.deepEqual(c.fechasPorVisita, { V1: '2026-12-15T13:00:00.000Z' });
+  assert.equal(orden.fechasPorVisita, undefined, 'no muta la original');
+  assert.equal(c.cliente, 'X');
+});

@@ -13,7 +13,7 @@ const html = lee('planificacion-servicios.html');
 const script = html.slice(html.indexOf('<script type="module">'));
 
 test('importa los módulos de edición (con ?v=) y existen en public/js', () => {
-  assert.match(script, /from "\.\/js\/planificacion-edicion\.js\?v=085"/);
+  assert.match(script, /from "\.\/js\/planificacion-edicion\.js\?v=085b"/);
   assert.match(script, /from "\.\/js\/planificacion-edicion-db\.js\?v=085"/);
   for (const m of ['planificacion-edicion', 'planificacion-edicion-db']) assert.ok(existsSync(join(PUBLIC, 'js', `${m}.js`)), m);
 });
@@ -24,18 +24,15 @@ test('D1: solo el dueño y el administrador ven los controles; el perfil sale de
   assert.match(html, /<th id="th-acciones-planes" class="hidden /);
   assert.match(script, /\$\("th-acciones-planes"\)\.classList\.toggle\("hidden", !puedeEditar\)/);
   // el botón solo existe si puede editar Y la visita se puede editar (no realizada ni aprobada)
-  assert.match(script, /function celdaAcciones\(f\)/);
+  assert.match(script, /function celdaAcciones\(f(, lista = "planes")?\)/);
   const c = script.slice(script.indexOf('function celdaAcciones'), script.indexOf('function renderPlanes'));
   assert.match(c, /if \(!puedeEditar\) return ""/);
   assert.match(c, /visitaEditable\(f\)/);
   assert.match(c, /data-accion="editar-visita"/);
 });
 
-test('solo la tabla de Planes tiene la columna «Acciones» (la etapa 2 hará Spot): la de Spot no cambia', () => {
-  const spot = html.slice(html.indexOf('id="panel-spot"'), html.indexOf('id="panel-matriz-planes"'));
-  assert.doesNotMatch(spot, /Acciones/);
-  const renderSpot = script.slice(script.indexOf('function renderSpot'), script.indexOf('// ----', script.indexOf('function renderSpot')));
-  assert.doesNotMatch(renderSpot, /celdaAcciones|editar-visita/);
+test("la tabla de Planes tiene la columna «Acciones» y su colspan acorde (Spot: ver las pruebas de la etapa 2, más abajo)", () => {
+  assert.match(html, /<th id="th-acciones-planes" class="hidden /);
   assert.match(script, /colspan="\$\{puedeEditar \? 13 : 12\}"/);
 });
 
@@ -112,4 +109,39 @@ test('sin claves y lo existente se conserva: pestañas, filtros, matrices, compr
     assert.ok(html.includes(t), t);
   }
   assert.doesNotMatch(html, /AIza[0-9A-Za-z_-]{20,}/);
+});
+
+// ─── Etapa 2: la pestaña «Spot» usa el mismo modal y los mismos módulos ─────────────────────────────────────────
+test('Spot: columna «Acciones» oculta por defecto, visible solo si puedeEditar, y colspan acorde', () => {
+  const spot = html.slice(html.indexOf('id="panel-spot"'), html.indexOf('id="panel-matriz-planes"'));
+  assert.match(spot, /<th id="th-acciones-spot" class="hidden py-3\.5 px-3">Acciones<\/th>/);
+  assert.equal((spot.match(/<th /g) || []).length, 8); // 7 + «Acciones»
+  const renderSpot = script.slice(script.indexOf('function renderSpot'), script.indexOf('// ----', script.indexOf('function renderSpot')));
+  assert.match(renderSpot, /\$\("th-acciones-spot"\)\.classList\.toggle\("hidden", !puedeEditar\)/);
+  assert.match(renderSpot, /celdaAcciones\(f, "spot"\)/);
+  assert.match(renderSpot, /colspan="\$\{puedeEditar \? 8 : 7\}"/);
+});
+
+test('Spot: el botón sabe de qué lista es y la edición busca la fila en esa lista', () => {
+  const c = script.slice(script.indexOf('function celdaAcciones'), script.indexOf('function renderPlanes'));
+  assert.match(c, /function celdaAcciones\(f, lista = "planes"\)/);
+  assert.match(c, /data-lista="\$\{esc\(lista\)\}"/);
+  assert.match(script, /\$\("tbody-spot"\)\.addEventListener\("click"/);
+  const a = script.slice(script.indexOf('function abrirEdicion'), script.indexOf('function cerrarEdicion'));
+  assert.match(a, /lista === "spot" \? filasSpot : filasPlanes/);
+  assert.match(a, /textoVisitaEdicion\(f\)/);
+});
+
+test('Spot: sigue habiendo un solo updateDoc inyectado y ninguna escritura nueva ni claves de mapas en la página', () => {
+  assert.equal([...script.matchAll(/\bupdateDoc\b/g)].length, 2);
+  assert.equal([...script.matchAll(/\bactualizar: updateDoc\b/g)].length, 1);
+  assert.equal([...script.matchAll(/\bguardarCambioFecha\(/g)].length, 1);
+  assert.equal([...script.matchAll(/\bguardarCambioOperador\(/g)].length, 1);
+  assert.doesNotMatch(script, /\b(addDoc|deleteDoc|writeBatch)\b/);
+  assert.doesNotMatch(script, /fechasPorVisita|operadoresPorVisita|fechasProgramadas|proximaVisita|fechaProgramada/);
+});
+
+test('Spot: el aviso de éxito y el detalle del modal no dicen «undefined» (usan textoVisitaEdicion)', () => {
+  assert.doesNotMatch(script, /visita \$\{f\.visitaTexto\}/);
+  assert.doesNotMatch(script, /Visita \$\{f\.visitaTexto\}/);
 });
