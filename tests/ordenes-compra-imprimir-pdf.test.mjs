@@ -27,11 +27,17 @@ test('un fallo de red se muestra en ~15 s: el SDK no reintenta durante minutos c
   assert.match(html, /ref\(almacen, ruta\)/);
 });
 
-test('solo lectura de Storage: ni subidas, ni borrados, ni escrituras (R2)', () => {
+test('solo lectura de Storage al imprimir: ni subidas, ni borrados, ni escrituras (R2); la única subida de la página es la de la factura (spec 082, etapa 2)', () => {
+  // «Imprimir» (imprimirPdfOC) y el módulo del PDF siguen siendo solo de lectura.
+  const imprimir = html.slice(html.indexOf('async function imprimirPdfOC'), html.indexOf('$("btn-imprimir").addEventListener'));
+  assert.ok(imprimir.length > 0, 'se encontró imprimirPdfOC');
   for (const prohibido of ['uploadBytes', 'uploadString', 'deleteObject', 'uploadBytesResumable']) {
-    assert.ok(!html.includes(prohibido), prohibido);
-    assert.ok(!pdfJs.includes(prohibido), prohibido);
+    assert.ok(!imprimir.includes(prohibido), `imprimirPdfOC: ${prohibido}`);
+    assert.ok(!pdfJs.includes(prohibido), `ordenes-compra-pdf.js: ${prohibido}`);
   }
+  // En toda la página: nunca se borra ni se sube por otra vía; la única subida es uploadBytes en «Crear borrador con IA».
+  for (const prohibido of ['uploadString', 'deleteObject', 'uploadBytesResumable']) assert.ok(!html.includes(prohibido), prohibido);
+  assert.equal([...html.matchAll(/uploadBytes\(/g)].length, 1, 'una sola subida: la factura PDF');
   assert.match(html, /getDownloadURL\(/);
 });
 
