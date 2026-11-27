@@ -492,7 +492,7 @@
     import { SIN_ASIGNAR, puedeEditarPlanificacion, visitaEditable, opcionesOperador, textoVisitaEdicion, fechaPagoDeOrden, validarCambioFecha, validarCambioOperador, confirmacionFecha, confirmacionOperador, aplicarCambioEnOrden } from "./js/planificacion-edicion.js?v=085b";
     import { guardarCambioFecha, guardarCambioOperador } from "./js/planificacion-edicion-db.js?v=085";
     // Spec 082 (etapa 3): sugerencia de rutas con IA, solo dueño. Solo lectura: no escribe nada. El SDK de Functions se carga al pulsar el botón.
-    import { FUNCION_RUTAS, esDueno, sepulturasPendientes, operadoresDisponibles, solicitarRutas, leerSugerencia, pintarItinerarios, textoResumen } from "./js/ia-rutas.js?v=ia3";
+    import { FUNCION_RUTAS, esDueno, sepulturasPendientes, operadoresDisponibles, solicitarRutas, leerSugerencia, pintarItinerarios, textoResumen } from "./js/ia-rutas.js?v=ia3b";
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);

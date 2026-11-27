@@ -7,11 +7,15 @@
  * A la función solo viajan ids (nunca nombres de clientes ni de personas); los nombres se usan aquí para mostrar.
  * Sin Firebase ni DOM real: la llamada (`llamar`), la lectura (`leer`) y el documento se inyectan, así se prueba con `node --test`.
  * Todo texto que viene de la IA, de Firestore o de la propuesta se pinta con textContent, nunca como HTML (R4).
+ *
+ * OJO con los imports: llevan ?v= y la MISMA versión que usa planificacion-servicios.html (b5, cfg1, 085b). Sin ?v= es otra URL y el navegador
+ * puede traer una copia vieja guardada (el hosting la conserva 1 hora): así dejó de cargar la pantalla el 2026-11-27. Si cambia uno de esos
+ * módulos, se cambia su ?v= en la página Y aquí.
  */
-import { esFechaIso } from './fechas-semana.js';
-import { normalizarNombre } from './rutas-planificacion.js';
-import { visitaEditable, textoVisitaEdicion } from './planificacion-edicion.js';
-import { mensajeErrorIA, MENSAJE_GENERICO } from './ia-informe.js';
+import { esFechaIso } from './fechas-semana.js?v=b5';
+import { normalizarNombre } from './rutas-planificacion.js?v=cfg1';
+import { visitaEditable, textoVisitaEdicion } from './planificacion-edicion.js?v=085b';
+import { mensajeErrorIA, MENSAJE_GENERICO } from './ia-informe.js?v=ia3';
 
 export const FUNCION_RUTAS = 'sugerirRutasIA';
 export const MAX_SEPULTURAS = 200;
