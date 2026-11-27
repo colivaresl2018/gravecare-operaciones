@@ -190,8 +190,13 @@ test('spec 058: el SDK de Functions 10.7.0 se carga solo aquí y bajo demanda (s
   const importDinamico = new RegExp(`await import\\("${url.replace(/[.\/]/g, '\\$&')}"\\)`, 'g');
   assert.equal([...html.matchAll(importDinamico)].length, 2, 'ambas son import dinámico');
   assert.doesNotMatch(html, /import\s*\{[^}]*\}\s*from\s*"[^"]*firebase-functions\.js"/, 'sin import estático');
-  const otras = ['index.html', 'portal.html', 'planificacion-servicios.html', 'rutas-feriados.html', 'clientes.html'].filter((f) => existsSync(join(PUBLIC, f)));
+  const otras = ['index.html', 'portal.html', 'rutas-feriados.html', 'clientes.html'].filter((f) => existsSync(join(PUBLIC, f)));
   for (const f of otras) assert.ok(!lee(f).includes('firebase-functions'), `${f} no debe cargar el SDK de Functions`);
+  // Spec 082, etapa 3: Planificación lo carga UNA vez y solo al pulsar «Sugerir rutas» (import dinámico, sin import estático).
+  const plan = lee('planificacion-servicios.html');
+  assert.equal(plan.split(url).length - 1, 1, 'planificacion-servicios.html: una sola referencia (rutas sugeridas con IA)');
+  assert.equal([...plan.matchAll(importDinamico)].length, 1, 'y es import dinámico');
+  assert.doesNotMatch(plan, /import\s*\{[^}]*\}\s*from\s*"[^"]*firebase-functions\.js"/, 'sin import estático');
 });
 
 test('spec 058: llama a enviarOrdenCompraPorCorreo (us-central1) solo con { numero }, pide confirmación y bloquea el doble clic', () => {

@@ -58,6 +58,33 @@
 
   <div id="estado-carga" class="bg-white rounded-xl border border-slate-200 shadow-sm py-8 text-center text-slate-400 text-sm">Cargando planificación...</div>
 
+  <!-- Spec 082, etapa 3: sugerencia de rutas con IA. Solo el dueño lo ve; es INFORMATIVA (no cambia órdenes, agenda ni rutas) -->
+  <details id="rir-bloque" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
+    <summary class="cursor-pointer text-sm font-bold text-[#002d1a]">Sugerir rutas con IA (solo dueño)</summary>
+    <p class="text-[11px] text-slate-500 mt-2">Elige el día y los operadores: la IA propone cómo repartir las visitas pendientes de ese día entre ellos, agrupadas por cementerio. Es solo una sugerencia para que la revises: no cambia fechas, operadores ni las rutas de los cementerios.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 items-start">
+      <label class="text-[11px] font-bold text-slate-600">Fecha
+        <input type="date" id="rir-fecha" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-normal">
+      </label>
+      <div class="md:col-span-2">
+        <p class="text-[11px] font-bold text-slate-600">Operadores</p>
+        <div id="rir-operadores" class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-700"></div>
+      </div>
+    </div>
+    <p id="rir-pendientes" class="text-[11px] text-slate-600 mt-3"></p>
+    <p class="text-[11px] text-slate-500 mt-2">La IA puede equivocarse: revisa antes de usar. No escribas RUT, correo ni teléfono.</p>
+    <div class="flex flex-wrap items-center gap-3 mt-3">
+      <button type="button" id="rir-btn" class="px-4 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Sugerir rutas</button>
+      <button type="button" id="rir-leer" class="px-4 py-2 rounded-lg border border-[#002d1a] text-[#002d1a] text-xs font-bold hover:bg-[#002d1a] hover:text-white transition disabled:opacity-50">Ver última sugerencia</button>
+    </div>
+    <div id="rir-error" class="hidden mt-3 p-3 rounded-xl border text-xs font-semibold" role="alert"></div>
+    <div id="rir-resultado" class="hidden mt-3 p-3 rounded-xl border border-emerald-300 bg-emerald-50 text-xs" role="status">
+      <p class="font-bold text-emerald-900">Propuesta de la IA (solo para revisar)</p>
+      <p id="rir-resumen" class="text-slate-700 mt-1 mb-2"></p>
+      <div id="rir-detalle" class="text-slate-700"></div>
+    </div>
+  </details>
+
   <!-- Subpestaña PLANES -->
   <div id="panel-planes" class="hidden">
     <section class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-wrap gap-3 items-center">
@@ -464,6 +491,8 @@
     // Spec 085 (B7): cambiar la fecha y asignar el operador de UNA visita (dueño y administrador). Solo se escriben las claves de esa visita.
     import { SIN_ASIGNAR, puedeEditarPlanificacion, visitaEditable, opcionesOperador, textoVisitaEdicion, fechaPagoDeOrden, validarCambioFecha, validarCambioOperador, confirmacionFecha, confirmacionOperador, aplicarCambioEnOrden } from "./js/planificacion-edicion.js?v=085b";
     import { guardarCambioFecha, guardarCambioOperador } from "./js/planificacion-edicion-db.js?v=085";
+    // Spec 082 (etapa 3): sugerencia de rutas con IA, solo dueño. Solo lectura: no escribe nada. El SDK de Functions se carga al pulsar el botón.
+    import { FUNCION_RUTAS, esDueno, sepulturasPendientes, operadoresDisponibles, solicitarRutas, leerSugerencia, pintarItinerarios, textoResumen } from "./js/ia-rutas.js?v=ia3";
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
@@ -486,6 +515,9 @@
     const escrituraBorradores = { ejecutarTransaccion: (f) => runTransaction(db, f), refs: { borrador: (id) => doc(db, COLECCION_BORRADORES, id) } };
     // Spec 085: edición de una visita. Solo el dueño y el administrador; el supervisor y el operador ven la lista sin controles.
     let puedeEditar = false;
+    let esDuenoUsuario = false; // spec 082: solo el dueño ve «Sugerir rutas con IA»
+    let rutasIAEnCurso = false;
+    let rutasIACtx = { nombresCementerio: {}, etiquetas: {} }; // nombres para mostrar la propuesta (no viajan a la función)
     let docsStaff = []; // personal (id + datos): de aquí salen los operadores que se pueden asignar
     let contratosMap = null; // se guardan para reconstruir las filas sin volver a leer Firestore
     let indiceInformes = null;
@@ -943,6 +975,7 @@
       renderResumen();
       renderCompra();
       renderValores();
+      prepararRutasIA();
     }
 
     // Perfil del usuario (staff/{uid}): de aquí sale si es dueño o administrador. Si no se puede leer, no se muestran controles.
@@ -960,7 +993,9 @@
       $("aviso-error").classList.add("hidden");
       $("estado-carga").classList.remove("hidden");
       try {
-        puedeEditar = puedeEditarPlanificacion(await leerPerfil(auth.currentUser)); // sin perfil legible no se muestran controles (las reglas mandan igual)
+        const perfil = await leerPerfil(auth.currentUser);
+        puedeEditar = puedeEditarPlanificacion(perfil); // sin perfil legible no se muestran controles (las reglas mandan igual)
+        esDuenoUsuario = esDueno(perfil);
         contratosMap = await leerContratos();
         indiceInformes = await leerIndiceInformes();
         await leerOperadores();
@@ -986,7 +1021,139 @@
         console.error("Error cargando planificación de servicios:", err && err.code ? err.code : "ERROR");
         $("estado-carga").classList.add("hidden");
         PESTANAS.forEach(n => $("panel-" + n).classList.add("hidden"));
+        $("rir-bloque").classList.add("hidden");
         $("aviso-error").classList.remove("hidden");
+      }
+    }
+
+    // ---------------------------------------------------------------- Sugerir rutas con IA (spec 082, etapa 3; solo dueño)
+    // La IA PROPONE y el dueño revisa: nada de esto escribe datos (la función deja su propuesta en rutasSugeridas/{fecha}; aquí solo se lee).
+    // A la función viajan solo ids de visitas, ids de cementerios y uid de operadores; los nombres se usan solo para mostrar.
+    function avisarRutas(texto) {
+      const el = $("rir-error");
+      if (!texto) { el.className = "hidden"; el.textContent = ""; return; }
+      el.className = "mt-3 p-3 rounded-xl border text-xs font-semibold bg-rose-50 border-rose-300 text-rose-800";
+      el.textContent = texto;
+    }
+
+    function operadoresElegidos() {
+      const marcados = new Set([...$("rir-operadores").querySelectorAll("input[type=checkbox]:checked")].map(i => i.value));
+      return operadoresDisponibles(docsStaff).filter(o => marcados.has(o.uid));
+    }
+
+    function nombresParaMostrar() {
+      const personal = new Map(operadoresDisponibles(docsStaff).map(o => [o.uid, o.nombre]));
+      return {
+        nombreOperador: (uid) => personal.get(uid),
+        nombreCementerio: (id) => rutasIACtx.nombresCementerio[id],
+        etiquetaSepultura: (id) => rutasIACtx.etiquetas[id],
+      };
+    }
+
+    function refrescarPendientesRutasIA() {
+      const p = sepulturasPendientes([...filasPlanes, ...filasSpot], $("rir-fecha").value);
+      rutasIACtx = p;
+      const n = p.sepulturas.length;
+      const c = Object.keys(p.nombresCementerio).length;
+      let t = $("rir-fecha").value
+        ? `${n} ${n === 1 ? "visita pendiente" : "visitas pendientes"} ese día en ${c} ${c === 1 ? "cementerio" : "cementerios"}.`
+        : "Elige la fecha.";
+      if (p.omitidas > 0) t += ` ${p.omitidas} sin cementerio conocido no se incluyen.`;
+      $("rir-pendientes").textContent = t;
+    }
+
+    // Se llama tras cada pintado (también tras editar una visita): muestra u oculta el bloque, conserva la fecha y los operadores marcados.
+    function prepararRutasIA() {
+      $("rir-bloque").classList.toggle("hidden", !esDuenoUsuario);
+      if (!esDuenoUsuario) return;
+      if (!$("rir-fecha").value) $("rir-fecha").value = hoyIso();
+      const lista = operadoresDisponibles(docsStaff);
+      const firma = lista.map(o => o.uid).join("|");
+      const caja = $("rir-operadores");
+      if (caja.dataset.firma !== firma) {
+        const marcados = new Set([...caja.querySelectorAll("input[type=checkbox]:checked")].map(i => i.value));
+        const primera = caja.dataset.firma === undefined;
+        caja.textContent = "";
+        for (const o of lista) {
+          const etiqueta = document.createElement("label");
+          etiqueta.className = "inline-flex items-center gap-1";
+          const casilla = document.createElement("input");
+          casilla.type = "checkbox";
+          casilla.value = o.uid;
+          casilla.checked = primera || marcados.has(o.uid);
+          const nombre = document.createElement("span");
+          nombre.textContent = o.nombre; // nombre del personal: texto, nunca HTML
+          etiqueta.appendChild(casilla);
+          etiqueta.appendChild(nombre);
+          caja.appendChild(etiqueta);
+        }
+        caja.dataset.firma = firma;
+      }
+      refrescarPendientesRutasIA();
+    }
+
+    function mostrarSugerenciaRutas(itinerarios, titulo) {
+      pintarItinerarios(document, $("rir-detalle"), itinerarios, nombresParaMostrar());
+      $("rir-resumen").textContent = `${titulo} · ${textoResumen(itinerarios)}`;
+      $("rir-resultado").classList.remove("hidden");
+    }
+
+    function bloquearRutasIA(enCurso) {
+      rutasIAEnCurso = enCurso;
+      $("rir-btn").disabled = enCurso;
+      $("rir-leer").disabled = enCurso;
+      $("rir-btn").textContent = enCurso ? "Pidiendo sugerencia…" : "Sugerir rutas";
+    }
+
+    async function sugerirRutasConIA() {
+      if (rutasIAEnCurso) return;
+      bloquearRutasIA(true);
+      avisarRutas("");
+      $("rir-resultado").classList.add("hidden");
+      try {
+        const fecha = $("rir-fecha").value;
+        const p = sepulturasPendientes([...filasPlanes, ...filasSpot], fecha);
+        rutasIACtx = p;
+        const r = await solicitarRutas({
+          dueno: esDuenoUsuario,
+          fecha,
+          sepulturas: p.sepulturas,
+          operadores: operadoresElegidos(),
+          llamar: async (datos) => {
+            const { getFunctions, httpsCallable } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js");
+            return (await httpsCallable(getFunctions(app, "us-central1"), FUNCION_RUTAS)(datos)).data;
+          },
+        });
+        if (!r.ok) { avisarRutas(r.mensaje); return; }
+        mostrarSugerenciaRutas(r.itinerarios, `Sugerencia para el ${fecha}`);
+      } catch (e) {
+        avisarRutas("No pudimos generar la propuesta en este momento. No se guardó nada. Intenta de nuevo más tarde.");
+      } finally {
+        bloquearRutasIA(false);
+      }
+    }
+
+    async function verUltimaSugerencia() {
+      if (rutasIAEnCurso) return;
+      bloquearRutasIA(true);
+      avisarRutas("");
+      $("rir-resultado").classList.add("hidden");
+      try {
+        const fecha = $("rir-fecha").value;
+        const r = await leerSugerencia({
+          fecha,
+          leer: async (f) => {
+            const s = await getDoc(doc(db, "rutasSugeridas", f));
+            return s.exists() ? s.data() : null;
+          },
+        });
+        if (!r.ok) { avisarRutas(r.mensaje); return; }
+        refrescarPendientesRutasIA(); // los nombres de cementerio y de visita salen de lo cargado hoy; si ya no están se muestra el identificador
+        mostrarSugerenciaRutas(r.itinerarios, `Última sugerencia guardada para el ${fecha}`);
+      } catch (e) {
+        avisarRutas("No se pudo leer la sugerencia guardada. Intenta de nuevo más tarde.");
+      } finally {
+        bloquearRutasIA(false);
       }
     }
 
@@ -1111,6 +1278,9 @@
 
     document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
     $("btn-reintentar").addEventListener("click", () => cargarDatos());
+    $("rir-btn").addEventListener("click", () => sugerirRutasConIA());
+    $("rir-leer").addEventListener("click", () => verUltimaSugerencia());
+    $("rir-fecha").addEventListener("change", () => { avisarRutas(""); $("rir-resultado").classList.add("hidden"); refrescarPendientesRutasIA(); });
     ["planes-busqueda", "planes-cementerio", "planes-eje", "planes-operador", "planes-estado", "planes-mes"].forEach(id => {
       $(id).addEventListener("input", renderPlanes);
       $(id).addEventListener("change", renderPlanes);
