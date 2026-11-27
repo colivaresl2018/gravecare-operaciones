@@ -53,6 +53,9 @@
     <button type="button" id="btn-reintentar" class="px-3 py-1 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition">Reintentar</button>
   </div>
 
+  <!-- Resultado de un cambio de fecha u operador (spec 085) -->
+  <div id="aviso-edicion" class="hidden mb-4 p-3 rounded-xl border text-xs font-semibold" role="status"></div>
+
   <div id="estado-carga" class="bg-white rounded-xl border border-slate-200 shadow-sm py-8 text-center text-slate-400 text-sm">Cargando planificación...</div>
 
   <!-- Subpestaña PLANES -->
@@ -104,6 +107,7 @@
               <th class="py-3.5 px-3">Eje</th>
               <th class="py-3.5 px-3">Operador</th>
               <th class="py-3.5 px-3">Estado</th>
+              <th id="th-acciones-planes" class="hidden py-3.5 px-3">Acciones</th>
             </tr>
           </thead>
           <tbody id="tbody-planes" class="divide-y divide-slate-100"></tbody>
@@ -393,11 +397,50 @@
     </div>
   </div>
 
+  <!-- Cambiar la fecha o asignar el operador de UNA visita (spec 085): solo dueño y administrador. Se cierra con ×, clic fuera o Escape -->
+  <div id="modal-edicion" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="edicion-titulo">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-4 py-3 bg-[#002d1a] text-white rounded-t-xl">
+        <h2 id="edicion-titulo" class="text-sm font-bold">Editar visita</h2>
+        <button type="button" id="edicion-cerrar" aria-label="Cerrar" class="text-white text-xl leading-none px-2">&times;</button>
+      </div>
+      <div class="p-4 space-y-4 text-xs">
+        <p id="edicion-detalle" class="text-slate-600"></p>
+        <div id="edicion-formulario" class="space-y-4">
+          <div>
+            <label for="edicion-fecha" class="block text-[11px] font-bold text-slate-700 mb-1">Fecha de la visita</label>
+            <div class="flex flex-wrap gap-2 items-center">
+              <input type="date" id="edicion-fecha" class="px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]">
+              <button type="button" id="edicion-guardar-fecha" class="px-3 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Cambiar fecha</button>
+            </div>
+          </div>
+          <div>
+            <label for="edicion-operador" class="block text-[11px] font-bold text-slate-700 mb-1">Operador</label>
+            <div class="flex flex-wrap gap-2 items-center">
+              <select id="edicion-operador" class="px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-[#002d1a]"></select>
+              <button type="button" id="edicion-guardar-operador" class="px-3 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Asignar operador</button>
+            </div>
+          </div>
+        </div>
+        <div id="edicion-confirmacion" class="hidden p-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900">
+          <div class="font-bold mb-1">Confirma el cambio</div>
+          <div id="edicion-resumen" class="font-mono font-bold text-sm"></div>
+          <ul id="edicion-avisos" class="list-disc list-inside mt-2 space-y-1"></ul>
+          <div class="mt-3 flex gap-2">
+            <button type="button" id="edicion-confirmar" class="px-3 py-2 rounded-lg bg-[#002d1a] text-white text-xs font-bold hover:bg-[#003d24] transition disabled:opacity-50">Confirmar</button>
+            <button type="button" id="edicion-volver" class="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition disabled:opacity-50">Volver</button>
+          </div>
+        </div>
+        <div id="edicion-error" class="hidden p-3 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 font-semibold" role="alert"></div>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { FIREBASE_CONFIG } from "./js/entorno.js"; // configuración por entorno (spec 040)
     import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"; // spec 085: la escritura de una visita (fecha u operador) pasa solo por planificacion-edicion-db.js
     import { runTransaction } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"; // spec 057: solo para crear el borrador de orden de compra del día
     import { exigirStaff } from "./js/acceso-staff.js"; // control de acceso por claim (B-13)
     import { esOrdenPagada, INSIGNIA_PRUEBA } from "./js/orden-pagada.js"; // N80: solo órdenes pagadas (B-2); insignia PRUEBA (B-1)
@@ -417,6 +460,9 @@
     // Spec 057: «Crear orden de compra» por día. La regla de «día listo» y el borrador salen de compra-dia.js (no se copian aquí).
     import { estadoDiasCompra, borradorDesdeDia, idBorrador, textoErrorBorrador } from "./js/compra-dia.js?v=057";
     import { COLECCION_BORRADORES, crearBorradorDia } from "./js/ordenes-compra-db.js?v=057"; // única otra escritura: ordenesCompraBorradores/AAAA-MM-DD
+    // Spec 085 (B7): cambiar la fecha y asignar el operador de UNA visita (dueño y administrador). Solo se escriben las claves de esa visita.
+    import { SIN_ASIGNAR, puedeEditarPlanificacion, visitaEditable, opcionesOperador, fechaPagoDeOrden, validarCambioFecha, validarCambioOperador, confirmacionFecha, confirmacionOperador, aplicarCambioEnOrden } from "./js/planificacion-edicion.js?v=085";
+    import { guardarCambioFecha, guardarCambioOperador } from "./js/planificacion-edicion-db.js?v=085";
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
     const auth = getAuth(app);
@@ -437,6 +483,13 @@
     let informesFallo = false; // sin informes no se sabe qué visitas ya se hicieron: no se ofrece crear órdenes de compra
     let ultimaCompra = { estados: [] };
     const escrituraBorradores = { ejecutarTransaccion: (f) => runTransaction(db, f), refs: { borrador: (id) => doc(db, COLECCION_BORRADORES, id) } };
+    // Spec 085: edición de una visita. Solo el dueño y el administrador; el supervisor y el operador ven la lista sin controles.
+    let puedeEditar = false;
+    let docsStaff = []; // personal (id + datos): de aquí salen los operadores que se pueden asignar
+    let contratosMap = null; // se guardan para reconstruir las filas sin volver a leer Firestore
+    let indiceInformes = null;
+    let edicionEnCurso = false;
+    let edicion = null; // { f, pendiente } mientras el modal está abierto
     const PESTANAS = ["planes", "spot", "matriz-planes", "matriz-spot", "compra", "valores", "resumen"];
     let pestanaActiva = "planes";
 
@@ -499,7 +552,15 @@
       return `<td class="py-3 px-3 whitespace-nowrap"><span class="inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold ${esc(f.estadoClases)}">${esc(f.estado)}</span></td>`;
     }
 
+    // Botón de la fila: solo si el usuario puede editar Y la visita no está realizada ni aprobada.
+    function celdaAcciones(f) {
+      if (!puedeEditar) return "";
+      if (!visitaEditable(f)) return '<td class="py-3 px-3 whitespace-nowrap text-slate-400">—</td>';
+      return `<td class="py-3 px-3 whitespace-nowrap"><button type="button" data-accion="editar-visita" data-doc="${esc(f.docId)}" data-visita="${esc(f.visitaNumero)}" class="px-2.5 py-1 rounded-lg border border-[#002d1a] text-[#002d1a] text-[11px] font-bold hover:bg-[#002d1a] hover:text-white transition">Editar</button></td>`;
+    }
+
     function renderPlanes() {
+      $("th-acciones-planes").classList.toggle("hidden", !puedeEditar);
       const filtradas = filtrarPlanes(filasPlanes, {
         busqueda: $("planes-busqueda").value,
         cementerio: $("planes-cementerio").value,
@@ -510,7 +571,7 @@
       });
       $("contador-planes").textContent = String(filtradas.length);
       $("tbody-planes").innerHTML = filtradas.length === 0
-        ? '<tr><td colspan="12" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>'
+        ? `<tr><td colspan="${puedeEditar ? 13 : 12}" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>`
         : filtradas.map(f => `
           <tr class="hover:bg-slate-50 transition">
             ${celdaFecha(f)}
@@ -525,6 +586,7 @@
             <td class="py-3 px-3 ${f.eje === SIN_EJE ? "text-slate-400 italic" : "text-slate-700"}">${esc(f.eje)}</td>
             <td class="py-3 px-3 text-slate-700">${esc(f.operador)}</td>
             ${celdaEstado(f)}
+            ${celdaAcciones(f)}
           </tr>`).join("");
     }
 
@@ -830,10 +892,12 @@
     // Lista de operadores para el filtro (activos). Si falla, el filtro usa solo los operadores que aparecen en las visitas.
     async function leerOperadores() {
       const nombres = [];
+      docsStaff = [];
       try {
         const snap = await getDocs(collection(db, "staff"));
         snap.forEach(d => {
           const s = d.data();
+          docsStaff.push({ id: d.id, data: s });
           if (s.activo !== false) nombres.push(s.nombre || s.email || "");
         });
       } catch (e) {
@@ -842,13 +906,61 @@
       return nombres;
     }
 
+    // Arma las filas desde lo ya leído (sin volver a Firestore): lo usan la carga inicial y el refresco tras cambiar una visita.
+    function reconstruirFilas() {
+      const resultado = construirFilasPlanificacion(ordenesPagadas, {
+        indiceInformes,
+        nombreCliente: (orden, id) => nombreClienteParaMostrar(orden, contratosDeOrden(contratosMap, orden, id)),
+        rutas,
+      });
+      filasPlanes = resultado.planes;
+      filasSpot = resultado.spot;
+    }
+
+    // Pinta todas las pestañas. Los menús de filtro conservan la opción elegida si sigue existiendo.
+    function pintarTodo() {
+      const operadores = docsStaff.filter(d => d.data.activo !== false).map(d => d.data.nombre || d.data.email || "");
+      llenarMenu("planes-cementerio", filasPlanes.map(f => f.cementerio), "Todos los Cementerios");
+      llenarMenu("planes-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
+      llenarMenu("planes-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
+      llenarMenu("spot-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
+      const ejes = [...rutas.ejes.map(e => e.eje), ...filasPlanes.map(f => f.eje)];
+      llenarMenu("planes-eje", ejes, "Todos los Ejes");
+      llenarMenu("mp-eje", ejes, "Todos los Ejes");
+      llenarMenu("mp-cementerio", filasPlanes.map(f => f.cementerio), "Todos los Cementerios");
+      llenarMenu("mp-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
+      llenarMenu("mp-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
+      llenarMenu("ms-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
+      llenarMenu("ms-estado", filasSpot.map(f => f.estado), "Todos los Estados");
+      llenarMenu("ms-operador", [...operadores, ...filasSpot.map(f => f.operador)], "Todos los Operadores");
+      renderPlanes();
+      renderSpot();
+      renderMatrizPlanes();
+      renderMatrizSpot();
+      renderResumen();
+      renderCompra();
+      renderValores();
+    }
+
+    // Perfil del usuario (staff/{uid}): de aquí sale si es dueño o administrador. Si no se puede leer, no se muestran controles.
+    async function leerPerfil(user) {
+      try {
+        if (!user) return null;
+        const snap = await getDoc(doc(db, "staff", user.uid));
+        return snap.exists() ? snap.data() : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     async function cargarDatos() {
       $("aviso-error").classList.add("hidden");
       $("estado-carga").classList.remove("hidden");
       try {
-        const contratosMap = await leerContratos();
-        const indiceInformes = await leerIndiceInformes();
-        const operadores = await leerOperadores();
+        puedeEditar = puedeEditarPlanificacion(await leerPerfil(auth.currentUser)); // sin perfil legible no se muestran controles (las reglas mandan igual)
+        contratosMap = await leerContratos();
+        indiceInformes = await leerIndiceInformes();
+        await leerOperadores();
         rutas = await leerRutas();
         feriados = await leerFeriados();
         await leerValores();
@@ -862,37 +974,11 @@
           ordenesPagadas.push({ id: docSnap.id, data: ord });
         });
 
-        const resultado = construirFilasPlanificacion(ordenesPagadas, {
-          indiceInformes,
-          nombreCliente: (orden, id) => nombreClienteParaMostrar(orden, contratosDeOrden(contratosMap, orden, id)),
-          rutas,
-        });
-        filasPlanes = resultado.planes;
-        filasSpot = resultado.spot;
-
-        llenarMenu("planes-cementerio", filasPlanes.map(f => f.cementerio), "Todos los Cementerios");
-        llenarMenu("planes-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
-        llenarMenu("planes-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
-        llenarMenu("spot-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
-        const ejes = [...rutas.ejes.map(e => e.eje), ...filasPlanes.map(f => f.eje)];
-        llenarMenu("planes-eje", ejes, "Todos los Ejes");
-        llenarMenu("mp-eje", ejes, "Todos los Ejes");
-        llenarMenu("mp-cementerio", filasPlanes.map(f => f.cementerio), "Todos los Cementerios");
-        llenarMenu("mp-estado", filasPlanes.map(f => f.estado), "Todos los Estados");
-        llenarMenu("mp-operador", [...operadores, ...filasPlanes.map(f => f.operador)], "Todos los Operadores");
-        llenarMenu("ms-cementerio", filasSpot.map(f => f.cementerio), "Todos los Cementerios");
-        llenarMenu("ms-estado", filasSpot.map(f => f.estado), "Todos los Estados");
-        llenarMenu("ms-operador", [...operadores, ...filasSpot.map(f => f.operador)], "Todos los Operadores");
+        reconstruirFilas();
 
         $("estado-carga").classList.add("hidden");
         cambiarPestana(pestanaActiva);
-        renderPlanes();
-        renderSpot();
-        renderMatrizPlanes();
-        renderMatrizSpot();
-        renderResumen();
-        renderCompra();
-        renderValores();
+        pintarTodo();
       } catch (err) {
         console.error("Error cargando planificación de servicios:", err && err.code ? err.code : "ERROR");
         $("estado-carga").classList.add("hidden");
@@ -900,6 +986,123 @@
         $("aviso-error").classList.remove("hidden");
       }
     }
+
+    // ---------------------------------------------------------------- Cambiar la fecha o asignar el operador de UNA visita (spec 085, solo Planes)
+    // Dos pasos: primero se valida y se muestra «anterior → nuevo» (con los avisos, que no bloquean); recién al confirmar se escribe.
+    // Se escriben solo las claves de esa visita (lo arma planificacion-edicion-db.js). Si falla, la fila queda como estaba.
+    function avisoPagina(texto, tipo) {
+      const el = $("aviso-edicion");
+      const clases = { ok: "bg-emerald-50 border-emerald-300 text-emerald-900", error: "bg-rose-50 border-rose-300 text-rose-800" };
+      el.className = "mb-4 p-3 rounded-xl border text-xs font-semibold " + (clases[tipo] || clases.ok);
+      el.textContent = texto;
+    }
+
+    function mostrarErrorEdicion(texto) {
+      $("edicion-error").textContent = texto;
+      $("edicion-error").classList.toggle("hidden", !texto);
+    }
+
+    function pintarBotonesEdicion() {
+      for (const id of ["edicion-guardar-fecha", "edicion-guardar-operador", "edicion-confirmar", "edicion-volver"]) $(id).disabled = edicionEnCurso;
+    }
+
+    function mostrarFormularioEdicion() {
+      if (edicion) edicion.pendiente = null;
+      $("edicion-confirmacion").classList.add("hidden");
+      $("edicion-formulario").classList.remove("hidden");
+    }
+
+    function mostrarConfirmacion(pendiente, resumen, avisos) {
+      edicion.pendiente = pendiente;
+      $("edicion-resumen").textContent = resumen;
+      $("edicion-avisos").innerHTML = avisos.map(a => `<li>${esc(a)}</li>`).join("");
+      $("edicion-avisos").classList.toggle("hidden", avisos.length === 0);
+      $("edicion-formulario").classList.add("hidden");
+      $("edicion-confirmacion").classList.remove("hidden");
+    }
+
+    function abrirEdicion(docId, visitaNumero) {
+      const f = filasPlanes.find(x => x.docId === docId && String(x.visitaNumero) === String(visitaNumero));
+      if (!f || !puedeEditar || !visitaEditable(f)) return;
+      edicion = { f, pendiente: null };
+      $("edicion-titulo").textContent = `Editar visita · ${f.cliente}`;
+      $("edicion-detalle").textContent = `Orden ${f.numeroOrden} · Visita ${f.visitaTexto} · ${f.cementerio}`;
+      $("edicion-fecha").value = f.fechaIso || "";
+      const opciones = opcionesOperador(docsStaff, { actual: f.operador });
+      $("edicion-operador").innerHTML = opciones.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("");
+      $("edicion-operador").value = opciones.includes(f.operador) ? f.operador : SIN_ASIGNAR;
+      mostrarErrorEdicion("");
+      mostrarFormularioEdicion();
+      pintarBotonesEdicion();
+      $("modal-edicion").classList.remove("hidden");
+    }
+
+    function cerrarEdicion() {
+      if (edicionEnCurso) return; // mientras guarda no se cierra
+      $("modal-edicion").classList.add("hidden");
+      edicion = null;
+    }
+
+    function pedirConfirmacionFecha() {
+      if (!edicion || edicionEnCurso) return;
+      const { f } = edicion;
+      const orden = ordenesPagadas.find(o => o.id === f.docId);
+      const fechaIso = $("edicion-fecha").value;
+      const v = validarCambioFecha({ fechaIso, actualIso: f.fechaIso, esTentativa: f.esTentativa, pagoIso: orden ? fechaPagoDeOrden(orden.data) : null, feriados, diaRuta: f.diaRuta });
+      if (!v.ok) { mostrarErrorEdicion(v.errores.join(" ")); return; }
+      mostrarErrorEdicion("");
+      mostrarConfirmacion({ tipo: "fecha", fechaIso }, confirmacionFecha(f.fechaIso ? f.fechaTexto : "", fechaIso), v.avisos);
+    }
+
+    function pedirConfirmacionOperador() {
+      if (!edicion || edicionEnCurso) return;
+      const { f } = edicion;
+      const opciones = opcionesOperador(docsStaff, { actual: f.operador });
+      const v = validarCambioOperador({ operador: $("edicion-operador").value, actual: f.operador, opciones });
+      if (!v.ok) { mostrarErrorEdicion(v.errores.join(" ")); return; }
+      mostrarErrorEdicion("");
+      mostrarConfirmacion({ tipo: "operador", operador: v.valor }, confirmacionOperador(f.operador, v.valor), []);
+    }
+
+    async function confirmarEdicion() {
+      if (edicionEnCurso || !edicion || !edicion.pendiente || !puedeEditar) return;
+      const { f, pendiente } = edicion;
+      const resumen = $("edicion-resumen").textContent;
+      edicionEnCurso = true;
+      pintarBotonesEdicion();
+      mostrarErrorEdicion("");
+      try {
+        const base = { actualizar: updateDoc, referencia: (id) => doc(db, "ordenes", id), ordenDocId: f.docId, claveVisita: `V${f.visitaNumero}` };
+        const payload = pendiente.tipo === "fecha"
+          ? await guardarCambioFecha({ ...base, fechaIso: pendiente.fechaIso })
+          : await guardarCambioOperador({ ...base, operador: pendiente.operador });
+        // Guardado: se actualiza la copia local de la orden y se repinta sin recargar (los filtros se conservan).
+        const i = ordenesPagadas.findIndex(o => o.id === f.docId);
+        if (i >= 0) ordenesPagadas[i] = { id: f.docId, data: aplicarCambioEnOrden(ordenesPagadas[i].data, payload) };
+        reconstruirFilas();
+        pintarTodo();
+        $("modal-edicion").classList.add("hidden");
+        edicion = null;
+        avisoPagina(`${pendiente.tipo === "fecha" ? "Fecha" : "Operador"} actualizado · orden ${f.numeroOrden}, visita ${f.visitaTexto}: ${resumen}`, "ok");
+      } catch (e) {
+        mostrarFormularioEdicion();
+        mostrarErrorEdicion("No se pudo guardar el cambio. La visita queda como estaba." + (e && e.code ? ` (${e.code})` : ""));
+      } finally {
+        edicionEnCurso = false;
+        pintarBotonesEdicion();
+      }
+    }
+
+    $("tbody-planes").addEventListener("click", (e) => {
+      const boton = e.target.closest('button[data-accion="editar-visita"]');
+      if (boton) abrirEdicion(boton.dataset.doc, boton.dataset.visita);
+    });
+    $("edicion-guardar-fecha").addEventListener("click", pedirConfirmacionFecha);
+    $("edicion-guardar-operador").addEventListener("click", pedirConfirmacionOperador);
+    $("edicion-confirmar").addEventListener("click", confirmarEdicion);
+    $("edicion-volver").addEventListener("click", mostrarFormularioEdicion);
+    $("edicion-cerrar").addEventListener("click", cerrarEdicion);
+    $("modal-edicion").addEventListener("click", (e) => { if (e.target === $("modal-edicion")) cerrarEdicion(); });
 
     document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => cambiarPestana(btn.dataset.tab)));
     $("btn-reintentar").addEventListener("click", () => cargarDatos());
@@ -985,7 +1188,7 @@
     // Detalle de la visita: botón, clic fuera y Escape
     $("modal-visita-cerrar").addEventListener("click", cerrarDetalleVisita);
     $("modal-visita").addEventListener("click", (e) => { if (e.target === $("modal-visita")) cerrarDetalleVisita(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarDetalleVisita(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { cerrarDetalleVisita(); cerrarEdicion(); } });
 
     cambiarPestana(pestanaActiva);
 

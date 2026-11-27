@@ -49,7 +49,7 @@ test('los módulos compartidos se llaman con la forma que esperan', () => {
 
 test('las lecturas auxiliares (contratos, informes, staff) no tumban la pantalla si fallan', () => {
   assert.match(html, /async function leerIndiceInformes\(\) \{\s*try \{/);
-  assert.match(html, /async function leerOperadores\(\) \{\s*const nombres = \[\];\s*try \{/);
+  assert.match(html, /async function leerOperadores\(\) \{\s*const nombres = \[\];\s*docsStaff = \[\];\s*try \{/); // spec 085: guarda también los documentos del personal
   assert.match(html, /<button type="button" id="btn-reintentar"/);
 });
 
@@ -64,13 +64,16 @@ test('exige staff antes de cargar datos y filtra las órdenes pagadas antes de l
   assert.equal(html.split('getDocs(collection(db, "ordenes"))').length - 1, 1);
 });
 
-test('solo escribe los valores de ramos (etapa 2) y, desde la spec 057, el borrador de orden de compra del día: ninguna otra escritura y nunca fechasProgramadas', () => {
-  assert.doesNotMatch(html, /\b(updateDoc|addDoc|deleteDoc|writeBatch)\b/);
+test('solo escribe los valores de ramos (etapa 2), el borrador de orden de compra del día (spec 057) y, desde la spec 085, la fecha y el operador de UNA visita vía planificacion-edicion-db: ninguna otra escritura y nunca fechasProgramadas', () => {
+  assert.doesNotMatch(html, /\b(addDoc|deleteDoc|writeBatch)\b/);
+  // spec 085: updateDoc solo aparece en el import y se inyecta una vez a los módulos de edición (las claves las arma el módulo, no la página)
+  assert.equal([...html.matchAll(/\bupdateDoc\b/g)].length, 2);
+  assert.equal([...html.matchAll(/\bactualizar: updateDoc\b/g)].length, 1);
   // spec 057: la única transacción es la de crearBorradorDia (el import y la inyección), y solo escribe en ordenesCompraBorradores
   assert.equal([...html.matchAll(/\brunTransaction\b/g)].length, 2, 'runTransaction: el import y la inyección para crear el borrador');
   assert.equal([...html.matchAll(/\bcrearBorradorDia\(/g)].length, 1);
   // setDoc solo aparece en el import y como `guardar: setDoc` (la única escritura, de valores_ramos/compra)
-  const sinPermitidos = html.replace('getFirestore, collection, getDocs, getDoc, doc, setDoc }', '').replace('guardar: setDoc', '');
+  const sinPermitidos = html.replace('getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc }', '').replace('guardar: setDoc', '');
   assert.doesNotMatch(sinPermitidos, /\bsetDoc\b/);
   assert.doesNotMatch(html + js, /fechasProgramadas/);
   assert.doesNotMatch(js, /construirActualizacionFecha|guardarFechaVisitaEnOrden/);
@@ -157,8 +160,9 @@ test('B5: la lista de Planes trae las columnas Tipo de servicio, Ramos adicional
   const orden = ['Plan', 'Tipo de servicio', 'Visita', 'Ramos adicionales', 'Cementerio', 'Eje', 'Operador', 'Estado'].map((t) => cabecera.indexOf(`>${t}</th>`));
   assert.ok(orden.every((i) => i > 0), JSON.stringify(orden));
   assert.deepEqual([...orden].sort((x, y) => x - y), orden);
-  assert.equal((cabecera.match(/<th /g) || []).length, 12);
-  assert.match(html, /colspan="12" class="py-8/);
+  assert.equal((cabecera.match(/<th /g) || []).length, 13); // 12 + «Acciones» (spec 085), oculta salvo para dueño y administrador
+  assert.match(cabecera, /<th id="th-acciones-planes" class="hidden /);
+  assert.match(html, /colspan="\$\{puedeEditar \? 13 : 12\}" class="py-8/);
   assert.match(html, /\$\{esc\(f\.nivel\)\}/);
   assert.match(html, /\$\{esc\(f\.ramosAdicionales\)\}/);
   assert.match(html, /\$\{esc\(f\.eje\)\}/);
@@ -191,7 +195,7 @@ test('B5: una lectura que falla (rutas, feriados) no tumba la pantalla: se avisa
   assert.match(html, /No se pudieron leer los feriados/);
 });
 
-test('B5: sigue sin reprogramar ni asignar operador, y los módulos de la etapa 1 no escriben: nada que ocultar a un operador', () => {
+test('B5: los módulos de la etapa 1 no escriben y la página no arma claves de mapas ni «reprograma»: lo único que escribe pasa por planificacion-edicion-db (spec 085)', () => {
   const todo = NUEVOS.map((n) => lee(`js/${n}.js`)).join('\n') + html;
   assert.doesNotMatch(NUEVOS.map((n) => lee(`js/${n}.js`)).join('\n'), /\b(updateDoc|setDoc|addDoc|deleteDoc|writeBatch|runTransaction)\b/);
   assert.doesNotMatch(todo, /operadoresPorVisita\s*[:=]|fechasPorVisita\s*[:=]|guardarEstadoVisita|moverTareaACasillero|reprogramar/i);
