@@ -145,6 +145,7 @@
               <th class="py-3.5 px-3">Cementerio</th>
               <th class="py-3.5 px-3">Operador</th>
               <th class="py-3.5 px-3">Estado</th>
+              <th id="th-acciones-spot" class="hidden py-3.5 px-3">Acciones</th>
             </tr>
           </thead>
           <tbody id="tbody-spot" class="divide-y divide-slate-100"></tbody>
@@ -461,7 +462,7 @@
     import { estadoDiasCompra, borradorDesdeDia, idBorrador, textoErrorBorrador } from "./js/compra-dia.js?v=057";
     import { COLECCION_BORRADORES, crearBorradorDia } from "./js/ordenes-compra-db.js?v=057"; // única otra escritura: ordenesCompraBorradores/AAAA-MM-DD
     // Spec 085 (B7): cambiar la fecha y asignar el operador de UNA visita (dueño y administrador). Solo se escriben las claves de esa visita.
-    import { SIN_ASIGNAR, puedeEditarPlanificacion, visitaEditable, opcionesOperador, fechaPagoDeOrden, validarCambioFecha, validarCambioOperador, confirmacionFecha, confirmacionOperador, aplicarCambioEnOrden } from "./js/planificacion-edicion.js?v=085";
+    import { SIN_ASIGNAR, puedeEditarPlanificacion, visitaEditable, opcionesOperador, textoVisitaEdicion, fechaPagoDeOrden, validarCambioFecha, validarCambioOperador, confirmacionFecha, confirmacionOperador, aplicarCambioEnOrden } from "./js/planificacion-edicion.js?v=085b";
     import { guardarCambioFecha, guardarCambioOperador } from "./js/planificacion-edicion-db.js?v=085";
 
     const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
@@ -553,10 +554,10 @@
     }
 
     // Botón de la fila: solo si el usuario puede editar Y la visita no está realizada ni aprobada.
-    function celdaAcciones(f) {
+    function celdaAcciones(f, lista = "planes") {
       if (!puedeEditar) return "";
       if (!visitaEditable(f)) return '<td class="py-3 px-3 whitespace-nowrap text-slate-400">—</td>';
-      return `<td class="py-3 px-3 whitespace-nowrap"><button type="button" data-accion="editar-visita" data-doc="${esc(f.docId)}" data-visita="${esc(f.visitaNumero)}" class="px-2.5 py-1 rounded-lg border border-[#002d1a] text-[#002d1a] text-[11px] font-bold hover:bg-[#002d1a] hover:text-white transition">Editar</button></td>`;
+      return `<td class="py-3 px-3 whitespace-nowrap"><button type="button" data-accion="editar-visita" data-lista="${esc(lista)}" data-doc="${esc(f.docId)}" data-visita="${esc(f.visitaNumero)}" class="px-2.5 py-1 rounded-lg border border-[#002d1a] text-[#002d1a] text-[11px] font-bold hover:bg-[#002d1a] hover:text-white transition">Editar</button></td>`;
     }
 
     function renderPlanes() {
@@ -591,6 +592,7 @@
     }
 
     function renderSpot() {
+      $("th-acciones-spot").classList.toggle("hidden", !puedeEditar);
       const filtradas = filtrarSpot(filasSpot, {
         busqueda: $("spot-busqueda").value,
         cementerio: $("spot-cementerio").value,
@@ -598,7 +600,7 @@
       });
       $("contador-spot").textContent = String(filtradas.length);
       $("tbody-spot").innerHTML = filtradas.length === 0
-        ? '<tr><td colspan="7" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>'
+        ? `<tr><td colspan="${puedeEditar ? 8 : 7}" class="py-8 text-center text-slate-400">No hay visitas para mostrar con los filtros actuales.</td></tr>`
         : filtradas.map(f => `
           <tr class="hover:bg-slate-50 transition">
             ${celdaFecha(f)}
@@ -608,6 +610,7 @@
             <td class="py-3 px-3 text-slate-700">${esc(f.cementerio)}</td>
             <td class="py-3 px-3 text-slate-700">${esc(f.operador)}</td>
             ${celdaEstado(f)}
+            ${celdaAcciones(f, "spot")}
           </tr>`).join("");
     }
 
@@ -1021,12 +1024,12 @@
       $("edicion-confirmacion").classList.remove("hidden");
     }
 
-    function abrirEdicion(docId, visitaNumero) {
-      const f = filasPlanes.find(x => x.docId === docId && String(x.visitaNumero) === String(visitaNumero));
+    function abrirEdicion(docId, visitaNumero, lista) {
+      const f = (lista === "spot" ? filasSpot : filasPlanes).find(x => x.docId === docId && String(x.visitaNumero) === String(visitaNumero));
       if (!f || !puedeEditar || !visitaEditable(f)) return;
       edicion = { f, pendiente: null };
       $("edicion-titulo").textContent = `Editar visita · ${f.cliente}`;
-      $("edicion-detalle").textContent = `Orden ${f.numeroOrden} · Visita ${f.visitaTexto} · ${f.cementerio}`;
+      $("edicion-detalle").textContent = `Orden ${f.numeroOrden} · ${textoVisitaEdicion(f)} · ${f.cementerio}`;
       $("edicion-fecha").value = f.fechaIso || "";
       const opciones = opcionesOperador(docsStaff, { actual: f.operador });
       $("edicion-operador").innerHTML = opciones.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("");
@@ -1083,7 +1086,7 @@
         pintarTodo();
         $("modal-edicion").classList.add("hidden");
         edicion = null;
-        avisoPagina(`${pendiente.tipo === "fecha" ? "Fecha" : "Operador"} actualizado · orden ${f.numeroOrden}, visita ${f.visitaTexto}: ${resumen}`, "ok");
+        avisoPagina(`${pendiente.tipo === "fecha" ? "Fecha actualizada" : "Operador actualizado"} · orden ${f.numeroOrden} · ${textoVisitaEdicion(f)}: ${resumen}`, "ok");
       } catch (e) {
         mostrarFormularioEdicion();
         mostrarErrorEdicion("No se pudo guardar el cambio. La visita queda como estaba." + (e && e.code ? ` (${e.code})` : ""));
@@ -1093,10 +1096,12 @@
       }
     }
 
-    $("tbody-planes").addEventListener("click", (e) => {
+    function alHacerClicEnTabla(e) {
       const boton = e.target.closest('button[data-accion="editar-visita"]');
-      if (boton) abrirEdicion(boton.dataset.doc, boton.dataset.visita);
-    });
+      if (boton) abrirEdicion(boton.dataset.doc, boton.dataset.visita, boton.dataset.lista);
+    }
+    $("tbody-planes").addEventListener("click", alHacerClicEnTabla);
+    $("tbody-spot").addEventListener("click", alHacerClicEnTabla);
     $("edicion-guardar-fecha").addEventListener("click", pedirConfirmacionFecha);
     $("edicion-guardar-operador").addEventListener("click", pedirConfirmacionOperador);
     $("edicion-confirmar").addEventListener("click", confirmarEdicion);
