@@ -202,3 +202,13 @@ test('filtros de Planes (búsqueda, cementerio, operador, estado) y de Spot (bú
   assert.equal(filtrarSpot(spot, { cementerio: 'Parque A' }).length, 1);
   assert.equal(filtrarSpot(spot, {}).length, 2);
 });
+
+// Spec 085: la fila lleva la clave del estado (no solo la etiqueta) para saber si la visita ya está cerrada y se puede editar.
+test('cada fila de Planes y de Spot trae estadoClave (pendiente / asignado), además de la etiqueta', () => {
+  const plan = construirFilasPlanificacion([ord('p', { numeroOrden: 'N-4', servicio: { planNombre: 'Plan 4' }, fechaCreacion: '2026-01-15', operadoresPorVisita: { V2: 'Ana' } })]);
+  assert.equal(plan.planes[0].estadoClave, 'pendiente');
+  assert.equal(plan.planes[1].estadoClave, 'asignado');
+  assert.equal(plan.planes[1].estado, 'Asignado');
+  const spot = construirFilasPlanificacion([ord('s', { numeroOrden: 'N-S', tipoServicio: 'SPOT', operadoresPorVisita: { V1: 'Ana' } })]);
+  assert.equal(spot.spot[0].estadoClave, 'asignado');
+});
