@@ -1047,9 +1047,9 @@
         return `
           <tr style="${estiloFila}">
             <td style="padding: 0.35rem 0.5rem;">${NOMBRES_MESES[idx].substring(0, 3)}</td>
-            <td style="padding: 0.35rem 0.5rem; text-align: right; color: #475569;">${formatearDinero(d.debito)}</td>
-            <td style="padding: 0.35rem 0.5rem; text-align: right; color: #475569;">${formatearDinero(d.credito)}</td>
-            <td style="padding: 0.35rem 0.5rem; text-align: right;">${saldoTxt}</td>
+            <td style="padding: 0.35rem 0.5rem; text-align: right; white-space: nowrap; color: #475569;">${formatearDinero(d.debito)}</td>
+            <td style="padding: 0.35rem 0.5rem; text-align: right; white-space: nowrap; color: #475569;">${formatearDinero(d.credito)}</td>
+            <td style="padding: 0.35rem 0.5rem; text-align: right; white-space: nowrap;">${saldoTxt}</td>
           </tr>
         `;
       }).join("");
@@ -1178,9 +1178,9 @@
               <span style="font-size: 0.75rem; color: #64748b;">${esc(m.rut)}</span>
             </td>
             <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${esc(m.categoria)}</span></td>
-            <td style="text-align: right; font-weight: 600;">${formatearDinero(m.neto)}</td>
-            <td style="text-align: right; color: #475569;">${formatearDinero(m.impuesto)}</td>
-            <td style="text-align: right; font-weight: 800; color: ${colorTipo};">${formatearDinero(m.total)}</td>
+            <td style="text-align: right; white-space: nowrap; font-weight: 600;">${formatearDinero(m.neto)}</td>
+            <td style="text-align: right; white-space: nowrap; color: #475569;">${formatearDinero(m.impuesto)}</td>
+            <td style="text-align: right; white-space: nowrap; font-weight: 800; color: ${colorTipo};">${formatearDinero(m.total)}</td>
             <td style="text-align: right;">
               <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${m.origen === 'Webpay' ? '#dbeafe' : '#f1f5f9'}; color: ${m.origen === 'Webpay' ? '#1e40af' : '#475569'};">
                 ${esc(m.origen)}
