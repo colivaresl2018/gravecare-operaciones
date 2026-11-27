@@ -185,8 +185,10 @@ test('spec 058: el modal de la OC tiene «Enviar por correo» junto a «Imprimir
 
 test('spec 058: el SDK de Functions 10.7.0 se carga solo aquí y bajo demanda (si falla, la pantalla de órdenes sigue)', () => {
   const url = 'https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js';
-  assert.equal(html.split(url).length - 1, 1, 'una sola referencia a firebase-functions.js');
-  assert.match(html, new RegExp(`await import\\("${url.replace(/[.\/]/g, '\\$&')}"\\)`), 'import dinámico');
+  // Dos usos, ambos bajo demanda: enviar la OC por correo (spec 058) y crear el borrador desde una factura con IA (spec 082, etapa 2).
+  assert.equal(html.split(url).length - 1, 2, 'dos referencias a firebase-functions.js (correo y factura con IA)');
+  const importDinamico = new RegExp(`await import\\("${url.replace(/[.\/]/g, '\\$&')}"\\)`, 'g');
+  assert.equal([...html.matchAll(importDinamico)].length, 2, 'ambas son import dinámico');
   assert.doesNotMatch(html, /import\s*\{[^}]*\}\s*from\s*"[^"]*firebase-functions\.js"/, 'sin import estático');
   const otras = ['index.html', 'portal.html', 'planificacion-servicios.html', 'rutas-feriados.html', 'clientes.html'].filter((f) => existsSync(join(PUBLIC, f)));
   for (const f of otras) assert.ok(!lee(f).includes('firebase-functions'), `${f} no debe cargar el SDK de Functions`);
